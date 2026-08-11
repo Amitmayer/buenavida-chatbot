@@ -21,6 +21,7 @@ ANTHROPIC_URL = "https://api.anthropic.com/v1/messages"
 # Only these genuinely can't be inferred and must be supplied by the user.
 # (Title and details are always derived from the request, never asked for.)
 REQUIRED_FOR_CREATE = {
+    "owner": "who it's assigned to",
     "due": "a due date",
     "priority": "a priority (High, Medium, or Low)",
 }
@@ -110,7 +111,8 @@ TOOLS = [
 def _create_task_guarded(title=None, owner=None, due=None, priority=None,
                          status=None, notes=None):
     """Refuse to create a task unless required fields are present."""
-    values = {"title": title, "due": due, "priority": priority, "notes": notes}
+    values = {"title": title, "owner": owner, "due": due,
+              "priority": priority, "notes": notes}
     missing = [label for field, label in REQUIRED_FOR_CREATE.items() if not values[field]]
     if missing:
         return {
@@ -147,13 +149,19 @@ def _system_prompt(sender_name: str) -> str:
         "is in Spanish, answer entirely in Spanish (including section headings "
         "and any question you ask); if it's in English, answer in English. "
         "Match each message's language independently.\n"
-        "- When asked to create/assign a task: write a concise TITLE yourself, "
-        "take the OWNER from the message, and use the message as the "
-        "DETAILS/notes. Never ask for a title or for details \u2014 infer them. The "
-        "ONLY things you may ask the user for are the DUE DATE and the PRIORITY "
-        "(High/Medium/Low), and only when they're missing. Ask for the missing "
-        "one(s) in ONE short question and wait; do not invent a due date or "
-        "priority.\n"
+        "- When asked to create/assign a task: write a concise TITLE yourself "
+        "and use the message as the DETAILS/notes. Never ask for a title or for "
+        "details \u2014 infer them. The ONLY things you may ask the user for are the "
+        "OWNER (who it's assigned to), the DUE DATE, and the PRIORITY "
+        "(High/Medium/Low), and only when they're missing. Do not invent an "
+        "owner, due date, or priority.\n"
+        "- ASK FOR EVERYTHING MISSING AT ONCE. Before creating anything, scan "
+        "EVERY task in the request and gather ALL missing fields (owner, due "
+        "date, priority) across ALL of them. Ask for every gap in ONE "
+        "consolidated, numbered message grouped by task, then wait. Never ask in "
+        "separate waves, and never create some tasks while others in the same "
+        "request are still missing info \u2014 collect all the answers first, then "
+        "create every task together.\n"
         "- Use the earlier messages in this conversation for context: if the "
         "user already said who/what in a previous message and is now replying "
         "with the due date or priority, combine them and create the task \u2014 do "

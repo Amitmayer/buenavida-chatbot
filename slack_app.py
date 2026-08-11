@@ -228,17 +228,22 @@ def _respond(event, say, client, command, *, manage_window: bool) -> None:
         return  # DMs already read every message, so no window is needed
 
     wkey = _window_key(event)
-    if status == "created":
-        _clear_pending(wkey)  # got what we needed — stop listening
-        log.info("window cleared for %s (task created)", wkey)
-    elif _is_asking(status, answer):
-        # Bot is waiting on the person: read their next (untriggered) replies and
-        # nudge them if they go quiet.
+    if _is_asking(status, answer):
+        # Bot is still waiting on the person — keep listening for their next
+        # (untriggered) reply and nudge if they go quiet. Checked BEFORE the
+        # 'created' case ON PURPOSE: one turn can BOTH create some tasks and still
+        # ask about others (e.g. a batch where only a few were complete), in which
+        # case status collapses to 'created'. If we checked 'created' first we'd
+        # close the window while the bot is still asking, and the person's next
+        # answer would go unheard.
         _open_window(
             wkey, client,
             event.get("channel"), event.get("thread_ts"), event.get("user"),
             answer,
         )
+    elif status == "created":
+        _clear_pending(wkey)  # done — task made and nothing left to ask
+        log.info("window cleared for %s (task created)", wkey)
     else:
         _clear_pending(wkey)  # a plain answer, nothing to wait for
         log.info("window cleared for %s (plain reply, status=%s)", wkey, status)
