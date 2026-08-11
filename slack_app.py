@@ -346,19 +346,50 @@ def _respond(event, say, client, command, *, manage_window: bool) -> None:
         log.info("window cleared for %s (plain reply, status=%s)", wkey, status)
 
 
+# Task-creation fields the bot asks about when a new task is missing info. If a
+# reply is a QUESTION mentioning one of these, it's almost certainly waiting on
+# the person to fill a gap (due date / priority / owner). Kept tight on purpose.
+_ASK_FIELD_HINTS = (
+    "due date", "priority", "when should", "when is",
+    "who ", "who's", "whom", "assign", "owner",
+    # Spanish
+    "fecha", "prioridad", "quién", "quien", "cuándo", "cuando", "responsable",
+)
+
+
+def _looks_like_listing(text: str) -> bool:
+    """A task listing has bullet/day-group structure. We must NOT treat its
+    trailing '...mark it done?' as an info request, or we'd re-open a window and
+    nudge someone on a reply they never owed."""
+    t = text or ""
+    return t.count("•") >= 2 or "Past due" in t or "Vencidas" in t
+
+
 def _is_asking(status: str, answer: str) -> bool:
     """Decide whether the bot's reply is waiting on the person for info.
 
-    We key off the STRUCTURAL 'needs_info' signal only, not the text of the
-    reply. Earlier versions scanned for a '?' / '¿' anywhere or the words
-    'due date'/'priority', but that over-fired: a plain query like "what's due
-    this week?" ends its listing with a question ("...mark it done?") and the
-    day-grouped format prints the literal word 'Priority' on every line — so the
-    heuristic re-opened a window and the 2-minute nudge @-mentioned the person on
-    a reply they never needed to answer. 'needs_info' is set only when the bot is
-    actually blocked creating a task (create_task returned needs_more_info), which
-    a query never triggers, so this is the reliable, language-agnostic signal."""
-    return status == "needs_info"
+    Primary signal is STRUCTURAL: 'needs_info' is set when create_task returns
+    needs_more_info, so we're provably blocked on a task field. But that depends
+    on the model calling create_task BEFORE it asks — Haiku sometimes just asks
+    the question in text and skips the tool call, leaving status='other'. In a
+    channel that meant no listening window opened and the person's untriggered
+    answer ('today high') went unheard.
+
+    So we ADD a narrow text fallback: if the reply is a question that mentions a
+    task-creation field (due date / priority / owner) and is NOT a task listing,
+    treat it as waiting too. The listing guard is what kept the old text-scan from
+    over-firing; we keep it, and require an actual field hint (not just any '?')."""
+    if status == "needs_info":
+        return True
+    if status == "created":
+        return False  # a task was made; don't re-open on a confirmation
+    text = answer or ""
+    if "?" not in text and "¿" not in text:
+        return False
+    if _looks_like_listing(text):
+        return False
+    low = text.lower()
+    return any(h in low for h in _ASK_FIELD_HINTS)
 
 
 @app.event("app_mention")
