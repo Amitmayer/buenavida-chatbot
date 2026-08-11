@@ -182,7 +182,8 @@ def _system_prompt(sender_name: str) -> str:
         "- After a tool runs, reply in plain, concise text suitable for chat. "
         "List tasks as short lines like '\u2022 <task> \u2014 <owner>, due <date> "
         "(<priority>, <status>)'. Skip empty fields. Confirm creations with the "
-        "task name and a link if available."
+        "task name only. Do NOT include a Notion link or URL in any reply — "
+        "not everyone has Notion access."
     )
 
 
@@ -205,12 +206,22 @@ def _call_claude(messages: list, system: str) -> dict:
     return resp.json()
 
 
+def _strip_urls(obj):
+    """Recursively drop any 'url' keys so Notion links never reach Claude
+    (and therefore never reach the chat reply). Not everyone has Notion access."""
+    if isinstance(obj, dict):
+        return {k: _strip_urls(v) for k, v in obj.items() if k != "url"}
+    if isinstance(obj, list):
+        return [_strip_urls(v) for v in obj]
+    return obj
+
+
 def _run_tool(name: str, args: dict):
     impl = TOOL_IMPLS.get(name)
     if not impl:
         return {"error": f"Unknown tool: {name}"}
     try:
-        return impl(**args)
+        return _strip_urls(impl(**args))
     except Exception as exc:
         return {"error": str(exc)}
 
