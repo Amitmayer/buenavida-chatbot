@@ -131,9 +131,31 @@ def _date_filter(condition: str, value: str) -> Optional[dict]:
     return {"property": meta["name"], "date": {condition: value}}
 
 
+# Statuses that count as "finished". Anything whose status matches one of these
+# (case-insensitive) is treated as complete and excluded when incomplete=True.
+DONE_STATUSES = {"done", "complete", "completed", "cancelled", "canceled", "archived"}
+
+
+def _is_done(task: dict) -> bool:
+    st = (task.get("status") or "").strip().lower()
+    return st in DONE_STATUSES
+
+
+def _owner_sort_key(task: dict):
+    """Sort by owner name; put tasks with no owner last."""
+    owner = task.get("owner")
+    if isinstance(owner, list):
+        owner = ", ".join(owner)
+    owner = (owner or "").strip()
+    return (owner == "", owner.lower())
+
+
 def query_tasks(owner=None, status=None, priority=None, due_on=None,
-                due_before=None, due_after=None, search=None, limit=None) -> list[dict]:
-    """Query tasks with optional filters. Returns plain task dicts incl. id."""
+                due_before=None, due_after=None, search=None, limit=None,
+                incomplete=False) -> list[dict]:
+    """Query tasks with optional filters. Returns plain task dicts incl. id,
+    sorted by owner. Pass incomplete=True to return every task that is NOT
+    finished (any status other than Done/Complete/Cancelled/Archived)."""
     conditions = []
     for field, val in (("owner", owner), ("status", status), ("priority", priority)):
         if val:
@@ -152,16 +174,35 @@ def query_tasks(owner=None, status=None, priority=None, due_on=None,
             conditions.append(f)
     conditions = [c for c in conditions if c]
 
+    # When asking for incomplete tasks, page through everything so the
+    # client-side "not done" filter sees the full database, not just one page.
     body: dict = {"page_size": limit or config.QUERY_PAGE_SIZE}
     if conditions:
         body["filter"] = {"and": conditions} if len(conditions) > 1 else conditions[0]
 
     db_id = config.require("NOTION_DATABASE_ID", config.NOTION_DATABASE_ID)
-    resp = requests.post(f"{API_BASE}/databases/{db_id}/query",
-                         headers=_headers(), json=body, timeout=30)
-    if resp.status_code >= 400:
-        raise RuntimeError(f"Notion query failed ({resp.status_code}): {resp.text}")
-    return [_parse_page(p) for p in resp.json().get("results", [])]
+    tasks: list[dict] = []
+    cursor = None
+    while True:
+        if cursor:
+            body["start_cursor"] = cursor
+        resp = requests.post(f"{API_BASE}/databases/{db_id}/query",
+                             headers=_headers(), json=body, timeout=30)
+        if resp.status_code >= 400:
+            raise RuntimeError(f"Notion query failed ({resp.status_code}): {resp.text}")
+        data = resp.json()
+        tasks.extend(_parse_page(p) for p in data.get("results", []))
+        # Only paginate when we need the whole DB (incomplete) and no explicit limit.
+        if incomplete and not limit and data.get("has_more"):
+            cursor = data.get("next_cursor")
+            continue
+        break
+
+    if incomplete:
+        tasks = [t for t in tasks if not _is_done(t)]
+
+    tasks.sort(key=_owner_sort_key)
+    return tasks
 
 
 def _read_property(prop: dict) -> Any:

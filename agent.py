@@ -53,6 +53,32 @@ TOOLS = [
         },
     },
     {
+        "name": "query_tasks",
+        "description": (
+            "Look up tasks in Notion. Use this whenever the user asks what "
+            "exists, what's outstanding, what's due, or before updating a task. "
+            "All filters are optional — call it with NO filters (or just "
+            "incomplete=true) to list everything; do NOT ask the user for a "
+            "filter first. To list every task that isn't finished, set "
+            "incomplete=true. Results always come back sorted by owner."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "incomplete": {"type": "boolean", "description": "True to return only tasks that are NOT done (any status other than Done/Complete/Cancelled/Archived). Use this for 'what's left', 'outstanding', 'not completed', 'still open'."},
+                "owner": {"type": "string", "description": "Filter to one person's tasks."},
+                "status": {"type": "string", "description": "Filter to an exact status, e.g. 'In progress'."},
+                "priority": {"type": "string", "description": "Filter by priority: High, Medium, or Low."},
+                "due_on": {"type": "string", "description": "Tasks due on this exact date, YYYY-MM-DD."},
+                "due_before": {"type": "string", "description": "Tasks due on or before this date, YYYY-MM-DD."},
+                "due_after": {"type": "string", "description": "Tasks due on or after this date, YYYY-MM-DD."},
+                "search": {"type": "string", "description": "Keyword to match in the task title."},
+                "limit": {"type": "integer", "description": "Max number of tasks to return. Omit to return all."},
+            },
+            "required": [],
+        },
+    },
+    {
         "name": "update_task",
         "description": (
             "Update an existing task or mark it complete. You must first call "
@@ -130,8 +156,15 @@ def _system_prompt(sender_name: str) -> str:
         "a concrete YYYY-MM-DD date using today's date.\n"
         "- If create_task returns needs_more_info, ask the user only for the "
         "listed missing fields and try again once they reply.\n"
-        "- When asked about existing work, call query_tasks with the relevant "
-        "filters. For 'due today', set due_on to today's date.\n"
+        "- When asked about existing work, call query_tasks. NEVER refuse or ask "
+        "the user for a filter first — if they don't give one, call query_tasks "
+        "with no filters. For 'what's left', 'outstanding', 'not completed', or "
+        "'still open', call query_tasks with incomplete=true. For 'due today', "
+        "set due_on to today's date.\n"
+        "- When listing incomplete tasks or several people's tasks, GROUP the "
+        "reply by owner: a short bold/heading line with the person's name, then "
+        "their tasks as bullet lines underneath. Put tasks with no owner under "
+        "'Unassigned' last. Order people alphabetically.\n"
         "- To update a task or mark it complete: first call query_tasks to find "
         "it (by keyword and/or owner), take the matching task's 'id' from the "
         "results, then call update_task with that id. To complete a task, set "
