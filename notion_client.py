@@ -8,6 +8,7 @@ Operations:
 
 Everything adapts to the property TYPES declared in config.NOTION_SCHEMA.
 """
+from datetime import date
 from typing import Any, Optional
 import requests
 
@@ -141,23 +142,53 @@ def _is_done(task: dict) -> bool:
     return st in DONE_STATUSES
 
 
-def _owner_sort_key(task: dict):
-    """Sort by owner name; put tasks with no owner last."""
-    owner = task.get("owner")
-    if isinstance(owner, list):
-        owner = ", ".join(owner)
-    owner = (owner or "").strip()
-    return (owner == "", owner.lower())
+def _first_token(name: str) -> str:
+    name = (name or "").strip().lower()
+    return name.split()[0] if name else ""
+
+
+def _owner_matches(task_owner, requested: str) -> bool:
+    """Fuzzy-match a Notion owner against a requester name (e.g. a Slack
+    username). Matches on exact (case-insensitive), first-name, or substring, so
+    'Amit Mayer' from Slack still matches a Notion owner of 'Amit'."""
+    if not requested:
+        return True
+    owners = task_owner if isinstance(task_owner, list) else [task_owner]
+    r = requested.strip().lower()
+    r0 = _first_token(requested)
+    for o in owners:
+        a = str(o or "").strip().lower()
+        if not a:
+            continue
+        if a == r or r in a or a in r:
+            return True
+        if r0 and r0 == _first_token(a):
+            return True
+    return False
+
+
+def _due_sort_key(task: dict):
+    """Sort by due date ascending; tasks with no due date go last."""
+    due = (task.get("due") or "").strip()
+    return (due == "", due)
 
 
 def query_tasks(owner=None, status=None, priority=None, due_on=None,
                 due_before=None, due_after=None, search=None, limit=None,
                 incomplete=False) -> list[dict]:
-    """Query tasks with optional filters. Returns plain task dicts incl. id,
-    sorted by owner. Pass incomplete=True to return every task that is NOT
-    finished (any status other than Done/Complete/Cancelled/Archived)."""
+    """Query tasks with optional filters. Returns plain task dicts (each incl.
+    its id and a computed `overdue` flag), sorted by due date (earliest first,
+    no-due last).
+
+    - incomplete=True returns every task that is NOT finished (any status other
+      than Done/Complete/Cancelled/Archived).
+    - `owner` is matched fuzzily (case-insensitive, first-name or substring) so a
+      Slack username like 'Amit Mayer' matches a Notion owner of 'Amit'.
+    """
     conditions = []
-    for field, val in (("owner", owner), ("status", status), ("priority", priority)):
+    # owner is filtered client-side (fuzzy) below, NOT here, so Slack usernames
+    # that don't exactly equal the Notion owner value still match.
+    for field, val in (("status", status), ("priority", priority)):
         if val:
             f = _equals_filter(field, val)
             if f:
@@ -174,11 +205,13 @@ def query_tasks(owner=None, status=None, priority=None, due_on=None,
             conditions.append(f)
     conditions = [c for c in conditions if c]
 
-    # When asking for incomplete tasks, page through everything so the
-    # client-side "not done" filter sees the full database, not just one page.
     body: dict = {"page_size": limit or config.QUERY_PAGE_SIZE}
     if conditions:
         body["filter"] = {"and": conditions} if len(conditions) > 1 else conditions[0]
+
+    # Page through the whole DB when we filter client-side (incomplete/owner) and
+    # the caller didn't cap the result, so those filters see every task.
+    fetch_all = bool(incomplete or owner) and not limit
 
     db_id = config.require("NOTION_DATABASE_ID", config.NOTION_DATABASE_ID)
     tasks: list[dict] = []
@@ -192,16 +225,25 @@ def query_tasks(owner=None, status=None, priority=None, due_on=None,
             raise RuntimeError(f"Notion query failed ({resp.status_code}): {resp.text}")
         data = resp.json()
         tasks.extend(_parse_page(p) for p in data.get("results", []))
-        # Only paginate when we need the whole DB (incomplete) and no explicit limit.
-        if incomplete and not limit and data.get("has_more"):
+        if fetch_all and data.get("has_more"):
             cursor = data.get("next_cursor")
             continue
         break
 
     if incomplete:
         tasks = [t for t in tasks if not _is_done(t)]
+    if owner:
+        tasks = [t for t in tasks if _owner_matches(t.get("owner"), owner)]
 
-    tasks.sort(key=_owner_sort_key)
+    # Flag past-due tasks (due date strictly before today) so the caller can put
+    # them in their own section without redoing date math. Notion dates may be
+    # 'YYYY-MM-DD' or a full ISO timestamp, so compare only the date part.
+    today = date.today().isoformat()
+    for t in tasks:
+        due = (t.get("due") or "").strip()
+        t["overdue"] = bool(due) and due[:10] < today
+
+    tasks.sort(key=_due_sort_key)
     return tasks
 
 

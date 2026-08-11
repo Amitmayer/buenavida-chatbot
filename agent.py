@@ -60,13 +60,15 @@ TOOLS = [
             "All filters are optional — call it with NO filters (or just "
             "incomplete=true) to list everything; do NOT ask the user for a "
             "filter first. To list every task that isn't finished, set "
-            "incomplete=true. Results always come back sorted by owner."
+            "incomplete=true. Results come back sorted by due date (earliest "
+            "first), and each task includes an 'overdue' flag (true if its due "
+            "date is before today)."
         ),
         "input_schema": {
             "type": "object",
             "properties": {
-                "incomplete": {"type": "boolean", "description": "True to return only tasks that are NOT done (any status other than Done/Complete/Cancelled/Archived). Use this for 'what's left', 'outstanding', 'not completed', 'still open'."},
-                "owner": {"type": "string", "description": "Filter to one person's tasks."},
+                "incomplete": {"type": "boolean", "description": "True to return only tasks that are NOT done (any status other than Done/Complete/Cancelled/Archived). Use this for 'what's left', 'outstanding', 'not completed', 'still open', and for 'all current tasks'."},
+                "owner": {"type": "string", "description": "Filter to one person's tasks. Matched fuzzily, so pass the requester's name (e.g. their Slack name) to get their own tasks. Use this when someone asks for 'my tasks' or 'what am I assigned'."},
                 "status": {"type": "string", "description": "Filter to an exact status, e.g. 'In progress'."},
                 "priority": {"type": "string", "description": "Filter by priority: High, Medium, or Low."},
                 "due_on": {"type": "string", "description": "Tasks due on this exact date, YYYY-MM-DD."},
@@ -158,13 +160,20 @@ def _system_prompt(sender_name: str) -> str:
         "listed missing fields and try again once they reply.\n"
         "- When asked about existing work, call query_tasks. NEVER refuse or ask "
         "the user for a filter first — if they don't give one, call query_tasks "
-        "with no filters. For 'what's left', 'outstanding', 'not completed', or "
-        "'still open', call query_tasks with incomplete=true. For 'due today', "
-        "set due_on to today's date.\n"
-        "- When listing incomplete tasks or several people's tasks, GROUP the "
-        "reply by owner: a short bold/heading line with the person's name, then "
-        "their tasks as bullet lines underneath. Put tasks with no owner under "
-        "'Unassigned' last. Order people alphabetically.\n"
+        "with no filters. For 'what's left', 'outstanding', 'not completed', "
+        "'still open', or 'all current tasks', call query_tasks with "
+        "incomplete=true (this excludes tasks marked Done). For 'due today', set "
+        "due_on to today's date.\n"
+        f"- When someone asks for THEIR OWN tasks ('my tasks', 'what do I have', "
+        f"'what am I assigned'), call query_tasks with owner set to the sender's "
+        f"name ({sender_name}) and incomplete=true. The owner match is fuzzy, so "
+        "pass their name as-is.\n"
+        "- ORGANIZE every task listing BY DUE DATE, earliest first (the results "
+        "are already in that order). Put any tasks whose 'overdue' flag is true "
+        "in a separate section at the TOP titled 'Past due', then list the rest "
+        "under 'Upcoming'. Within each section keep due-date order. Omit the "
+        "'Past due' section entirely if nothing is overdue. Never show tasks "
+        "marked Done in these listings.\n"
         "- To update a task or mark it complete: first call query_tasks to find "
         "it (by keyword and/or owner), take the matching task's 'id' from the "
         "results, then call update_task with that id. To complete a task, set "

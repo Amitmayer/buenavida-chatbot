@@ -52,10 +52,48 @@ def _key(event: dict) -> str:
     return event.get("thread_ts") or event.get("channel") or "default"
 
 
-def _reply(text: str, key: str) -> str:
+# In a shared channel the bot stays SILENT unless a message starts with one of
+# these trigger prefixes (case-insensitive). This keeps it from reacting to (and
+# spending API calls on) every message in a channel with other people. DMs and
+# @mentions don't need a trigger.
+TRIGGER_PREFIXES = ("task:", "!task", "/task")
+
+
+def _triggered_command(text: str):
+    """If a channel message starts with a trigger prefix, return the command
+    text after it; otherwise return None so the bot stays silent."""
+    stripped = (text or "").lstrip()
+    low = stripped.lower()
+    for pfx in TRIGGER_PREFIXES:
+        if low.startswith(pfx):
+            return stripped[len(pfx):].strip()
+    return None
+
+
+def _sender_name(client, event) -> str:
+    """Resolve the Slack user id to a human name so the bot knows who is asking
+    (used to show someone their own tasks). Requires the users:read scope; falls
+    back to a generic label if unavailable."""
+    uid = event.get("user")
+    if not uid:
+        return "a teammate"
+    try:
+        prof = client.users_info(user=uid)["user"]
+        return (
+            prof.get("real_name")
+            or prof.get("profile", {}).get("display_name")
+            or prof.get("name")
+            or "a teammate"
+        )
+    except Exception:
+        log.warning("could not resolve user name for %s", uid)
+        return "a teammate"
+
+
+def _reply(text: str, key: str, sender_name: str = "a teammate") -> str:
     history = _CONV.get(key, [])
     try:
-        answer = agent.handle_message(text, "a teammate", history=history)
+        answer = agent.handle_message(text, sender_name, history=history)
     except Exception as exc:  # never let one bad message kill the listener
         log.exception("agent error")
         return f"Something went wrong: {exc}"
@@ -68,28 +106,41 @@ def _reply(text: str, key: str) -> str:
 
 
 @app.event("app_mention")
-def handle_mention(event, say):
+def handle_mention(event, say, client):
     """Triggered when someone @mentions the bot in a channel."""
     text = _clean(event.get("text", ""))
     if not text:
         say("Tell me what to do — e.g. \"what's due today?\"")
         return
-    say(_reply(text, _key(event)))
+    say(_reply(text, _key(event), _sender_name(client, event)))
 
 
 @app.event("message")
-def handle_message(event, say):
-    """Triggered on direct messages to the bot."""
-    # Only handle 1:1 DMs here (channel mentions go through app_mention).
-    if event.get("channel_type") != "im":
-        return
+def handle_message(event, say, client):
+    """DMs: respond to everything. Channels: respond only to messages that start
+    with a trigger word (see TRIGGER_PREFIXES)."""
     # Ignore the bot's own messages, edits, joins, etc. (prevents loops).
     if event.get("bot_id") or event.get("subtype"):
         return
     text = _clean(event.get("text", ""))
     if not text:
         return
-    say(_reply(text, _key(event)))
+
+    if event.get("channel_type") == "im":
+        command = text  # direct message: no trigger needed
+    else:
+        # Channel/group. If it's an @mention, let handle_mention own it.
+        if _MENTION.search(event.get("text", "")):
+            return
+        command = _triggered_command(text)
+        if command is None:
+            return  # not addressed to us — stay silent
+        if not command:
+            say("Add your request after the trigger, e.g. "
+                "`task: Itay take out the trash, Monday, low`")
+            return
+
+    say(_reply(command, _key(event), _sender_name(client, event)))
 
 
 if __name__ == "__main__":
