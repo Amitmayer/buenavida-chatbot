@@ -62,11 +62,57 @@ def _properties_from(incoming: dict) -> dict:
     return properties
 
 
+# Cache of the Owner select's existing option names, so we don't re-fetch the
+# database schema on every write. Owners rarely change; it refreshes on restart.
+_OWNER_OPTIONS_CACHE: Optional[list] = None
+
+
+def _owner_options() -> list:
+    """Return the option names already defined on the Owner property (a Notion
+    select). We use these to map a first name like 'Gally' onto the canonical
+    'Gally Mayer' option instead of creating a duplicate one."""
+    global _OWNER_OPTIONS_CACHE
+    if _OWNER_OPTIONS_CACHE is not None:
+        return _OWNER_OPTIONS_CACHE
+    meta = config.NOTION_SCHEMA.get("owner")
+    if not meta or meta["type"] != "select":
+        _OWNER_OPTIONS_CACHE = []
+        return _OWNER_OPTIONS_CACHE
+    try:
+        db_id = config.require("NOTION_DATABASE_ID", config.NOTION_DATABASE_ID)
+        resp = requests.get(f"{API_BASE}/databases/{db_id}",
+                            headers=_headers(), timeout=30)
+        if resp.status_code >= 400:
+            _OWNER_OPTIONS_CACHE = []
+        else:
+            prop = resp.json().get("properties", {}).get(meta["name"], {})
+            opts = prop.get("select", {}).get("options", [])
+            _OWNER_OPTIONS_CACHE = [o.get("name", "") for o in opts if o.get("name")]
+    except requests.RequestException:
+        _OWNER_OPTIONS_CACHE = []
+    return _OWNER_OPTIONS_CACHE
+
+
+def _canonical_owner(owner):
+    """Map an owner reference onto the EXISTING Notion option that means the same
+    person — matched case-insensitively by exact name, first name, or substring
+    (via _owner_matches). So 'Gally' becomes the stored 'Gally Mayer' rather than
+    a new, separate option. Returns the input unchanged if nobody matches (a
+    genuinely new person, whose name then becomes the new option)."""
+    if not owner:
+        return owner
+    want = str(owner).strip()
+    for opt in _owner_options():
+        if _owner_matches(opt, want):
+            return opt
+    return want
+
+
 def create_task(title, owner=None, due=None, priority=None, status=None, notes=None) -> dict:
     """Create a task page. Returns {id, url, title}."""
     incoming = {
         "title": title,
-        "owner": owner,
+        "owner": _canonical_owner(owner),
         "due": due,
         "priority": priority,
         "status": status if status is not None else config.DEFAULT_NEW_TASK_STATUS,
@@ -88,7 +134,7 @@ def update_task(task_id, title=None, owner=None, due=None, priority=None,
     """Update fields on an existing task. Only the fields you pass are changed.
     To mark a task complete, pass status='Done'."""
     properties = _properties_from({
-        "title": title, "owner": owner, "due": due,
+        "title": title, "owner": _canonical_owner(owner), "due": due,
         "priority": priority, "status": status, "notes": notes,
     })
     if not properties:
