@@ -16,6 +16,8 @@ Environment variables required:
 import logging
 import os
 import re
+import threading
+import time
 
 from slack_bolt import App
 from slack_bolt.adapter.socket_mode import SocketModeHandler
@@ -41,6 +43,112 @@ _MENTION = re.compile(r"<@[A-Z0-9]+>")
 # only — resets if the process restarts, which is fine for this use.
 _CONV: dict[str, list] = {}
 _MAX_TURNS = 8  # ~4 back-and-forth exchanges
+
+# ---------------------------------------------------------------------------
+# Listening windows (channels only)
+#
+# In a channel the bot normally needs a trigger word. But once it has ASKED a
+# follow-up ("what's the due date and priority?"), the person's answer won't
+# carry a trigger — so we'd miss it. To fix that, after the bot asks for missing
+# info we open a short "listening window" for that person in that channel: their
+# next messages are read WITHOUT a trigger, until the task is created or the
+# window expires. If they don't answer within FOLLOWUP_SECONDS, the bot @-mentions
+# them once and re-asks.
+# ---------------------------------------------------------------------------
+WINDOW_SECONDS = 300      # 5 min: keep listening (no trigger needed) this long
+FOLLOWUP_SECONDS = 120    # 2 min: nudge the person once if still no answer
+
+# window key -> {user, channel, thread_ts, expires_at, question, answered, timer}
+_PENDING: dict[str, dict] = {}
+_PENDING_LOCK = threading.Lock()
+
+
+def _window_key(event: dict) -> str:
+    """One window per (channel-or-thread, user) so we only listen to the person
+    we actually asked, not everyone chatting in the channel."""
+    base = event.get("thread_ts") or event.get("channel") or "default"
+    return f"{base}:{event.get('user')}"
+
+
+def _window_active(wkey: str) -> bool:
+    """True if we're still within an open listening window for this person.
+    Expired windows are cleaned up here."""
+    with _PENDING_LOCK:
+        p = _PENDING.get(wkey)
+        if not p:
+            return False
+        if time.time() > p["expires_at"]:
+            if p.get("timer"):
+                p["timer"].cancel()
+            _PENDING.pop(wkey, None)
+            return False
+        return True
+
+
+def _clear_pending(wkey: str) -> None:
+    """Close a window and cancel any pending nudge (task done or conversation over)."""
+    with _PENDING_LOCK:
+        p = _PENDING.pop(wkey, None)
+    if p and p.get("timer"):
+        p["timer"].cancel()
+
+
+def _mark_answered(wkey: str) -> None:
+    """The person just replied, so cancel the pending nudge. The window itself
+    stays open (it's re-armed by _open_window if we still need more info)."""
+    with _PENDING_LOCK:
+        p = _PENDING.get(wkey)
+        if p:
+            p["answered"] = True
+            if p.get("timer"):
+                p["timer"].cancel()
+                p["timer"] = None
+
+
+def _schedule_followup(wkey, client, channel, thread_ts, user, question):
+    """Arm a one-shot timer that re-asks (with an @mention) if unanswered."""
+    def _fire():
+        with _PENDING_LOCK:
+            p = _PENDING.get(wkey)
+            if not p or p.get("answered"):
+                return  # answered in time, or window already closed
+            p["timer"] = None
+        text = f"<@{user}> {question}"
+        try:
+            kwargs = {"channel": channel, "text": text}
+            if thread_ts:
+                kwargs["thread_ts"] = thread_ts
+            client.chat_postMessage(**kwargs)
+        except Exception:
+            log.exception("follow-up nudge failed")
+
+    t = threading.Timer(FOLLOWUP_SECONDS, _fire)
+    t.daemon = True
+    t.start()
+    return t
+
+
+def _open_window(wkey, client, channel, thread_ts, user, question) -> None:
+    """(Re)open a listening window and (re)arm the 2-minute nudge. Called every
+    time the bot asks for more info, so the timers roll forward each exchange."""
+    with _PENDING_LOCK:
+        prev = _PENDING.get(wkey)
+        if prev and prev.get("timer"):
+            prev["timer"].cancel()
+        _PENDING[wkey] = {
+            "user": user,
+            "channel": channel,
+            "thread_ts": thread_ts,
+            "expires_at": time.time() + WINDOW_SECONDS,
+            "question": question,
+            "answered": False,
+            "timer": None,
+        }
+    timer = _schedule_followup(wkey, client, channel, thread_ts, user, question)
+    with _PENDING_LOCK:
+        p = _PENDING.get(wkey)
+        if p is not None:
+            p["timer"] = timer
 
 
 def _clean(text: str) -> str:
@@ -90,19 +198,45 @@ def _sender_name(client, event) -> str:
         return "a teammate"
 
 
-def _reply(text: str, key: str, sender_name: str = "a teammate") -> str:
+def _reply(text: str, key: str, sender_name: str = "a teammate"):
+    """Run one message through the agent. Returns (answer_text, status) where
+    status is 'created' / 'needs_info' / 'other' (see agent.handle_message)."""
     history = _CONV.get(key, [])
     try:
-        answer = agent.handle_message(text, sender_name, history=history)
+        answer, status = agent.handle_message(text, sender_name, history=history)
     except Exception as exc:  # never let one bad message kill the listener
         log.exception("agent error")
-        return f"Something went wrong: {exc}"
+        return f"Something went wrong: {exc}", "other"
     # Save this exchange for context on the next message.
     _CONV[key] = (history + [
         {"role": "user", "content": text},
         {"role": "assistant", "content": answer},
     ])[-_MAX_TURNS:]
-    return answer
+    return answer, status
+
+
+def _respond(event, say, client, command, *, manage_window: bool) -> None:
+    """Generate a reply, post it, and (in channels) manage the listening window:
+    keep listening if the bot asked for more info, stop once the task is made."""
+    answer, status = _reply(command, _key(event), _sender_name(client, event))
+    say(answer)
+
+    if not manage_window:
+        return  # DMs already read every message, so no window is needed
+
+    wkey = _window_key(event)
+    if status == "created":
+        _clear_pending(wkey)  # got what we needed — stop listening
+    elif status == "needs_info" or answer.strip().endswith("?"):
+        # Bot is waiting on the person: read their next (untriggered) replies and
+        # nudge them if they go quiet.
+        _open_window(
+            wkey, client,
+            event.get("channel"), event.get("thread_ts"), event.get("user"),
+            answer,
+        )
+    else:
+        _clear_pending(wkey)  # a plain answer, nothing to wait for
 
 
 @app.event("app_mention")
@@ -112,13 +246,13 @@ def handle_mention(event, say, client):
     if not text:
         say("Tell me what to do — e.g. \"what's due today?\"")
         return
-    say(_reply(text, _key(event), _sender_name(client, event)))
+    _respond(event, say, client, text, manage_window=True)
 
 
 @app.event("message")
 def handle_message(event, say, client):
-    """DMs: respond to everything. Channels: respond only to messages that start
-    with a trigger word (see TRIGGER_PREFIXES)."""
+    """DMs: respond to everything. Channels: respond to a trigger word OR to any
+    message from someone we're mid-conversation with (an open listening window)."""
     # Ignore the bot's own messages, edits, joins, etc. (prevents loops).
     if event.get("bot_id") or event.get("subtype"):
         return
@@ -127,20 +261,27 @@ def handle_message(event, say, client):
         return
 
     if event.get("channel_type") == "im":
-        command = text  # direct message: no trigger needed
-    else:
-        # Channel/group. If it's an @mention, let handle_mention own it.
-        if _MENTION.search(event.get("text", "")):
-            return
-        command = _triggered_command(text)
-        if command is None:
-            return  # not addressed to us — stay silent
-        if not command:
-            say("Add your request after the trigger, e.g. "
-                "`task: Itay take out the trash, Monday, low`")
-            return
+        _respond(event, say, client, text, manage_window=False)
+        return
 
-    say(_reply(command, _key(event), _sender_name(client, event)))
+    # Channel/group. If it's an @mention, let handle_mention own it.
+    if _MENTION.search(event.get("text", "")):
+        return
+    wkey = _window_key(event)
+    command = _triggered_command(text)
+    if command is None:
+        # No trigger. Engage only if we're already mid-conversation with this
+        # person (i.e. we asked them something and are awaiting their answer).
+        if not _window_active(wkey):
+            return  # not addressed to us — stay silent
+        command = text  # read their follow-up answer as-is
+    elif not command:
+        say("Add your request after the trigger, e.g. "
+            "`task: Itay take out the trash, Monday, low`")
+        return
+
+    _mark_answered(wkey)  # their message answers any pending nudge
+    _respond(event, say, client, command, manage_window=True)
 
 
 if __name__ == "__main__":

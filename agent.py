@@ -215,11 +215,21 @@ def _run_tool(name: str, args: dict):
         return {"error": str(exc)}
 
 
-def handle_message(text: str, sender_name: str = "a teammate", history=None) -> str:
+def handle_message(text: str, sender_name: str = "a teammate", history=None):
     """Main entry point. `history` is a list of prior {role, content} text turns
-    (oldest first) that gives the bot short-term memory across messages."""
+    (oldest first) that gives the bot short-term memory across messages.
+
+    Returns a (reply_text, status) tuple. `status` lets the Slack layer know
+    whether it should keep listening for a follow-up:
+        "created"    - a task was successfully created this turn (done)
+        "needs_info" - create_task was blocked waiting on due date / priority
+        "other"      - anything else (a listing, a plain answer, etc.)
+    """
     system = _system_prompt(sender_name)
     messages = list(history or []) + [{"role": "user", "content": text}]
+
+    created = False       # a task reached Notion this turn
+    needs_info = False    # create was blocked waiting on due date / priority
 
     for _ in range(6):  # safety cap on tool round-trips
         data = _call_claude(messages, system)
@@ -229,13 +239,20 @@ def handle_message(text: str, sender_name: str = "a teammate", history=None) -> 
 
         if stop != "tool_use":
             texts = [b["text"] for b in content if b.get("type") == "text"]
-            return "\n".join(texts).strip() or "Done."
+            reply = "\n".join(texts).strip() or "Done."
+            status = "created" if created else ("needs_info" if needs_info else "other")
+            return reply, status
 
         tool_results = []
         for block in content:
             if block.get("type") != "tool_use":
                 continue
             result = _run_tool(block["name"], block.get("input", {}))
+            if block["name"] == "create_task" and isinstance(result, dict):
+                if result.get("created"):
+                    created = True
+                if result.get("needs_more_info"):
+                    needs_info = True
             tool_results.append({
                 "type": "tool_result",
                 "tool_use_id": block["id"],
@@ -243,4 +260,4 @@ def handle_message(text: str, sender_name: str = "a teammate", history=None) -> 
             })
         messages.append({"role": "user", "content": tool_results})
 
-    return "Sorry — I got stuck working on that. Mind rephrasing?"
+    return "Sorry — I got stuck working on that. Mind rephrasing?", "other"
