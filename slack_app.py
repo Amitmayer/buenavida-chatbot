@@ -252,20 +252,16 @@ def _respond(event, say, client, command, *, manage_window: bool) -> None:
 def _is_asking(status: str, answer: str) -> bool:
     """Decide whether the bot's reply is waiting on the person for info.
 
-    History of this check: it first looked only for a trailing '?', which missed
-    'Give me the due date and priority.' Then we added the English words 'due
-    date'/'priority'. But in BATCH mode the bot asks WITHOUT calling create_task
-    (so status is never 'needs_info'), and a Spanish reply ends on a period and
-    uses 'prioridad'/'fecha' — so none of those checks fired and the window never
-    opened. The reliable, language-agnostic signal is a question mark ANYWHERE in
-    the reply (Spanish opens questions with '¿'), so we key off that."""
-    if status == "needs_info":
-        return True
-    text = (answer or "")
-    if "?" in text or "¿" in text:   # '?' or Spanish '¿' anywhere
-        return True
-    low = text.lower()
-    return "due date" in low or "priority" in low
+    We key off the STRUCTURAL 'needs_info' signal only, not the text of the
+    reply. Earlier versions scanned for a '?' / '¿' anywhere or the words
+    'due date'/'priority', but that over-fired: a plain query like "what's due
+    this week?" ends its listing with a question ("...mark it done?") and the
+    day-grouped format prints the literal word 'Priority' on every line — so the
+    heuristic re-opened a window and the 2-minute nudge @-mentioned the person on
+    a reply they never needed to answer. 'needs_info' is set only when the bot is
+    actually blocked creating a task (create_task returned needs_more_info), which
+    a query never triggers, so this is the reliable, language-agnostic signal."""
+    return status == "needs_info"
 
 
 @app.event("app_mention")
