@@ -111,6 +111,7 @@ def _schedule_followup(wkey, client, channel, thread_ts, user, question):
         with _PENDING_LOCK:
             p = _PENDING.get(wkey)
             if not p or p.get("answered"):
+                log.info("nudge skipped for %s (answered or window closed)", wkey)
                 return  # answered in time, or window already closed
             p["timer"] = None
         text = f"<@{user}> {question}"
@@ -119,12 +120,14 @@ def _schedule_followup(wkey, client, channel, thread_ts, user, question):
             if thread_ts:
                 kwargs["thread_ts"] = thread_ts
             client.chat_postMessage(**kwargs)
+            log.info("nudge posted to %s for user %s", channel, user)
         except Exception:
-            log.exception("follow-up nudge failed")
+            log.exception("follow-up nudge failed for %s", wkey)
 
     t = threading.Timer(FOLLOWUP_SECONDS, _fire)
     t.daemon = True
     t.start()
+    log.info("nudge armed for %s, firing in %ss", wkey, FOLLOWUP_SECONDS)
     return t
 
 
@@ -227,7 +230,8 @@ def _respond(event, say, client, command, *, manage_window: bool) -> None:
     wkey = _window_key(event)
     if status == "created":
         _clear_pending(wkey)  # got what we needed — stop listening
-    elif status == "needs_info" or answer.strip().endswith("?"):
+        log.info("window cleared for %s (task created)", wkey)
+    elif _is_asking(status, answer):
         # Bot is waiting on the person: read their next (untriggered) replies and
         # nudge them if they go quiet.
         _open_window(
@@ -237,6 +241,22 @@ def _respond(event, say, client, command, *, manage_window: bool) -> None:
         )
     else:
         _clear_pending(wkey)  # a plain answer, nothing to wait for
+        log.info("window cleared for %s (plain reply, status=%s)", wkey, status)
+
+
+def _is_asking(status: str, answer: str) -> bool:
+    """Decide whether the bot's reply is waiting on the person for info. The old
+    check only looked for a trailing '?', which missed phrasings like 'Give me the
+    due date and priority (High/Medium/Low).' — so the window (and nudge) never
+    armed. We now also treat an explicit needs_info status, or any mention of the
+    two things we ask for (due date / priority), as 'waiting'."""
+    if status == "needs_info":
+        return True
+    text = (answer or "").strip()
+    if text.endswith("?"):
+        return True
+    low = text.lower()
+    return "due date" in low or "priority" in low
 
 
 @app.event("app_mention")
