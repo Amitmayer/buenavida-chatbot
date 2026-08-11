@@ -209,6 +209,23 @@ def add_material(task_id, url, label=None) -> dict:
     return {"added": True, "id": task_id, "count": len(entries), "materials": entries}
 
 
+def get_materials(task_id) -> list[dict]:
+    """Read a task's materials as [{name, url}] WITH the urls intact.
+
+    Used for Slack delivery: the agent's normal tool results have urls stripped
+    before the model sees them, but to re-upload a file's bytes into Slack we
+    need the real Drive link. This bypasses that path and reads Notion directly."""
+    meta = config.NOTION_SCHEMA.get("materials")
+    if not meta:
+        return []
+    resp = requests.get(f"{API_BASE}/pages/{task_id}", headers=_headers(), timeout=30)
+    if resp.status_code >= 400:
+        raise RuntimeError(f"Notion read failed ({resp.status_code}): {resp.text}")
+    props = resp.json().get("properties", {})
+    prop = props.get(meta["name"])
+    return _read_property(prop) if prop else []
+
+
 # ---------------------------------------------------------------------------
 # Reading
 # ---------------------------------------------------------------------------

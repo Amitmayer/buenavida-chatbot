@@ -10,12 +10,41 @@ guard below, so an incomplete task can never reach Notion.
 """
 from datetime import date
 import json
+import threading
 import requests
 
 import config
 import notion_client
+import drive_client
 
 ANTHROPIC_URL = "https://api.anthropic.com/v1/messages"
+
+# ---------------------------------------------------------------------------
+# File delivery side-channel.
+#
+# The model never sees material URLs (see _strip_urls), so it can't hand a Drive
+# link back to Slack. Instead, when the user asks for a task's file, the model
+# calls deliver_material; the tool queues the file (id + name) HERE, on a
+# thread-local list, and returns only a url-free confirmation. After
+# handle_message finishes, the Slack layer drains this queue with pop_deliveries()
+# and re-uploads the bytes into the channel (so people without Drive access still
+# get the file). Thread-local because Bolt may handle events concurrently and each
+# handle_message runs its whole tool loop in one thread.
+# ---------------------------------------------------------------------------
+_DELIVERIES = threading.local()
+
+
+def _queue_delivery(file_id: str, name: str) -> None:
+    if not getattr(_DELIVERIES, "items", None):
+        _DELIVERIES.items = []
+    _DELIVERIES.items.append({"file_id": file_id, "name": name})
+
+
+def pop_deliveries() -> list:
+    """Return and clear any files queued for Slack re-upload this turn."""
+    items = getattr(_DELIVERIES, "items", None) or []
+    _DELIVERIES.items = []
+    return items
 
 # Fields that are mandatory when creating a task.
 # Only these genuinely can't be inferred and must be supplied by the user.
@@ -126,7 +155,57 @@ TOOLS = [
             "required": ["task_id", "url"],
         },
     },
+    {
+        "name": "deliver_material",
+        "description": (
+            "Send a task's attached file(s) to the person in Slack. Use this when "
+            "someone asks to GET, SEND, DOWNLOAD, or SHARE a task's file/material "
+            "(e.g. 'send me the file for the LinkedIn task'). First call "
+            "query_tasks to find the task and read its 'id', then call this with "
+            "that id. The file bytes are uploaded straight into the Slack "
+            "conversation, so everyone gets the file even without Drive access. "
+            "Optionally pass 'name' to send only the material whose name matches; "
+            "omit it to send all of the task's files. After calling, just confirm "
+            "in words which file(s) you sent — do NOT print any link."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "task_id": {"type": "string", "description": "The task's Notion id, from query_tasks results. Required."},
+                "name": {"type": "string", "description": "Optional: send only the material whose name matches this. Omit to send all files on the task."},
+            },
+            "required": ["task_id"],
+        },
+    },
 ]
+
+
+def _deliver_material(task_id, name=None) -> dict:
+    """Queue a task's file(s) for re-upload into Slack. Reads the real Drive
+    links from Notion (bypassing the url-stripping the model sees), turns each
+    into a Drive file id, and queues it. Returns a url-free summary."""
+    if not drive_client.is_configured():
+        return {"delivered": False,
+                "message": "File delivery isn't set up (Drive not configured)."}
+    materials = notion_client.get_materials(task_id) or []
+    if name:
+        want = str(name).strip().lower()
+        materials = [m for m in materials
+                     if want in (m.get("name") or "").lower()]
+    if not materials:
+        return {"delivered": False,
+                "message": "No matching file is attached to that task."}
+    sent, skipped = [], []
+    for m in materials:
+        fid = drive_client.extract_file_id(m.get("url"))
+        if fid:
+            _queue_delivery(fid, m.get("name") or "file")
+            sent.append(m.get("name") or "file")
+        else:
+            # Not a Drive link (e.g. a plain external URL) — can't re-upload bytes.
+            skipped.append(m.get("name") or "file")
+    return {"delivered": bool(sent), "sent": sent, "skipped": skipped,
+            "count": len(sent)}
 
 
 def _create_task_guarded(title=None, owner=None, due=None, priority=None,
@@ -157,6 +236,7 @@ TOOL_IMPLS = {
     "query_tasks": notion_client.query_tasks,
     "update_task": notion_client.update_task,
     "attach_material": notion_client.add_material,
+    "deliver_material": _deliver_material,
 }
 
 
@@ -247,6 +327,14 @@ def _system_prompt(sender_name: str) -> str:
         "none. In a normal task listing, do NOT print the links inline; instead, "
         "if a task's 'materials' list is non-empty, add a paperclip \U0001F4CE at "
         "the very end of that task's line so people know materials exist.\n"
+        "- DELIVERING FILES: when someone asks to GET, SEND, DOWNLOAD, or SHARE a "
+        "task's file/material (e.g. 'send me the file for the LinkedIn task'), "
+        "call query_tasks to find the task's 'id', then call deliver_material "
+        "with that id. The file's bytes are uploaded straight into Slack, so "
+        "everyone gets it even without Drive access. Do NOT print any link — "
+        "just confirm in words which file you sent. If a file was uploaded to a "
+        "task in this same conversation, you may already have its id from the "
+        "earlier query.\n"
         "- After a tool runs, reply concisely using SLACK formatting (mrkdwn). "
         "CRITICAL: Slack bold uses a SINGLE asterisk on each side, like "
         "*bold* \u2014 never use **double** asterisks, which Slack renders "

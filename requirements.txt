@@ -2,5 +2,6 @@ flask==3.0.3
 requests==2.32.3
 gunicorn==22.0.0
 google-auth==2.33.0
+google-api-python-client==2.145.0
 slack_bolt==1.28.0
 slack_sdk==3.43.0

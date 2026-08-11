@@ -13,6 +13,15 @@ NOTION_TOKEN = os.environ.get("NOTION_TOKEN", "")
 NOTION_DATABASE_ID = os.environ.get("NOTION_DATABASE_ID", "")
 NOTION_VERSION = os.environ.get("NOTION_VERSION", "2022-06-28")
 
+# ---------------------------------------------------------------------------
+# Google Drive (Phase 2 materials storage). The bot authenticates as a service
+# account; GOOGLE_SERVICE_ACCOUNT_JSON holds the full JSON key (set in Railway,
+# never committed). GDRIVE_FOLDER_ID is the Shared Drive folder that owns the
+# uploaded bytes. When either is unset, file uploads degrade gracefully.
+# ---------------------------------------------------------------------------
+GOOGLE_SERVICE_ACCOUNT_JSON = os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON", "")
+GDRIVE_FOLDER_ID = os.environ.get("GDRIVE_FOLDER_ID", "")
+
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
 # Default model is now Haiku 4.5 (cheap + fast, great for task routing/queries).
 # Override with the ANTHROPIC_MODEL env var to use e.g. claude-sonnet-4-6.

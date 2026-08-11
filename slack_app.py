@@ -19,10 +19,12 @@ import re
 import threading
 import time
 
+import requests
 from slack_bolt import App
 from slack_bolt.adapter.socket_mode import SocketModeHandler
 
 import agent
+import drive_client
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger("slack-task-bot")
@@ -218,11 +220,106 @@ def _reply(text: str, key: str, sender_name: str = "a teammate"):
     return answer, status
 
 
+# ---------------------------------------------------------------------------
+# File uploads (Phase 2 materials)
+#
+# When someone drops a file into Slack, Slack sends a message with subtype
+# 'file_share' and a `files` array. We download each file's bytes (bot token
+# auth), store the single canonical copy in the Shared Drive, and append a note
+# to the command text telling the agent the file's name + Drive link so it can
+# attach it to the task the caption names, via the existing attach_material tool.
+# Slack link URLs in the user's MESSAGE are fine — only tool RESULT urls are
+# stripped — so the model can pass the Drive link straight to attach_material.
+# ---------------------------------------------------------------------------
+def _download_slack_file(f: dict) -> bytes:
+    """Fetch a Slack-hosted file's bytes. Slack's private file URLs require the
+    bot token as a Bearer header (and the files:read scope)."""
+    url = f.get("url_private_download") or f.get("url_private")
+    if not url:
+        raise RuntimeError("file has no download url")
+    token = os.environ["SLACK_BOT_TOKEN"]
+    r = requests.get(url, headers={"Authorization": f"Bearer {token}"}, timeout=60)
+    if r.status_code >= 400:
+        raise RuntimeError(f"slack download failed ({r.status_code})")
+    return r.content
+
+
+def _ingest_files(event) -> str:
+    """Store any uploaded files in Drive and return a note (to append to the
+    command) describing each file's name + Drive link. Empty string if there are
+    no files. If Drive isn't configured, returns a note telling the agent to say
+    so rather than silently dropping the upload."""
+    files = event.get("files") or []
+    if not files:
+        return ""
+    if not drive_client.is_configured():
+        log.warning("file uploaded but Drive not configured")
+        return ("\n\n[SYSTEM: The user uploaded a file, but file storage isn't "
+                "set up yet, so it could not be saved. Tell them file uploads "
+                "aren't available yet.]")
+    stored = []
+    for f in files:
+        name = f.get("name") or f.get("title") or "file"
+        try:
+            data = _download_slack_file(f)
+            res = drive_client.upload_bytes(name, data, f.get("mimetype"))
+            stored.append((name, res.get("link")))
+            log.info("stored upload %r in Drive (%s)", name, res.get("id"))
+        except Exception:
+            log.exception("failed to store upload %r", name)
+    if not stored:
+        return ("\n\n[SYSTEM: A file upload failed to save. Tell the user the "
+                "upload didn't go through and to try again.]")
+    lines = "\n".join(f'- "{n}" -> {link}' for n, link in stored)
+    return (
+        "\n\n[SYSTEM: The user just uploaded the following file(s), now stored at "
+        "these Drive links. Attach each to the task the message refers to using "
+        "attach_material (find the task id with query_tasks first), passing the "
+        "file name as the label. If the message doesn't say which task, ask which "
+        "task to attach it to. Do not print these links in your reply.\n"
+        f"{lines}\n]"
+    )
+
+
+def _deliver_queued(event, client) -> None:
+    """After the agent runs, re-upload into Slack any files it queued for
+    delivery (download the bytes from Drive, upload straight into the channel so
+    people without Drive access still get them)."""
+    deliveries = agent.pop_deliveries()
+    if not deliveries:
+        return
+    channel = event.get("channel")
+    thread_ts = event.get("thread_ts")
+    for d in deliveries:
+        try:
+            name, data, _mime = drive_client.download_bytes(d["file_id"])
+            kwargs = {
+                "channel": channel,
+                "file": data,
+                "filename": name or d.get("name") or "file",
+            }
+            if thread_ts:
+                kwargs["thread_ts"] = thread_ts
+            client.files_upload_v2(**kwargs)
+            log.info("delivered file %r into %s", name, channel)
+        except Exception:
+            log.exception("failed to deliver file %s", d.get("file_id"))
+            try:
+                client.chat_postMessage(
+                    channel=channel,
+                    text=f"Couldn't send *{d.get('name') or 'the file'}* — sorry.",
+                    **({"thread_ts": thread_ts} if thread_ts else {}),
+                )
+            except Exception:
+                log.exception("failed to post delivery-failure notice")
+
+
 def _respond(event, say, client, command, *, manage_window: bool) -> None:
     """Generate a reply, post it, and (in channels) manage the listening window:
     keep listening if the bot asked for more info, stop once the task is made."""
     answer, status = _reply(command, _key(event), _sender_name(client, event))
     say(answer)
+    _deliver_queued(event, client)  # re-upload any files the agent queued
 
     if not manage_window:
         return  # DMs already read every message, so no window is needed
@@ -268,25 +365,31 @@ def _is_asking(status: str, answer: str) -> bool:
 def handle_mention(event, say, client):
     """Triggered when someone @mentions the bot in a channel."""
     text = _clean(event.get("text", ""))
-    if not text:
+    note = _ingest_files(event)  # store any attached file(s) in Drive
+    if not text and not note:
         say("Tell me what to do — e.g. \"what's due today?\"")
         return
-    _respond(event, say, client, text, manage_window=True)
+    _respond(event, say, client, (text + note).strip(), manage_window=True)
 
 
 @app.event("message")
 def handle_message(event, say, client):
     """DMs: respond to everything. Channels: respond to a trigger word OR to any
     message from someone we're mid-conversation with (an open listening window)."""
-    # Ignore the bot's own messages, edits, joins, etc. (prevents loops).
-    if event.get("bot_id") or event.get("subtype"):
+    # Ignore the bot's own messages, edits, joins, etc. (prevents loops) — but
+    # DO let file uploads through: those arrive as subtype 'file_share' and are
+    # the whole point of Phase 2.
+    subtype = event.get("subtype")
+    if event.get("bot_id") or (subtype and subtype != "file_share"):
         return
     text = _clean(event.get("text", ""))
-    if not text:
+    has_files = bool(event.get("files"))
+    if not text and not has_files:
         return
 
     if event.get("channel_type") == "im":
-        _respond(event, say, client, text, manage_window=False)
+        note = _ingest_files(event)  # store any attached file(s) in Drive
+        _respond(event, say, client, (text + note).strip(), manage_window=False)
         return
 
     # Channel/group. If it's an @mention, let handle_mention own it.
@@ -298,15 +401,22 @@ def handle_message(event, say, client):
         # No trigger. Engage only if we're already mid-conversation with this
         # person (i.e. we asked them something and are awaiting their answer).
         if not _window_active(wkey):
+            if has_files:
+                # A file with no trigger/window: we don't know which task it's
+                # for. Ask them to re-send with a caption rather than storing an
+                # orphan copy in Drive.
+                say("Got a file. Add a caption like "
+                    "`task: attach to <task name>` so I know where it goes.")
             return  # not addressed to us — stay silent
         command = text  # read their follow-up answer as-is
-    elif not command:
+    elif not command and not has_files:
         say("Add your request after the trigger, e.g. "
             "`task: Itay take out the trash, Monday, low`")
         return
 
+    note = _ingest_files(event)  # store any attached file(s) in Drive
     _mark_answered(wkey)  # their message answers any pending nudge
-    _respond(event, say, client, command, manage_window=True)
+    _respond(event, say, client, (command + note).strip(), manage_window=True)
 
 
 if __name__ == "__main__":
