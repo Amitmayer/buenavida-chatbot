@@ -105,6 +105,27 @@ TOOLS = [
             "required": ["task_id"],
         },
     },
+    {
+        "name": "attach_material",
+        "description": (
+            "Attach a MATERIAL (a link/URL to a document or file) to an existing "
+            "task. Materials are OPTIONAL reference documents — only use this "
+            "when the user explicitly wants to attach a link to a task. First "
+            "call query_tasks to find the task and read its 'id', then call this "
+            "with that id and the URL. If the user gives a name/label for the "
+            "link, pass it as 'label'; otherwise omit it. This appends — it "
+            "never removes existing materials."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "task_id": {"type": "string", "description": "The task's Notion id, from query_tasks results. Required."},
+                "url": {"type": "string", "description": "The link/URL to the document or file. Required."},
+                "label": {"type": "string", "description": "Optional human name for the link, e.g. 'LinkedIn Post for Coffee'. Omit if the user didn't give one."},
+            },
+            "required": ["task_id", "url"],
+        },
+    },
 ]
 
 
@@ -135,6 +156,7 @@ TOOL_IMPLS = {
     "create_task": _create_task_guarded,
     "query_tasks": notion_client.query_tasks,
     "update_task": notion_client.update_task,
+    "attach_material": notion_client.add_material,
 }
 
 
@@ -215,6 +237,16 @@ def _system_prompt(sender_name: str) -> str:
         "results, then call update_task with that id. To complete a task, set "
         "status to 'Done'. If multiple tasks match, ask the user which one; if "
         "none match, say you couldn't find it. Never guess an id.\n"
+        "- MATERIALS are optional reference links attached to a task. To attach "
+        "one, call query_tasks to find the task's 'id', then call "
+        "attach_material with that id, the url, and (if the user named it) a "
+        "label. To SHOW a task's materials, read the 'materials' list already "
+        "included in query_tasks results (each entry is {name, url}); present "
+        "them as a short bullet list of labeled links. Only mention materials "
+        "when the user asks about them or asks to attach one — most tasks have "
+        "none. In a normal task listing, do NOT print the links inline; instead, "
+        "if a task's 'materials' list is non-empty, add a paperclip \U0001F4CE at "
+        "the very end of that task's line so people know materials exist.\n"
         "- After a tool runs, reply concisely using SLACK formatting (mrkdwn). "
         "CRITICAL: Slack bold uses a SINGLE asterisk on each side, like "
         "*bold* \u2014 never use **double** asterisks, which Slack renders "

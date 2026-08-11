@@ -44,6 +44,26 @@ def _build_value(prop_type: str, value: Any) -> Optional[dict]:
     if prop_type == "people":
         ids = value if isinstance(value, list) else [value]
         return {"people": [{"id": uid} for uid in ids]}
+    if prop_type == "files":
+        # value is a list of {name, url} dicts (or bare url strings). We store
+        # them as EXTERNAL files so Notion just holds the link, not a copy.
+        items = value if isinstance(value, list) else [value]
+        files = []
+        for it in items:
+            if isinstance(it, dict):
+                url = it.get("url")
+                name = it.get("name") or url
+            else:
+                url = str(it)
+                name = url
+            if url:
+                # Notion caps a file entry's name at 100 chars.
+                files.append({
+                    "name": str(name)[:100],
+                    "type": "external",
+                    "external": {"url": url},
+                })
+        return {"files": files}  # empty list is valid: it clears the property
     raise ValueError(f"Unsupported property type: {prop_type}")
 
 
@@ -150,6 +170,43 @@ def update_task(task_id, title=None, owner=None, due=None, priority=None,
     data = resp.json()
     return {"updated": True, "id": data.get("id"), "url": data.get("url"),
             "changed": list(properties.keys())}
+
+
+def add_material(task_id, url, label=None) -> dict:
+    """Attach a material (an external link) to a task's Materials property.
+
+    APPENDS: reads the task's current materials, adds the new link if it isn't
+    already there (deduped by URL), then writes the merged list back. A Notion
+    files property write REPLACES the whole property, so we must read-merge-write
+    rather than blind-set, or we'd wipe existing attachments."""
+    if not url:
+        return {"added": False, "error": "No URL given."}
+    meta = config.NOTION_SCHEMA.get("materials")
+    if not meta:
+        return {"added": False, "error": "Materials property is not configured."}
+
+    resp = requests.get(f"{API_BASE}/pages/{task_id}", headers=_headers(), timeout=30)
+    if resp.status_code >= 400:
+        raise RuntimeError(f"Notion read failed ({resp.status_code}): {resp.text}")
+    props = resp.json().get("properties", {})
+    current = _read_property(props.get(meta["name"])) if props.get(meta["name"]) else []
+    entries = [{"name": e["name"], "url": e["url"]} for e in (current or [])]
+
+    if any(e["url"] == url for e in entries):
+        return {"added": False, "already_present": True, "count": len(entries),
+                "materials": entries}
+    entries.append({"name": label or url, "url": url})
+
+    built = _build_value("files", entries)
+    resp2 = requests.patch(
+        f"{API_BASE}/pages/{task_id}",
+        headers=_headers(),
+        json={"properties": {meta["name"]: built}},
+        timeout=30,
+    )
+    if resp2.status_code >= 400:
+        raise RuntimeError(f"Notion update failed ({resp2.status_code}): {resp2.text}")
+    return {"added": True, "id": task_id, "count": len(entries), "materials": entries}
 
 
 # ---------------------------------------------------------------------------
@@ -329,6 +386,16 @@ def _read_property(prop: dict) -> Any:
         return d.get("start") if d else None
     if ptype == "people":
         return [p.get("name") for p in prop.get("people", [])]
+    if ptype == "files":
+        out = []
+        for f in prop.get("files", []):
+            if f.get("type") == "external":
+                url = (f.get("external") or {}).get("url")
+            else:  # Notion-hosted upload
+                url = (f.get("file") or {}).get("url")
+            if url:
+                out.append({"name": f.get("name") or url, "url": url})
+        return out
     return None
 
 

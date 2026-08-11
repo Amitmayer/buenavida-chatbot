@@ -34,6 +34,9 @@ NOTION_SCHEMA = {
     "priority": {"name": "Priority",  "type": "select"},
     "due":      {"name": "Due Date",  "type": "date"},
     "notes":    {"name": "Notes",     "type": "rich_text"},
+    # Optional per-task attachments. Holds external URLs (e.g. Drive links) as
+    # labeled Notion "Files & media" entries. Not every task has materials.
+    "materials": {"name": "Materials", "type": "files"},
 }
 
 # Default status applied to newly created tasks.
