@@ -196,10 +196,17 @@ def _system_prompt(sender_name: str) -> str:
         "CRITICAL: Slack bold uses a SINGLE asterisk on each side, like "
         "*bold* \u2014 never use **double** asterisks, which Slack renders "
         "literally. Bold every section heading and every task title. "
-        "List tasks as short lines like '\u2022 *<task>* \u2014 <owner>, due <date> "
-        "(<priority>, <status>)'. Skip empty fields. Confirm creations with the "
-        "task name only. Do NOT include a Notion link or URL in any reply — "
-        "not everyone has Notion access."
+        "List each task as a short line: '\u2022 *<task>* \u2014 <owner>, <when> "
+        "(<priority>, <status>)'. For <when>, use the task's OWN precomputed "
+        "fields and NEVER the raw 'due' field, and NEVER add a word like "
+        "'due'/'vence': if 'due_this_week' is true, write 'This <weekday> "
+        "<due_display>' and translate 'This' and the weekday into the reply's "
+        "language (e.g. English 'This Monday 17/8/2026', Spanish 'este lunes "
+        "17/8/2026'); otherwise write just '<due_display>' (e.g. '12/8/2026'). "
+        "Use 'due_display' (already day/month/year) and 'weekday' verbatim \u2014 "
+        "do not reformat or recompute the date. Skip empty fields. Confirm "
+        "creations with the task name only. Do NOT include a Notion link or "
+        "URL in any reply — not everyone has Notion access."
     )
 
 

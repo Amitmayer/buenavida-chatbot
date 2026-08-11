@@ -8,7 +8,7 @@ Operations:
 
 Everything adapts to the property TYPES declared in config.NOTION_SCHEMA.
 """
-from datetime import date
+from datetime import date, timedelta
 from typing import Any, Optional
 import requests
 
@@ -238,10 +238,29 @@ def query_tasks(owner=None, status=None, priority=None, due_on=None,
     # Flag past-due tasks (due date strictly before today) so the caller can put
     # them in their own section without redoing date math. Notion dates may be
     # 'YYYY-MM-DD' or a full ISO timestamp, so compare only the date part.
-    today = date.today().isoformat()
+    today = date.today()
+    today_iso = today.isoformat()
+    week_end = today + timedelta(days=6)  # "this week" = today .. next 6 days
+    weekdays = ["Monday", "Tuesday", "Wednesday", "Thursday",
+                "Friday", "Saturday", "Sunday"]
     for t in tasks:
         due = (t.get("due") or "").strip()
-        t["overdue"] = bool(due) and due[:10] < today
+        t["overdue"] = bool(due) and due[:10] < today_iso
+        # Precompute display fields so the model never does date math itself:
+        #   due_display   -> day/month/year, e.g. "17/8/2026"
+        #   weekday       -> English name, e.g. "Monday" (model translates it)
+        #   due_this_week -> due within today..+6 days (show the weekday then)
+        t["due_display"] = None
+        t["weekday"] = None
+        t["due_this_week"] = False
+        if due:
+            try:
+                d = date.fromisoformat(due[:10])
+                t["due_display"] = f"{d.day}/{d.month}/{d.year}"
+                t["weekday"] = weekdays[d.weekday()]
+                t["due_this_week"] = today <= d <= week_end
+            except ValueError:
+                pass
 
     tasks.sort(key=_due_sort_key)
     return tasks
