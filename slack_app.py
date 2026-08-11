@@ -250,15 +250,19 @@ def _respond(event, say, client, command, *, manage_window: bool) -> None:
 
 
 def _is_asking(status: str, answer: str) -> bool:
-    """Decide whether the bot's reply is waiting on the person for info. The old
-    check only looked for a trailing '?', which missed phrasings like 'Give me the
-    due date and priority (High/Medium/Low).' — so the window (and nudge) never
-    armed. We now also treat an explicit needs_info status, or any mention of the
-    two things we ask for (due date / priority), as 'waiting'."""
+    """Decide whether the bot's reply is waiting on the person for info.
+
+    History of this check: it first looked only for a trailing '?', which missed
+    'Give me the due date and priority.' Then we added the English words 'due
+    date'/'priority'. But in BATCH mode the bot asks WITHOUT calling create_task
+    (so status is never 'needs_info'), and a Spanish reply ends on a period and
+    uses 'prioridad'/'fecha' — so none of those checks fired and the window never
+    opened. The reliable, language-agnostic signal is a question mark ANYWHERE in
+    the reply (Spanish opens questions with '¿'), so we key off that."""
     if status == "needs_info":
         return True
-    text = (answer or "").strip()
-    if text.endswith("?"):
+    text = (answer or "")
+    if "?" in text or "¿" in text:   # '?' or Spanish '¿' anywhere
         return True
     low = text.lower()
     return "due date" in low or "priority" in low
