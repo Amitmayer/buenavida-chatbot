@@ -24,6 +24,7 @@ from slack_bolt import App
 from slack_bolt.adapter.socket_mode import SocketModeHandler
 
 import agent
+import digest
 import drive_client
 
 logging.basicConfig(level=logging.INFO)
@@ -367,6 +368,28 @@ def _deliver_queued(event, client) -> None:
                 log.exception("failed to post delivery-failure notice")
 
 
+# A manual escape hatch for the daily digest. Normally the digest fires on its
+# own schedule (see digest.py), but typing one of these words lets you fire it
+# on demand to test it without waiting until the morning. Matched only when it's
+# the WHOLE command (so a real task like "informe for the client" isn't caught).
+_DIGEST_TRIGGERS = {"digest", "informe", "informe diario"}
+
+
+def _maybe_run_digest(command, say, client) -> bool:
+    """If the command is a bare digest trigger, run the digest now and report a
+    one-line summary. Returns True if it handled the message (caller should stop)."""
+    if (command or "").strip().lower().rstrip("!.") not in _DIGEST_TRIGGERS:
+        return False
+    try:
+        res = digest.run_digest(client)
+        say("Digest sent — channel posted: {channel_posted}, DMs: {dmed}, "
+            "skipped: {skipped}, people: {people}.".format(**res))
+    except Exception as exc:
+        log.exception("manual digest run failed")
+        say(f"Couldn't run the digest: {exc}")
+    return True
+
+
 def _respond(event, say, client, command, *, manage_window: bool) -> None:
     """Generate a reply, post it, and (in channels) manage the listening window:
     keep listening if the bot asked for more info, stop once the task is made."""
@@ -376,7 +399,7 @@ def _respond(event, say, client, command, *, manage_window: bool) -> None:
     _deliver_queued(event, client)  # re-upload any files the agent queued
 
     if not manage_window:
-        return  # DMs already read every message, so no window is needed
+        return  # caller opted out of window management
 
     wkey = _window_key(event)
     if _is_asking(status, answer):
@@ -454,6 +477,8 @@ def handle_mention(event, say, client):
     if not text and not note:
         say("Tell me what to do — e.g. \"what's due today?\"")
         return
+    if _maybe_run_digest(text, say, client):
+        return
     _respond(event, say, client, (text + note).strip(), manage_window=True)
 
 
@@ -473,8 +498,16 @@ def handle_message(event, say, client):
         return
 
     if event.get("channel_type") == "im":
+        if _maybe_run_digest(text, say, client):
+            return
         note = _ingest_files(event)  # store any attached file(s) in Drive
-        _respond(event, say, client, (text + note).strip(), manage_window=False)
+        # DMs read every message (no trigger needed), so the window's READ-gating
+        # is moot here — but the nudge and auto-save TIMERS still matter: if the
+        # bot asks for a missing field in a DM and the person never answers, we
+        # still want to nudge once and then auto-save with placeholders. So manage
+        # the window in DMs too, and mark their reply as answering any pending nudge.
+        _mark_answered(_window_key(event))
+        _respond(event, say, client, (text + note).strip(), manage_window=True)
         return
 
     # Channel/group. If it's an @mention, let handle_mention own it.
@@ -499,12 +532,15 @@ def handle_message(event, say, client):
             "`task: Itay take out the trash, Monday, low`")
         return
 
+    if _maybe_run_digest(command, say, client):
+        return
     note = _ingest_files(event)  # store any attached file(s) in Drive
     _mark_answered(wkey)  # their message answers any pending nudge
     _respond(event, say, client, (command + note).strip(), manage_window=True)
 
 
 if __name__ == "__main__":
+    digest.start(app.client)  # launch the daily digest scheduler (no-op if disabled)
     handler = SocketModeHandler(app, os.environ["SLACK_APP_TOKEN"])
     log.info("Task Bot connecting to Slack via Socket Mode...")
     handler.start()

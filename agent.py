@@ -460,6 +460,43 @@ def _run_tool(name: str, args: dict):
         return {"error": str(exc)}
 
 
+# Field words that mark a message as the bot asking for a missing task field.
+# Used to detect that we're mid-collection (the bot asked owner/due/priority and
+# is awaiting the person's answer), in English and Spanish.
+_ASK_HINTS = (
+    "owner", "assign", "due", "priority", "when ", "who ", "who's", "whom",
+    "responsable", "prioridad", "fecha", "quién", "quien", "cuándo", "cuando",
+)
+
+
+def _mid_task_collection(history) -> bool:
+    """True if the MOST RECENT assistant turn in the prior history was the bot
+    asking the person for a missing task field (owner / due date / priority).
+
+    This is the signal that we're waiting on a follow-up answer. We use it to
+    catch Haiku's failure mode: on a terse reply ('Deybid', 'ok') it sometimes
+    forgets to actually call create_task and instead narrates a success it never
+    performed ('Done.', 'He creado...') or returns an empty turn. When we know we
+    were mid-collection, an assistant turn that creates nothing and isn't blocked
+    on a field is suspect, and we nudge the model to really create (or to ask for
+    whatever field is still genuinely missing)."""
+    for m in reversed(history or []):
+        if m.get("role") != "assistant":
+            continue
+        content = m.get("content")
+        if isinstance(content, str):
+            text = content
+        elif isinstance(content, list):
+            text = " ".join(b.get("text", "") for b in content
+                            if isinstance(b, dict) and b.get("type") == "text")
+        else:
+            text = ""
+        low = text.lower()
+        asked = ("?" in text or "¿" in text) and any(h in low for h in _ASK_HINTS)
+        return asked  # only the most recent assistant turn matters
+    return False
+
+
 def handle_message(text: str, sender_name: str = "a teammate", history=None):
     """Main entry point. `history` is a list of prior {role, content} text turns
     (oldest first) that gives the bot short-term memory across messages.
@@ -475,6 +512,8 @@ def handle_message(text: str, sender_name: str = "a teammate", history=None):
 
     created = False       # a task reached Notion this turn
     needs_info = False    # create was blocked waiting on due date / priority
+    corrected = False     # whether we've already issued the one recovery nudge
+    asked_before = _mid_task_collection(history)  # were we mid-collection?
 
     for _ in range(6):  # safety cap on tool round-trips
         data = _call_claude(messages, system)
@@ -484,7 +523,32 @@ def handle_message(text: str, sender_name: str = "a teammate", history=None):
 
         if stop != "tool_use":
             texts = [b["text"] for b in content if b.get("type") == "text"]
-            reply = "\n".join(texts).strip() or "Done."
+            reply = "\n".join(texts).strip()
+
+            # RECOVERY: we were mid-collection (the bot had asked for a missing
+            # owner/due/priority), yet the model ended its turn without creating
+            # anything AND without being blocked on a field — i.e. it silently
+            # skipped create_task and is about to fabricate a 'Done.'/'He creado'
+            # that never happened. Don't trust it: nudge ONCE to actually create
+            # each pending task, or to ask for whatever field is still missing.
+            if asked_before and not created and not needs_info and not corrected:
+                corrected = True
+                messages.append({"role": "user", "content": (
+                    "[SYSTEM: You have not created any task this turn and you did "
+                    "not call create_task. Do NOT claim a task was created. If "
+                    "every required field (owner, due date, priority) for each "
+                    "pending task is now known from this conversation, call "
+                    "create_task for EACH pending task NOW. If any required field "
+                    "is still missing, ask the person for ONLY those fields — never "
+                    "invent an owner, due date, or priority.]"
+                )})
+                continue
+
+            # Only say a bare 'Done.' when a task actually reached Notion; never
+            # fabricate success for an empty model turn.
+            if not reply:
+                reply = "Done." if created else (
+                    "Sorry, I didn't catch that — could you say it again?")
             status = "needs_info" if needs_info else ("created" if created else "other")
             return reply, status
 

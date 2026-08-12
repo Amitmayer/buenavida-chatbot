@@ -4,6 +4,7 @@ Central configuration.
 Everything that changes between workspaces lives here or in environment
 variables, so the rest of the code never needs editing.
 """
+import json
 import os
 
 # ---------------------------------------------------------------------------
@@ -65,6 +66,44 @@ UNSPECIFIED_LABEL = os.environ.get("UNSPECIFIED_LABEL", "Not specified")
 
 # How many tasks a single query returns at most.
 QUERY_PAGE_SIZE = int(os.environ.get("QUERY_PAGE_SIZE", "50"))
+
+# ---------------------------------------------------------------------------
+# Daily digest ("Informe Diario"). A scheduled morning post that lists everyone's
+# outstanding tasks grouped by owner, plus (optionally) a private DM to each
+# person with just their own tasks. Runs on a background thread in the always-on
+# Socket Mode process (see digest.py).
+# ---------------------------------------------------------------------------
+DIGEST_ENABLED = os.environ.get("DIGEST_ENABLED", "true").lower() == "true"
+
+# Channel the team-wide digest posts to. A channel ID (e.g. "C0123ABC") is the
+# most reliable; a plain name like "informe-diario" also works (it's resolved to
+# an ID at run time). The bot must be a MEMBER of this channel.
+DIGEST_CHANNEL = os.environ.get("DIGEST_CHANNEL", "informe-diario")
+
+# When to fire, as UTC 24-hour "HH:MM". Costa Rica is UTC-6 year round (no daylight
+# saving), so 7:00 AM Costa Rica = 13:00 UTC.
+DIGEST_UTC_TIME = os.environ.get("DIGEST_UTC_TIME", "13:00")
+
+# Which days to run: "daily" (every day, incl. weekends) or "weekdays" (Mon-Fri).
+DIGEST_DAYS = os.environ.get("DIGEST_DAYS", "daily")
+
+# Also DM each person their own tasks, on top of the channel post. If the app
+# lacks the im:write scope, DM delivery degrades silently to channel-only.
+DIGEST_DM_EACH = os.environ.get("DIGEST_DM_EACH", "true").lower() == "true"
+
+# Language for the digest text: "es" (Spanish) or "en" (English).
+DIGEST_LANG = os.environ.get("DIGEST_LANG", "es")
+
+# Optional explicit Notion-owner -> Slack user-ID overrides for DM delivery, e.g.
+# {"Gally Mayer": "U0123ABC"}. Anyone not listed is auto-matched against the Slack
+# member list and only DM'd on a SINGLE confident match (never a guess). Set via
+# the OWNER_SLACK_IDS env var as a JSON object.
+try:
+    OWNER_SLACK_IDS = json.loads(os.environ.get("OWNER_SLACK_IDS", "{}") or "{}")
+    if not isinstance(OWNER_SLACK_IDS, dict):
+        OWNER_SLACK_IDS = {}
+except (ValueError, TypeError):
+    OWNER_SLACK_IDS = {}
 
 
 def require(name: str, value: str) -> str:
