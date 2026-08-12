@@ -149,10 +149,43 @@ def create_task(title, owner=None, due=None, priority=None, status=None, notes=N
     return {"created": True, "id": data.get("id"), "url": data.get("url"), "title": title}
 
 
+def _should_promote(current_status) -> bool:
+    """Adding a note or a file means work has started, so we bump the task to
+    'In progress' — but NOT if it's already finished (don't reopen a Done task)
+    or already in progress (nothing to change)."""
+    st = (current_status or "").strip().lower()
+    if st in DONE_STATUSES:
+        return False
+    if st == (config.IN_PROGRESS_STATUS or "").strip().lower():
+        return False
+    return True
+
+
+def _current_status(task_id) -> Optional[str]:
+    """Read just a task's current status (small GET), so promotion can be guarded
+    without clobbering a Done/manual status."""
+    meta = config.NOTION_SCHEMA.get("status")
+    if not meta:
+        return None
+    resp = requests.get(f"{API_BASE}/pages/{task_id}", headers=_headers(), timeout=30)
+    if resp.status_code >= 400:
+        return None
+    prop = resp.json().get("properties", {}).get(meta["name"])
+    return _read_property(prop) if prop else None
+
+
 def update_task(task_id, title=None, owner=None, due=None, priority=None,
                 status=None, notes=None) -> dict:
     """Update fields on an existing task. Only the fields you pass are changed.
-    To mark a task complete, pass status='Done'."""
+    To mark a task complete, pass status='Done'.
+
+    Adding a NOTE auto-promotes the task to 'In progress' (unless it's Done or
+    already in progress, and unless the caller set a status explicitly)."""
+    promoted = False
+    if notes and status is None and config.NOTION_SCHEMA.get("status"):
+        if _should_promote(_current_status(task_id)):
+            status = config.IN_PROGRESS_STATUS
+            promoted = True
     properties = _properties_from({
         "title": title, "owner": _canonical_owner(owner), "due": due,
         "priority": priority, "status": status, "notes": notes,
@@ -169,7 +202,7 @@ def update_task(task_id, title=None, owner=None, due=None, priority=None,
         raise RuntimeError(f"Notion update failed ({resp.status_code}): {resp.text}")
     data = resp.json()
     return {"updated": True, "id": data.get("id"), "url": data.get("url"),
-            "changed": list(properties.keys())}
+            "changed": list(properties.keys()), "status_promoted": promoted}
 
 
 def add_material(task_id, url, label=None) -> dict:
@@ -198,15 +231,30 @@ def add_material(task_id, url, label=None) -> dict:
     entries.append({"name": label or url, "url": url})
 
     built = _build_value("files", entries)
+    patch_props = {meta["name"]: built}
+
+    # Adding a file means work has started -> promote to 'In progress' (guarded so
+    # we never reopen a Done task or clobber a manual status). We already have the
+    # page's props from the read above, so no extra request is needed.
+    promoted = False
+    status_meta = config.NOTION_SCHEMA.get("status")
+    if status_meta:
+        current_status = (_read_property(props.get(status_meta["name"]))
+                          if props.get(status_meta["name"]) else None)
+        if _should_promote(current_status):
+            patch_props[status_meta["name"]] = _build_value("status", config.IN_PROGRESS_STATUS)
+            promoted = True
+
     resp2 = requests.patch(
         f"{API_BASE}/pages/{task_id}",
         headers=_headers(),
-        json={"properties": {meta["name"]: built}},
+        json={"properties": patch_props},
         timeout=30,
     )
     if resp2.status_code >= 400:
         raise RuntimeError(f"Notion update failed ({resp2.status_code}): {resp2.text}")
-    return {"added": True, "id": task_id, "count": len(entries), "materials": entries}
+    return {"added": True, "id": task_id, "count": len(entries),
+            "materials": entries, "status_promoted": promoted}
 
 
 def get_materials(task_id) -> list[dict]:

@@ -52,6 +52,10 @@ NOTION_SCHEMA = {
 # Default status applied to newly created tasks.
 DEFAULT_NEW_TASK_STATUS = os.environ.get("DEFAULT_NEW_TASK_STATUS", "Not started")
 
+# Status a task is auto-moved to when someone adds a note or a file to it — but
+# only if it isn't already finished or already in progress (see _should_promote).
+IN_PROGRESS_STATUS = os.environ.get("IN_PROGRESS_STATUS", "In progress")
+
 # How many tasks a single query returns at most.
 QUERY_PAGE_SIZE = int(os.environ.get("QUERY_PAGE_SIZE", "50"))
 
