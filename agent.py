@@ -46,6 +46,47 @@ def pop_deliveries() -> list:
     _DELIVERIES.items = []
     return items
 
+# ---------------------------------------------------------------------------
+# Force / finalize mode.
+#
+# Normally an incomplete task (missing owner/due/priority) is NOT saved — the bot
+# asks for the gaps and waits. But if the person walks away and the listening
+# window expires, we don't want to lose the task. finalize_pending_task() flips
+# this thread-local flag on and re-runs the conversation with an instruction to
+# create the task now; while the flag is on, _create_task_guarded saves the task
+# anyway, filling each missing required field with a placeholder instead of
+# blocking. Thread-local so a finalize on one conversation never affects another.
+# ---------------------------------------------------------------------------
+_FORCE = threading.local()
+
+
+def _allow_partial() -> bool:
+    return bool(getattr(_FORCE, "on", False))
+
+
+def finalize_pending_task(history=None, sender_name: str = "a teammate"):
+    """Force-create the task currently under discussion, filling any still-missing
+    required field with a placeholder. Called by the Slack layer when a channel
+    listening window expires with no reply, so a forgotten task is saved rather
+    than lost. Reuses the conversation history so the task keeps its title, owner,
+    and details from the original request. Returns (reply_text, created_bool)."""
+    _FORCE.on = True
+    try:
+        instruction = (
+            "[SYSTEM: The person never replied and the waiting window has expired. "
+            "Create the task NOW from what was already provided earlier in this "
+            "conversation — do not ask any more questions. Any required field "
+            "still missing (owner, due date, or priority) will be saved as a "
+            "placeholder automatically. After creating it, tell the person, in "
+            "their language, that you saved the task with placeholders for the "
+            "missing fields, and name which fields those are so they can fill them "
+            "in later.]"
+        )
+        reply, status = handle_message(instruction, sender_name, history=history)
+        return reply, (status == "created")
+    finally:
+        _FORCE.on = False
+
 # Fields that are mandatory when creating a task.
 # Only these genuinely can't be inferred and must be supplied by the user.
 # (Title and details are always derived from the request, never asked for.)
@@ -210,25 +251,48 @@ def _deliver_material(task_id, name=None) -> dict:
 
 def _create_task_guarded(title=None, owner=None, due=None, priority=None,
                          status=None, notes=None):
-    """Refuse to create a task unless required fields are present."""
+    """Refuse to create a task unless required fields are present — UNLESS we're
+    in finalize mode (a listening window expired), in which case we save the task
+    anyway and fill each missing required field with a placeholder so the task is
+    never lost."""
     values = {"title": title, "owner": owner, "due": due,
               "priority": priority, "notes": notes}
-    missing = [label for field, label in REQUIRED_FOR_CREATE.items() if not values[field]]
-    if missing:
+    missing = [field for field in REQUIRED_FOR_CREATE if not values.get(field)]
+
+    if missing and not _allow_partial():
+        labels = [REQUIRED_FOR_CREATE[f] for f in missing]
         return {
             "created": False,
             "needs_more_info": True,
-            "missing": missing,
+            "missing": labels,
             "message": (
                 "This task can't be created yet. Ask the user to provide: "
-                + ", ".join(missing)
+                + ", ".join(labels)
                 + ". Do not create the task until all are given."
             ),
         }
-    return notion_client.create_task(
+
+    placeholders = []
+    if missing:  # finalize mode: save with placeholders instead of blocking
+        if not title:
+            title = "Untitled task"
+        if "owner" in missing:
+            owner = config.UNSPECIFIED_LABEL
+        if "priority" in missing:
+            priority = config.UNSPECIFIED_LABEL
+        # 'due' is a real date property and cannot hold placeholder text, so we
+        # leave it blank (which reads as "no due date").
+        placeholders = [REQUIRED_FOR_CREATE[f] for f in missing]
+        flag = "[Auto-saved without a reply. Unspecified: " + ", ".join(placeholders) + ".]"
+        notes = (notes + "\n\n" + flag) if notes else flag
+
+    result = notion_client.create_task(
         title=title, owner=owner, due=due, priority=priority,
         status=status, notes=notes,
     )
+    if placeholders and isinstance(result, dict):
+        result["placeholders"] = placeholders
+    return result
 
 
 TOOL_IMPLS = {

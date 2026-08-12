@@ -74,25 +74,31 @@ def _window_key(event: dict) -> str:
 
 def _window_active(wkey: str) -> bool:
     """True if we're still within an open listening window for this person.
-    Expired windows are cleaned up here."""
+
+    Note we do NOT pop an expired window here. The finalize timer (armed for
+    WINDOW_SECONDS) is the single owner of closing a window — it pops it AND
+    auto-saves the task. If this lazy check popped the window first, a message
+    that happened to arrive right at expiry would delete the window before the
+    timer fired, and the forgotten task would be lost instead of saved. So past
+    expiry we simply report 'not active' (the untriggered reply is ignored) and
+    leave the timer to close and save."""
     with _PENDING_LOCK:
         p = _PENDING.get(wkey)
         if not p:
             return False
-        if time.time() > p["expires_at"]:
-            if p.get("timer"):
-                p["timer"].cancel()
-            _PENDING.pop(wkey, None)
-            return False
-        return True
+        return time.time() <= p["expires_at"]
 
 
 def _clear_pending(wkey: str) -> None:
-    """Close a window and cancel any pending nudge (task done or conversation over)."""
+    """Close a window and cancel BOTH timers (the nudge and the auto-save). Called
+    when the task is done or the conversation is over, so nothing fires afterward."""
     with _PENDING_LOCK:
         p = _PENDING.pop(wkey, None)
-    if p and p.get("timer"):
-        p["timer"].cancel()
+    if p:
+        if p.get("timer"):
+            p["timer"].cancel()
+        if p.get("finalize_timer"):
+            p["finalize_timer"].cancel()
 
 
 def _mark_answered(wkey: str) -> None:
@@ -133,27 +139,74 @@ def _schedule_followup(wkey, client, channel, thread_ts, user, question):
     return t
 
 
-def _open_window(wkey, client, channel, thread_ts, user, question) -> None:
-    """(Re)open a listening window and (re)arm the 2-minute nudge. Called every
-    time the bot asks for more info, so the timers roll forward each exchange."""
+def _schedule_finalize(wkey, client, channel, thread_ts, sender_name):
+    """Arm a one-shot timer that AUTO-SAVES the task if the window closes with no
+    completed reply. This is why a forgotten task is never lost: WINDOW_SECONDS
+    after the last exchange we write it to Notion, filling any still-missing field
+    with a placeholder (owner/priority -> 'Not specified', due date left blank).
+
+    The timer is the single owner of closing an expired window (see the note in
+    _window_active): it pops the window, cancels the nudge, then runs finalize."""
+    def _fire():
+        with _PENDING_LOCK:
+            p = _PENDING.get(wkey)
+            if not p:
+                return  # already closed (task created, or conversation cleared)
+            _PENDING.pop(wkey, None)      # claim + close the window
+            if p.get("timer"):
+                p["timer"].cancel()        # cancel any still-pending nudge
+        key = thread_ts or channel or "default"
+        history = _CONV.get(key, [])
+        try:
+            answer, created = agent.finalize_pending_task(history, sender_name)
+            kwargs = {"channel": channel, "text": answer}
+            if thread_ts:
+                kwargs["thread_ts"] = thread_ts
+            client.chat_postMessage(**kwargs)
+            _CONV[key] = (history + [
+                {"role": "assistant", "content": answer},
+            ])[-_MAX_TURNS:]
+            log.info("auto-saved abandoned task for %s (created=%s)", wkey, created)
+        except Exception:
+            log.exception("auto-save on window expiry failed for %s", wkey)
+
+    t = threading.Timer(WINDOW_SECONDS, _fire)
+    t.daemon = True
+    t.start()
+    log.info("auto-save armed for %s, firing in %ss", wkey, WINDOW_SECONDS)
+    return t
+
+
+def _open_window(wkey, client, channel, thread_ts, user, question,
+                 sender_name="a teammate") -> None:
+    """(Re)open a listening window and (re)arm BOTH timers: the 2-minute nudge and
+    the 5-minute auto-save. Called every time the bot asks for more info, so the
+    timers roll forward each exchange (a fresh reply buys another full window)."""
     with _PENDING_LOCK:
         prev = _PENDING.get(wkey)
-        if prev and prev.get("timer"):
-            prev["timer"].cancel()
+        if prev:
+            if prev.get("timer"):
+                prev["timer"].cancel()
+            if prev.get("finalize_timer"):
+                prev["finalize_timer"].cancel()
         _PENDING[wkey] = {
             "user": user,
             "channel": channel,
             "thread_ts": thread_ts,
             "expires_at": time.time() + WINDOW_SECONDS,
             "question": question,
+            "sender_name": sender_name,
             "answered": False,
             "timer": None,
+            "finalize_timer": None,
         }
     timer = _schedule_followup(wkey, client, channel, thread_ts, user, question)
+    finalize_timer = _schedule_finalize(wkey, client, channel, thread_ts, sender_name)
     with _PENDING_LOCK:
         p = _PENDING.get(wkey)
         if p is not None:
             p["timer"] = timer
+            p["finalize_timer"] = finalize_timer
 
 
 def _clean(text: str) -> str:
@@ -317,7 +370,8 @@ def _deliver_queued(event, client) -> None:
 def _respond(event, say, client, command, *, manage_window: bool) -> None:
     """Generate a reply, post it, and (in channels) manage the listening window:
     keep listening if the bot asked for more info, stop once the task is made."""
-    answer, status = _reply(command, _key(event), _sender_name(client, event))
+    sender_name = _sender_name(client, event)
+    answer, status = _reply(command, _key(event), sender_name)
     say(answer)
     _deliver_queued(event, client)  # re-upload any files the agent queued
 
@@ -336,7 +390,7 @@ def _respond(event, say, client, command, *, manage_window: bool) -> None:
         _open_window(
             wkey, client,
             event.get("channel"), event.get("thread_ts"), event.get("user"),
-            answer,
+            answer, sender_name,
         )
     elif status == "created":
         _clear_pending(wkey)  # done — task made and nothing left to ask

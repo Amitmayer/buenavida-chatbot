@@ -56,6 +56,13 @@ DEFAULT_NEW_TASK_STATUS = os.environ.get("DEFAULT_NEW_TASK_STATUS", "Not started
 # only if it isn't already finished or already in progress (see _should_promote).
 IN_PROGRESS_STATUS = os.environ.get("IN_PROGRESS_STATUS", "In progress")
 
+# Placeholder written into an auto-saved task's missing SELECT fields (owner /
+# priority) when a listening window expires before the person supplied them, so
+# the task is saved rather than lost. The due date is a real Notion date property
+# and cannot hold placeholder text, so it is left blank (reads as "no due date");
+# what was left unspecified is also recorded in the task's notes.
+UNSPECIFIED_LABEL = os.environ.get("UNSPECIFIED_LABEL", "Not specified")
+
 # How many tasks a single query returns at most.
 QUERY_PAGE_SIZE = int(os.environ.get("QUERY_PAGE_SIZE", "50"))
 
