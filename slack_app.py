@@ -24,6 +24,7 @@ from slack_bolt import App
 from slack_bolt.adapter.socket_mode import SocketModeHandler
 
 import agent
+import config
 import digest
 import drive_client
 
@@ -46,6 +47,28 @@ _MENTION = re.compile(r"<@[A-Z0-9]+>")
 # only — resets if the process restarts, which is fine for this use.
 _CONV: dict[str, list] = {}
 _MAX_TURNS = 8  # ~4 back-and-forth exchanges
+
+# The listening window (below) lives only in memory, so a process restart wipes
+# it. That used to make the bot go DEAF to an in-flight follow-up: someone answers
+# "Susana, mañana, alta" with no trigger word, but the window that told us to read
+# untriggered replies is gone, so the message is ignored and the task never gets
+# its fields. To survive restarts we can rebuild that state from Slack's own
+# history (see _recover_channel_window): if our last message in the channel was an
+# unanswered question to this person, we treat their reply as the answer even
+# though no window is in memory. These cache the bot's identity so we can tell our
+# own messages apart from other people's when reading history.
+_BOT_USER_ID = None
+_BOT_BOT_ID = None
+_BOT_ID_LOCK = threading.Lock()
+
+# Look this many messages back when rebuilding a dropped conversation.
+_RECOVERY_LOOKBACK = 15
+# After a history check finds nothing pending in a channel, skip re-checking it
+# for this long so ordinary chatter doesn't trigger a history call per message.
+# (Only ever set for non-conversation chatter; never suppresses a real answer —
+# an active window short-circuits before recovery is even attempted.)
+_RECOVERY_TTL = 60
+_recovery_checked: dict[str, float] = {}  # channel -> last "nothing pending" time
 
 # ---------------------------------------------------------------------------
 # Listening windows (channels only)
@@ -140,14 +163,16 @@ def _schedule_followup(wkey, client, channel, thread_ts, user, question):
     return t
 
 
-def _schedule_finalize(wkey, client, channel, thread_ts, sender_name):
+def _schedule_finalize(wkey, client, channel, thread_ts, sender_name, sector=None):
     """Arm a one-shot timer that AUTO-SAVES the task if the window closes with no
     completed reply. This is why a forgotten task is never lost: WINDOW_SECONDS
     after the last exchange we write it to Notion, filling any still-missing field
     with a placeholder (owner/priority -> 'Not specified', due date left blank).
 
     The timer is the single owner of closing an expired window (see the note in
-    _window_active): it pops the window, cancels the nudge, then runs finalize."""
+    _window_active): it pops the window, cancels the nudge, then runs finalize.
+
+    `sector` routes the auto-saved task to the right sector database."""
     def _fire():
         with _PENDING_LOCK:
             p = _PENDING.get(wkey)
@@ -159,7 +184,7 @@ def _schedule_finalize(wkey, client, channel, thread_ts, sender_name):
         key = thread_ts or channel or "default"
         history = _CONV.get(key, [])
         try:
-            answer, created = agent.finalize_pending_task(history, sender_name)
+            answer, created = agent.finalize_pending_task(history, sender_name, sector)
             kwargs = {"channel": channel, "text": answer}
             if thread_ts:
                 kwargs["thread_ts"] = thread_ts
@@ -179,7 +204,7 @@ def _schedule_finalize(wkey, client, channel, thread_ts, sender_name):
 
 
 def _open_window(wkey, client, channel, thread_ts, user, question,
-                 sender_name="a teammate") -> None:
+                 sender_name="a teammate", sector=None) -> None:
     """(Re)open a listening window and (re)arm BOTH timers: the 2-minute nudge and
     the 5-minute auto-save. Called every time the bot asks for more info, so the
     timers roll forward each exchange (a fresh reply buys another full window)."""
@@ -202,7 +227,7 @@ def _open_window(wkey, client, channel, thread_ts, user, question,
             "finalize_timer": None,
         }
     timer = _schedule_followup(wkey, client, channel, thread_ts, user, question)
-    finalize_timer = _schedule_finalize(wkey, client, channel, thread_ts, sender_name)
+    finalize_timer = _schedule_finalize(wkey, client, channel, thread_ts, sender_name, sector)
     with _PENDING_LOCK:
         p = _PENDING.get(wkey)
         if p is not None:
@@ -217,6 +242,97 @@ def _clean(text: str) -> str:
 def _key(event: dict) -> str:
     # Group by thread when present, otherwise by channel/DM.
     return event.get("thread_ts") or event.get("channel") or "default"
+
+
+# ---------------------------------------------------------------------------
+# Sector resolution (access isolation)
+#
+# A message's sector is decided by the CHANNEL it arrived on, via config.SECTORS.
+# For DMs (which have no sector channel) we derive the person's sectors from the
+# membership of the sector channels themselves (conversations.members) — Slack
+# channel membership is the single source of truth, so there's no second
+# whitelist to maintain. When config.SECTORS is empty the whole workspace runs in
+# single-database mode and these helpers are no-ops.
+# ---------------------------------------------------------------------------
+_SECTOR_MEMBERS: dict = {}          # channel_id -> (fetched_at, set(user_ids))
+_SECTOR_MEMBERS_TTL = 300           # re-list a channel's members at most every 5 min
+_SECTOR_MEMBERS_LOCK = threading.Lock()
+
+
+def _sector_channel_members(client, channel_id: str) -> set:
+    """Members of a sector channel, cached for a few minutes. On an API failure
+    we return the last good set (or empty) rather than crashing a message."""
+    now = time.time()
+    with _SECTOR_MEMBERS_LOCK:
+        cached = _SECTOR_MEMBERS.get(channel_id)
+    if cached and now - cached[0] < _SECTOR_MEMBERS_TTL:
+        return cached[1]
+    ids: set = set()
+    try:
+        cursor = None
+        while True:
+            resp = client.conversations_members(channel=channel_id, limit=200, cursor=cursor)
+            ids.update(resp.get("members", []))
+            cursor = (resp.get("response_metadata") or {}).get("next_cursor")
+            if not cursor:
+                break
+    except Exception:
+        log.exception("could not list members of sector channel %s", channel_id)
+        if cached:
+            return cached[1]  # serve stale rather than lock the person out on a blip
+    with _SECTOR_MEMBERS_LOCK:
+        _SECTOR_MEMBERS[channel_id] = (now, ids)
+    return ids
+
+
+def _user_sectors(client, user_id: str) -> list:
+    """Every sector the user belongs to, as a list of (channel_id, cfg)."""
+    out = []
+    for cid, cfg in config.SECTORS.items():
+        if user_id in _sector_channel_members(client, cid):
+            out.append((cid, cfg))
+    return out
+
+
+def _match_sector_prefix(text: str, mine: list):
+    """If a multi-sector person prefixed their DM with a sector name they belong
+    to ('ventas: ...'), return (cfg, text_without_prefix); else (None, text).
+    Only a 'name:' prefix is accepted, to avoid mis-reading normal sentences."""
+    stripped = (text or "").lstrip()
+    low = stripped.lower()
+    for _cid, cfg in mine:
+        name = (cfg.get("sector") or "").strip().lower()
+        if name and low.startswith(name + ":"):
+            return cfg, stripped[len(name) + 1:].strip()
+    return None, text
+
+
+def _resolve_dm_sector(client, user_id: str, text: str):
+    """Decide which sector a DM belongs to. Returns (sector_cfg, cleaned_text,
+    refusal_message). refusal_message is None when it's OK to proceed.
+
+    - single-database mode: (None, text, None) — behave as before.
+    - one sector: use it.
+    - several sectors: require a 'sector:' prefix so we never guess across the
+      isolation wall; otherwise ask them to name the sector.
+    - no sector: decline (nothing to act on)."""
+    if not config.sectors_enabled():
+        return None, text, None
+    mine = _user_sectors(client, user_id)
+    if not mine:
+        return None, text, (
+            "No perteneces a ningún sector todavía, así que no puedo crear ni "
+            "consultar tareas por aquí. Pídele a un administrador que te agregue "
+            "al canal de tu sector.")
+    if len(mine) == 1:
+        return mine[0][1], text, None
+    picked, cleaned = _match_sector_prefix(text, mine)
+    if picked:
+        return picked, cleaned, None
+    names = ", ".join(sorted(cfg.get("sector", "?") for _c, cfg in mine))
+    return None, text, (
+        f"Estás en varios sectores ({names}). Empieza tu mensaje con el sector, "
+        f"por ejemplo `ventas: ...`, para que sepa en cuál trabajar.")
 
 
 # In a shared channel the bot stays SILENT unless a message starts with one of
@@ -257,12 +373,13 @@ def _sender_name(client, event) -> str:
         return "a teammate"
 
 
-def _reply(text: str, key: str, sender_name: str = "a teammate"):
+def _reply(text: str, key: str, sender_name: str = "a teammate", sector=None):
     """Run one message through the agent. Returns (answer_text, status) where
     status is 'created' / 'needs_info' / 'other' (see agent.handle_message)."""
     history = _CONV.get(key, [])
     try:
-        answer, status = agent.handle_message(text, sender_name, history=history)
+        answer, status = agent.handle_message(text, sender_name, history=history,
+                                              sector=sector)
     except Exception as exc:  # never let one bad message kill the listener
         log.exception("agent error")
         return f"Something went wrong: {exc}", "other"
@@ -298,11 +415,14 @@ def _download_slack_file(f: dict) -> bytes:
     return r.content
 
 
-def _ingest_files(event) -> str:
+def _ingest_files(event, sector=None) -> str:
     """Store any uploaded files in Drive and return a note (to append to the
     command) describing each file's name + Drive link. Empty string if there are
     no files. If Drive isn't configured, returns a note telling the agent to say
-    so rather than silently dropping the upload."""
+    so rather than silently dropping the upload.
+
+    In sector mode the file goes into that sector's Drive subfolder, so a channel
+    only ever writes into its own folder."""
     files = event.get("files") or []
     if not files:
         return ""
@@ -311,12 +431,14 @@ def _ingest_files(event) -> str:
         return ("\n\n[SYSTEM: The user uploaded a file, but file storage isn't "
                 "set up yet, so it could not be saved. Tell them file uploads "
                 "aren't available yet.]")
+    folder_id = (sector or {}).get("drive_folder")
     stored = []
     for f in files:
         name = f.get("name") or f.get("title") or "file"
         try:
             data = _download_slack_file(f)
-            res = drive_client.upload_bytes(name, data, f.get("mimetype"))
+            res = drive_client.upload_bytes(name, data, f.get("mimetype"),
+                                            folder_id=folder_id)
             stored.append((name, res.get("link")))
             log.info("stored upload %r in Drive (%s)", name, res.get("id"))
         except Exception:
@@ -390,11 +512,11 @@ def _maybe_run_digest(command, say, client) -> bool:
     return True
 
 
-def _respond(event, say, client, command, *, manage_window: bool) -> None:
+def _respond(event, say, client, command, *, manage_window: bool, sector=None) -> None:
     """Generate a reply, post it, and (in channels) manage the listening window:
     keep listening if the bot asked for more info, stop once the task is made."""
     sender_name = _sender_name(client, event)
-    answer, status = _reply(command, _key(event), sender_name)
+    answer, status = _reply(command, _key(event), sender_name, sector)
     say(answer)
     _deliver_queued(event, client)  # re-upload any files the agent queued
 
@@ -413,7 +535,7 @@ def _respond(event, say, client, command, *, manage_window: bool) -> None:
         _open_window(
             wkey, client,
             event.get("channel"), event.get("thread_ts"), event.get("user"),
-            answer, sender_name,
+            answer, sender_name, sector,
         )
     elif status == "created":
         _clear_pending(wkey)  # done — task made and nothing left to ask
@@ -469,17 +591,95 @@ def _is_asking(status: str, answer: str) -> bool:
     return any(h in low for h in _ASK_FIELD_HINTS)
 
 
+def _bot_identity(client):
+    """The bot's own user id (and bot_id) so we can recognise our own messages
+    when reading channel history. Cached — resolved once per process."""
+    global _BOT_USER_ID, _BOT_BOT_ID
+    if _BOT_USER_ID is None:
+        with _BOT_ID_LOCK:
+            if _BOT_USER_ID is None:
+                try:
+                    a = client.auth_test()
+                    _BOT_USER_ID = a.get("user_id")
+                    _BOT_BOT_ID = a.get("bot_id")
+                except Exception:
+                    log.exception("auth_test failed; cannot resolve bot identity")
+    return _BOT_USER_ID, _BOT_BOT_ID
+
+
+def _is_ours(msg, uid, bid) -> bool:
+    """True if a history message was posted by THIS bot (not another app)."""
+    if uid and msg.get("user") == uid:
+        return True
+    return bool(bid and msg.get("bot_id") == bid)
+
+
+def _dialogue_from_history(msgs, uid, bid, user):
+    """Turn raw Slack messages (oldest->newest) into agent history turns: our
+    messages -> assistant, this person's -> user. Everyone else's chatter is
+    skipped so the rebuilt context is just their exchange with us."""
+    out = []
+    for m in msgs:
+        text = _clean(m.get("text", ""))
+        if not text:
+            continue
+        if _is_ours(m, uid, bid):
+            out.append({"role": "assistant", "content": text})
+        elif m.get("user") == user:
+            out.append({"role": "user", "content": text})
+    return out[-_MAX_TURNS:]
+
+
+def _recover_channel_window(client, event):
+    """Rebuild a dropped listening window from Slack history (see the note by
+    _CONV). Returns reconstructed history to reseed _CONV if our most recent
+    message in this channel was an unanswered question to THIS person and we
+    haven't since confirmed a save; otherwise None (stay silent, as before)."""
+    user = event.get("user")
+    channel = event.get("channel")
+    uid, bid = _bot_identity(client)
+    if not uid and not bid:
+        return None
+    try:
+        resp = client.conversations_history(channel=channel, limit=_RECOVERY_LOOKBACK)
+    except Exception:
+        log.exception("history fetch failed during recovery for %s", channel)
+        return None
+    msgs = list(reversed(resp.get("messages", [])))  # oldest -> newest
+    # Index of the last message WE posted.
+    last_bot_idx = None
+    for i in range(len(msgs) - 1, -1, -1):
+        if _is_ours(msgs[i], uid, bid):
+            last_bot_idx = i
+            break
+    if last_bot_idx is None:
+        return None
+    # Was our last message a question waiting on a task field? (status unknown
+    # from history, so lean on the same text heuristic used for live windows.)
+    if not _is_asking("other", _clean(msgs[last_bot_idx].get("text", ""))):
+        return None
+    # The person answering must be the one we were building a task for: require an
+    # earlier message from THIS user before our question, so we don't answer on a
+    # bystander's behalf.
+    if not any(m.get("user") == user for m in msgs[:last_bot_idx]):
+        return None
+    return _dialogue_from_history(msgs[:last_bot_idx + 1], uid, bid, user)
+
+
 @app.event("app_mention")
 def handle_mention(event, say, client):
     """Triggered when someone @mentions the bot in a channel."""
     text = _clean(event.get("text", ""))
-    note = _ingest_files(event)  # store any attached file(s) in Drive
+    sector = config.sector_for_channel(event.get("channel"))
+    if config.sectors_enabled() and sector is None:
+        return  # sector mode on, but this isn't a sector channel — stay silent
+    note = _ingest_files(event, sector)  # store any attached file(s) in Drive
     if not text and not note:
         say("Tell me what to do — e.g. \"what's due today?\"")
         return
     if _maybe_run_digest(text, say, client):
         return
-    _respond(event, say, client, (text + note).strip(), manage_window=True)
+    _respond(event, say, client, (text + note).strip(), manage_window=True, sector=sector)
 
 
 @app.event("message")
@@ -500,32 +700,55 @@ def handle_message(event, say, client):
     if event.get("channel_type") == "im":
         if _maybe_run_digest(text, say, client):
             return
-        note = _ingest_files(event)  # store any attached file(s) in Drive
+        # A DM has no sector channel, so derive the person's sector from their
+        # channel memberships. One sector -> use it; several -> require a 'sector:'
+        # prefix (never guess across the wall); none -> decline.
+        sector, command_text, refusal = _resolve_dm_sector(client, event.get("user"), text)
+        if refusal:
+            say(refusal)
+            return
+        note = _ingest_files(event, sector)  # store any attached file(s) in Drive
         # DMs read every message (no trigger needed), so the window's READ-gating
         # is moot here — but the nudge and auto-save TIMERS still matter: if the
         # bot asks for a missing field in a DM and the person never answers, we
         # still want to nudge once and then auto-save with placeholders. So manage
         # the window in DMs too, and mark their reply as answering any pending nudge.
         _mark_answered(_window_key(event))
-        _respond(event, say, client, (text + note).strip(), manage_window=True)
+        _respond(event, say, client, (command_text + note).strip(),
+                 manage_window=True, sector=sector)
         return
 
     # Channel/group. If it's an @mention, let handle_mention own it.
     if _MENTION.search(event.get("text", "")):
         return
+    sector = config.sector_for_channel(event.get("channel"))
+    if config.sectors_enabled() and sector is None:
+        return  # sector mode on, but this isn't a sector channel — stay silent
     wkey = _window_key(event)
     command = _triggered_command(text)
     if command is None:
         # No trigger. Engage only if we're already mid-conversation with this
         # person (i.e. we asked them something and are awaiting their answer).
         if not _window_active(wkey):
-            if has_files:
-                # A file with no trigger/window: we don't know which task it's
-                # for. Ask them to re-send with a caption rather than storing an
-                # orphan copy in Drive.
-                say("Got a file. Add a caption like "
-                    "`task: attach to <task name>` so I know where it goes.")
-            return  # not addressed to us — stay silent
+            # The in-memory window may simply have been wiped by a restart. Before
+            # going silent, ask Slack's history whether we're still waiting on this
+            # person, and if so rebuild the lost context and read their reply.
+            channel = event.get("channel")
+            recovered = None
+            if time.time() - _recovery_checked.get(channel, 0) >= _RECOVERY_TTL:
+                recovered = _recover_channel_window(client, event)
+                if recovered is None:
+                    _recovery_checked[channel] = time.time()  # nothing pending; back off
+            if recovered is None:
+                if has_files:
+                    # A file with no trigger/window: we don't know which task it's
+                    # for. Ask them to re-send with a caption rather than storing an
+                    # orphan copy in Drive.
+                    say("Got a file. Add a caption like "
+                        "`task: attach to <task name>` so I know where it goes.")
+                return  # not addressed to us — stay silent
+            _CONV[_key(event)] = recovered  # reseed the context lost on restart
+            log.info("recovered mid-conversation with %s from channel history", wkey)
         command = text  # read their follow-up answer as-is
     elif not command and not has_files:
         say("Add your request after the trigger, e.g. "
@@ -534,9 +757,10 @@ def handle_message(event, say, client):
 
     if _maybe_run_digest(command, say, client):
         return
-    note = _ingest_files(event)  # store any attached file(s) in Drive
+    note = _ingest_files(event, sector)  # store any attached file(s) in Drive
     _mark_answered(wkey)  # their message answers any pending nudge
-    _respond(event, say, client, (command + note).strip(), manage_window=True)
+    _respond(event, say, client, (command + note).strip(),
+             manage_window=True, sector=sector)
 
 
 if __name__ == "__main__":

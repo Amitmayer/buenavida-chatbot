@@ -8,9 +8,12 @@ details/notes. If any are missing, the bot asks for them instead of creating an
 incomplete task. This is enforced both in Claude's instructions AND by a hard
 guard below, so an incomplete task can never reach Notion.
 """
-from datetime import date
+from datetime import date, timedelta
 import json
+import re
 import threading
+import unicodedata
+
 import requests
 
 import config
@@ -63,13 +66,55 @@ _FORCE = threading.local()
 def _allow_partial() -> bool:
     return bool(getattr(_FORCE, "on", False))
 
+# ---------------------------------------------------------------------------
+# Sector context (access isolation).
+#
+# The bot is a superuser across every sector, so isolation MUST live in code,
+# keyed to the Slack CHANNEL a message arrived on — never in the prompt (a task
+# note could try to talk the model into crossing sectors). handle_message stores
+# the caller's sector here, on a thread-local, and the Notion tool wrappers read
+# the active/history database ids from it. The MODEL never sees or controls a
+# database id: it only ever passes task fields, and the wrapper injects the id.
+# That is what stops a person in two sectors from reaching one sector's data
+# while acting in the other's channel.
+#
+# When no sector is set (single-database mode), the ids are None and the Notion
+# layer falls back to config.NOTION_DATABASE_ID — i.e. exactly the old behavior.
+# ---------------------------------------------------------------------------
+_CTX = threading.local()
 
-def finalize_pending_task(history=None, sender_name: str = "a teammate"):
+
+def _set_ctx(sector) -> None:
+    """Set (or clear) the active sector for this thread. Always called at the top
+    of handle_message so a previous call's sector never leaks into the next."""
+    sector = sector or {}
+    _CTX.active_db = sector.get("active_db")
+    _CTX.history_db = sector.get("history_db")
+    _CTX.sector_name = sector.get("sector")
+    _CTX.subsector = sector.get("subsector")
+
+
+def _ctx_active():
+    return getattr(_CTX, "active_db", None)
+
+
+def _ctx_history():
+    return getattr(_CTX, "history_db", None)
+
+
+def _ctx_subsector():
+    return getattr(_CTX, "subsector", None)
+
+
+def finalize_pending_task(history=None, sender_name: str = "a teammate", sector=None):
     """Force-create the task currently under discussion, filling any still-missing
     required field with a placeholder. Called by the Slack layer when a channel
     listening window expires with no reply, so a forgotten task is saved rather
     than lost. Reuses the conversation history so the task keeps its title, owner,
-    and details from the original request. Returns (reply_text, created_bool)."""
+    and details from the original request. Returns (reply_text, created_bool).
+
+    `sector` routes the auto-saved task to the right sector database (same
+    isolation as a live message)."""
     _FORCE.on = True
     try:
         instruction = (
@@ -82,7 +127,8 @@ def finalize_pending_task(history=None, sender_name: str = "a teammate"):
             "missing fields, and name which fields those are so they can fill them "
             "in later.]"
         )
-        reply, status = handle_message(instruction, sender_name, history=history)
+        reply, status = handle_message(instruction, sender_name, history=history,
+                                       sector=sector)
         return reply, (status == "created")
     finally:
         _FORCE.on = False
@@ -115,7 +161,7 @@ TOOLS = [
             "properties": {
                 "title": {"type": "string", "description": "A concise task name you write yourself from the request."},
                 "owner": {"type": "string", "description": "Person responsible, taken from the message, e.g. 'Gally'."},
-                "due": {"type": "string", "description": "Due date as YYYY-MM-DD. Resolve relative dates like 'Sunday' yourself. Ask the user if not given."},
+                "due": {"type": "string", "description": "Due date as YYYY-MM-DD. You may also pass a relative phrase and it will be resolved server-side (e.g. 'mañana', 'hoy', 'lunes', 'tomorrow', 'next week', 'en 3 dias'). Ask the user if not given."},
                 "priority": {"type": "string", "description": "High, Medium, or Low. Ask the user if not given."},
                 "notes": {"type": "string", "description": "Details/context, derived from the user's message. Always include."},
                 "status": {"type": "string", "description": "Status if stated; otherwise omit to use the default."},
@@ -166,7 +212,7 @@ TOOLS = [
             "properties": {
                 "task_id": {"type": "string", "description": "The task's Notion id, taken from query_tasks results. Required."},
                 "status": {"type": "string", "description": "New status, e.g. 'Done' to complete it, or 'In progress'."},
-                "due": {"type": "string", "description": "New due date as YYYY-MM-DD."},
+                "due": {"type": "string", "description": "New due date as YYYY-MM-DD, or a relative phrase resolved server-side (e.g. 'mañana', 'lunes', 'tomorrow', 'next week')."},
                 "priority": {"type": "string", "description": "New priority: High, Medium, or Low."},
                 "owner": {"type": "string", "description": "Reassign the task to this person."},
                 "title": {"type": "string", "description": "A new title for the task."},
@@ -249,12 +295,86 @@ def _deliver_material(task_id, name=None) -> dict:
             "count": len(sent)}
 
 
+# ---------------------------------------------------------------------------
+# Relative-date resolution.
+#
+# The model is told to pass ISO dates, but it doesn't always resolve relative
+# phrases correctly (e.g. a Spanish "Mañana" answer once landed as a blank due
+# date). So we resolve a small, closed set of ES/EN relative phrases in code —
+# deterministically — instead of trusting the model as the only line of defense.
+# ISO dates pass straight through; anything we don't recognize returns None so
+# the existing "missing due date" guard still fires.
+# ---------------------------------------------------------------------------
+_WEEKDAYS = {
+    "lunes": 0, "martes": 1, "miercoles": 2, "jueves": 3, "viernes": 4,
+    "sabado": 5, "domingo": 6,
+    "monday": 0, "tuesday": 1, "wednesday": 2, "thursday": 3, "friday": 4,
+    "saturday": 5, "sunday": 6,
+}
+_ISO_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+_IN_N_DAYS_RE = re.compile(r"^(?:en|in)\s+(\d{1,3})\s+(?:dias?|days?)$")
+
+
+def _strip_accents(s: str) -> str:
+    return "".join(c for c in unicodedata.normalize("NFD", s)
+                   if unicodedata.category(c) != "Mn")
+
+
+def _resolve_due(value, today=None):
+    """Turn a due-date value into an ISO YYYY-MM-DD string, or None.
+
+    - None/empty -> None.
+    - A valid ISO date -> passed through (validated).
+    - A recognized relative phrase (ES/EN) -> resolved against `today`.
+    - Anything else -> None (so the missing-due guard still fires)."""
+    if not value:
+        return None
+    raw = str(value).strip()
+    if _ISO_RE.match(raw):
+        try:
+            date.fromisoformat(raw)
+            return raw
+        except ValueError:
+            return None
+
+    today = today or date.today()
+    key = _strip_accents(raw).lower().strip()
+    key = re.sub(r"\s+", " ", key)
+
+    if key in ("hoy", "today"):
+        return today.isoformat()
+    if key in ("manana", "tomorrow"):
+        return (today + timedelta(days=1)).isoformat()
+    if key in ("pasado manana", "day after tomorrow"):
+        return (today + timedelta(days=2)).isoformat()
+    if key in ("proxima semana", "la proxima semana", "semana proxima",
+               "next week"):
+        return (today + timedelta(days=7)).isoformat()
+    if key in ("fin de semana", "el fin de semana", "weekend",
+               "this weekend"):
+        days = (5 - today.weekday()) % 7  # coming Saturday
+        return (today + timedelta(days=days)).isoformat()
+
+    m = _IN_N_DAYS_RE.match(key)
+    if m:
+        return (today + timedelta(days=int(m.group(1)))).isoformat()
+
+    # bare weekday name -> strictly upcoming occurrence
+    wd = _WEEKDAYS.get(key)
+    if wd is not None:
+        days = (wd - today.weekday()) % 7 or 7
+        return (today + timedelta(days=days)).isoformat()
+
+    return None
+
+
 def _create_task_guarded(title=None, owner=None, due=None, priority=None,
                          status=None, notes=None):
     """Refuse to create a task unless required fields are present — UNLESS we're
     in finalize mode (a listening window expired), in which case we save the task
     anyway and fill each missing required field with a placeholder so the task is
     never lost."""
+    due = _resolve_due(due)  # ISO passthrough; resolve mañana/lunes/etc.; else None
     values = {"title": title, "owner": owner, "due": due,
               "priority": priority, "notes": notes}
     missing = [field for field in REQUIRED_FOR_CREATE if not values.get(field)]
@@ -288,17 +408,48 @@ def _create_task_guarded(title=None, owner=None, due=None, priority=None,
 
     result = notion_client.create_task(
         title=title, owner=owner, due=due, priority=priority,
-        status=status, notes=notes,
+        status=status, notes=notes, database_id=_ctx_active(),
+        subsector=_ctx_subsector(),
     )
     if placeholders and isinstance(result, dict):
         result["placeholders"] = placeholders
     return result
 
 
+def _query_tasks(**kwargs):
+    """Query wrapper that pins the read to the caller's sector database. The model
+    never passes a database id; we inject the active one from the sector context."""
+    return notion_client.query_tasks(database_id=_ctx_active(), **kwargs)
+
+
+def _update_task(task_id=None, **kwargs):
+    """Update wrapper that pins the write to the caller's sector database and, when
+    a task is marked done, moves it into that sector's Historial (completed)
+    database. The active/history ids come from the sector context, not the model."""
+    if kwargs.get("due"):
+        resolved = _resolve_due(kwargs["due"])
+        if resolved:
+            kwargs["due"] = resolved
+        else:
+            kwargs.pop("due")  # unrecognized phrase: don't overwrite with junk
+    result = notion_client.update_task(task_id, database_id=_ctx_active(), **kwargs)
+    new_status = (kwargs.get("status") or "").strip().lower()
+    history_db = _ctx_history()
+    if history_db and new_status in notion_client.DONE_STATUSES:
+        try:
+            moved = notion_client.move_task_to_history(task_id, history_db)
+            if isinstance(result, dict) and isinstance(moved, dict):
+                result["moved_to_history"] = moved.get("moved")
+        except Exception as exc:  # keep the completion; report the move failure
+            if isinstance(result, dict):
+                result["history_error"] = str(exc)
+    return result
+
+
 TOOL_IMPLS = {
     "create_task": _create_task_guarded,
-    "query_tasks": notion_client.query_tasks,
-    "update_task": notion_client.update_task,
+    "query_tasks": _query_tasks,
+    "update_task": _update_task,
     "attach_material": notion_client.add_material,
     "deliver_material": _deliver_material,
 }
@@ -497,9 +648,14 @@ def _mid_task_collection(history) -> bool:
     return False
 
 
-def handle_message(text: str, sender_name: str = "a teammate", history=None):
+def handle_message(text: str, sender_name: str = "a teammate", history=None,
+                   sector=None):
     """Main entry point. `history` is a list of prior {role, content} text turns
     (oldest first) that gives the bot short-term memory across messages.
+
+    `sector` is the caller's sector config ({sector, active_db, history_db, ...})
+    or None for single-database mode. It pins every Notion tool call to that
+    sector's databases — the access-isolation boundary.
 
     Returns a (reply_text, status) tuple. `status` lets the Slack layer know
     whether it should keep listening for a follow-up:
@@ -507,6 +663,7 @@ def handle_message(text: str, sender_name: str = "a teammate", history=None):
         "needs_info" - create_task was blocked waiting on due date / priority
         "other"      - anything else (a listing, a plain answer, etc.)
     """
+    _set_ctx(sector)  # pin all tool calls this turn to the caller's sector
     system = _system_prompt(sender_name)
     messages = list(history or []) + [{"role": "user", "content": text}]
 

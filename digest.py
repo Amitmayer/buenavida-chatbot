@@ -241,24 +241,23 @@ def _resolve_channel(client, ref: str):
 # ---------------------------------------------------------------------------
 # Running the digest
 # ---------------------------------------------------------------------------
-def run_digest(client) -> dict:
-    """Post the channel digest and (optionally) DM each matched person. Returns a
-    small summary dict (handy for the manual test trigger)."""
-    tasks = notion_client.query_tasks(incomplete=True)
+def _deliver_digest(client, channel_ref, tasks, members) -> tuple:
+    """Post one channel digest and (optionally) DM each matched person. Returns
+    (posted, dmed, skipped, people). `members` is the pre-fetched Slack member
+    list (or None to skip DMs)."""
     groups = _group_by_owner(tasks)
 
     posted = False
-    channel_id = _resolve_channel(client, config.DIGEST_CHANNEL)
+    channel_id = _resolve_channel(client, channel_ref)
     if channel_id:
         try:
             client.chat_postMessage(channel=channel_id, text=build_channel_digest(groups))
             posted = True
         except Exception:
-            log.exception("failed to post channel digest to %r", config.DIGEST_CHANNEL)
+            log.exception("failed to post channel digest to %r", channel_ref)
 
     dmed, skipped = 0, 0
-    if config.DIGEST_DM_EACH and groups:
-        members = _slack_members(client)
+    if config.DIGEST_DM_EACH and groups and members is not None:
         for key, owner_tasks in groups.items():
             if key == _UNASSIGNED:
                 continue
@@ -276,11 +275,48 @@ def run_digest(client) -> dict:
             except Exception:
                 skipped += 1
                 log.exception("could not DM %r (%s) — im:write scope?", key, uid)
+    return posted, dmed, skipped, len(groups)
 
+
+def run_digest(client) -> dict:
+    """Post the digest(s) and (optionally) DM each matched person. In sector mode
+    this runs ONE digest per sector — each sector's outstanding tasks posted to
+    that sector's channel, so no channel ever sees another sector's work. In
+    single-database mode it posts the one team-wide digest as before. Returns a
+    small summary dict (handy for the manual test trigger)."""
+    members = _slack_members(client) if config.DIGEST_DM_EACH else None
+
+    if config.sectors_enabled():
+        total = {"channel_posted": 0, "dmed": 0, "skipped": 0,
+                 "people": 0, "sectors": 0}
+        for channel_id, cfg in config.SECTORS.items():
+            # When several channels share one sector database via a subsector
+            # label (e.g. Operaciones: #pedidos, #roasting-control), a sub-channel
+            # digest shows ONLY its own label's tasks, so it doesn't echo the
+            # whole sector. The plain sector channel (no subsector) still shows the
+            # full rollup.
+            tasks = notion_client.query_tasks(
+                incomplete=True, database_id=cfg.get("active_db"),
+                subsector=cfg.get("subsector"))
+            posted, dmed, skipped, people = _deliver_digest(
+                client, channel_id, tasks, members)
+            total["channel_posted"] += int(posted)
+            total["dmed"] += dmed
+            total["skipped"] += skipped
+            total["people"] += people
+            total["sectors"] += 1
+            log.info("sector digest %s: posted=%s dmed=%s skipped=%s people=%s",
+                     cfg.get("sector"), posted, dmed, skipped, people)
+        log.info("all sector digests done: %s", total)
+        return total
+
+    tasks = notion_client.query_tasks(incomplete=True)
+    posted, dmed, skipped, people = _deliver_digest(
+        client, config.DIGEST_CHANNEL, tasks, members)
     log.info("digest done: channel_posted=%s dmed=%s skipped=%s people=%s",
-             posted, dmed, skipped, len(groups))
+             posted, dmed, skipped, people)
     return {"channel_posted": posted, "dmed": dmed, "skipped": skipped,
-            "people": len(groups)}
+            "people": people}
 
 
 # ---------------------------------------------------------------------------
@@ -326,5 +362,7 @@ def start(client) -> None:
         return
     t = threading.Thread(target=_run_loop, args=(client,), daemon=True)
     t.start()
-    log.info("daily digest scheduled at %s UTC (%s) -> #%s",
-             config.DIGEST_UTC_TIME, config.DIGEST_DAYS, config.DIGEST_CHANNEL)
+    target = (f"{len(config.SECTORS)} sector channels"
+              if config.sectors_enabled() else f"#{config.DIGEST_CHANNEL}")
+    log.info("daily digest scheduled at %s UTC (%s) -> %s",
+             config.DIGEST_UTC_TIME, config.DIGEST_DAYS, target)

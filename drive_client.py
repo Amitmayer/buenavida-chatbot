@@ -55,13 +55,16 @@ def _drive():
     return _service
 
 
-def upload_bytes(name: str, data: bytes, mime: str = "application/octet-stream") -> dict:
-    """Store `data` as a file named `name` in the configured Shared Drive folder.
-    Returns {"id", "link"} where link is a Drive webViewLink. Flat — no per-task
-    folders; the task<->file linkage lives in Notion, not the Drive layout."""
+def upload_bytes(name: str, data: bytes, mime: str = "application/octet-stream",
+                 folder_id: str = None) -> dict:
+    """Store `data` as a file named `name` in a Shared Drive folder. Uses
+    `folder_id` when given (the caller's sector subfolder), otherwise the default
+    config.GDRIVE_FOLDER_ID. Returns {"id", "link"} where link is a Drive
+    webViewLink. Flat within the folder — the task<->file linkage lives in Notion,
+    not the Drive layout."""
     from googleapiclient.http import MediaIoBaseUpload
 
-    folder = config.require("GDRIVE_FOLDER_ID", config.GDRIVE_FOLDER_ID)
+    folder = config.require("GDRIVE_FOLDER_ID", folder_id or config.GDRIVE_FOLDER_ID)
     meta = {"name": name or "file", "parents": [folder]}
     media = MediaIoBaseUpload(io.BytesIO(data), mimetype=mime or "application/octet-stream",
                               resumable=False)
