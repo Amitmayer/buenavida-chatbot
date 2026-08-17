@@ -258,6 +258,36 @@ _SECTOR_MEMBERS: dict = {}          # channel_id -> (fetched_at, set(user_ids))
 _SECTOR_MEMBERS_TTL = 300           # re-list a channel's members at most every 5 min
 _SECTOR_MEMBERS_LOCK = threading.Lock()
 
+# When a multi-sector person DMs without naming a sector, we ask which one and
+# hold their original message here until they answer. Keyed by user id; holds the
+# original Slack event (so any attached files are ingested into the CHOSEN
+# sector's Drive folder once picked) and their sector list. Expires so a stale
+# question can't reroute a much later, unrelated message.
+_DM_PENDING: dict = {}              # user_id -> {"event", "mine", "ts"}
+_DM_PENDING_TTL = 600               # 10 min to answer the sector question
+_DM_PENDING_LOCK = threading.Lock()
+
+
+def _dm_pending_set(user_id: str, event: dict, mine: list) -> None:
+    with _DM_PENDING_LOCK:
+        _DM_PENDING[user_id] = {"event": event, "mine": mine, "ts": time.time()}
+
+
+def _dm_pending_get(user_id: str):
+    with _DM_PENDING_LOCK:
+        p = _DM_PENDING.get(user_id)
+        if not p:
+            return None
+        if time.time() - p["ts"] > _DM_PENDING_TTL:
+            _DM_PENDING.pop(user_id, None)
+            return None
+        return p
+
+
+def _dm_pending_clear(user_id: str) -> None:
+    with _DM_PENDING_LOCK:
+        _DM_PENDING.pop(user_id, None)
+
 
 def _sector_channel_members(client, channel_id: str) -> set:
     """Members of a sector channel, cached for a few minutes. On an API failure
@@ -307,14 +337,58 @@ def _match_sector_prefix(text: str, mine: list):
     return None, text
 
 
+# Sentinel returned by _resolve_dm_sector when the person belongs to more than
+# one sector and hasn't named one: the caller should ASK which sector (listing
+# the ones they can access) rather than refuse.
+_ASK_SECTOR = object()
+
+
+def _ordered_sectors(mine: list) -> list:
+    """The person's sectors in a stable display order (by name)."""
+    return sorted(mine, key=lambda cc: (cc[1].get("sector") or "").lower())
+
+
+def _sector_prompt(mine: list, retry: bool = False) -> str:
+    """The message that asks a multi-sector person which sector to use."""
+    lines = "\n".join(
+        f"{i + 1}. {cfg.get('sector', '?')}"
+        for i, (_cid, cfg) in enumerate(_ordered_sectors(mine))
+    )
+    lead = "No entendí el sector. " if retry else ""
+    return (f"{lead}¿En qué sector guardo esto? Responde con el número o el "
+            f"nombre:\n{lines}")
+
+
+def _interpret_sector_pick(text: str, mine: list):
+    """Read a reply to the sector question. Accepts the sector's name (with or
+    without a trailing ':') or its 1-based number from the prompt. Returns the
+    chosen sector cfg, or None if the reply doesn't match one of THEIR sectors."""
+    s = (text or "").strip()
+    if not s:
+        return None
+    low = s.lower().rstrip(":").strip()
+    for _cid, cfg in mine:
+        name = (cfg.get("sector") or "").strip().lower()
+        if name and low == name:
+            return cfg
+    if s.isdigit():
+        ordered = _ordered_sectors(mine)
+        i = int(s)
+        if 1 <= i <= len(ordered):
+            return ordered[i - 1][1]
+    return None
+
+
 def _resolve_dm_sector(client, user_id: str, text: str):
     """Decide which sector a DM belongs to. Returns (sector_cfg, cleaned_text,
-    refusal_message). refusal_message is None when it's OK to proceed.
+    refusal_message). refusal_message is None when it's OK to proceed, the
+    _ASK_SECTOR sentinel when the caller should ask which sector, or a plain
+    string to show and stop.
 
     - single-database mode: (None, text, None) — behave as before.
     - one sector: use it.
-    - several sectors: require a 'sector:' prefix so we never guess across the
-      isolation wall; otherwise ask them to name the sector.
+    - several sectors: honor a 'sector:' prefix if present; otherwise signal the
+      caller to ASK which sector (never guess across the isolation wall).
     - no sector: decline (nothing to act on)."""
     if not config.sectors_enabled():
         return None, text, None
@@ -329,10 +403,7 @@ def _resolve_dm_sector(client, user_id: str, text: str):
     picked, cleaned = _match_sector_prefix(text, mine)
     if picked:
         return picked, cleaned, None
-    names = ", ".join(sorted(cfg.get("sector", "?") for _c, cfg in mine))
-    return None, text, (
-        f"Estás en varios sectores ({names}). Empieza tu mensaje con el sector, "
-        f"por ejemplo `ventas: ...`, para que sepa en cuál trabajar.")
+    return None, text, _ASK_SECTOR
 
 
 # In a shared channel the bot stays SILENT unless a message starts with one of
@@ -700,10 +771,35 @@ def handle_message(event, say, client):
     if event.get("channel_type") == "im":
         if _maybe_run_digest(text, say, client):
             return
+        uid = event.get("user")
+        # Are we waiting for this person to say which sector a queued DM goes to?
+        pending = _dm_pending_get(uid)
+        if pending:
+            picked = _interpret_sector_pick(text, pending["mine"])
+            if picked is None:
+                # Couldn't read the reply as a sector — ask again, keep the task.
+                say(_sector_prompt(pending["mine"], retry=True))
+                return
+            # They named a sector: run their ORIGINAL message in it (files and
+            # all), not this one-word reply.
+            _dm_pending_clear(uid)
+            orig = pending["event"]
+            orig_text = _clean(orig.get("text", ""))
+            note = _ingest_files(orig, picked)
+            _mark_answered(_window_key(orig))
+            _respond(orig, say, client, (orig_text + note).strip(),
+                     manage_window=True, sector=picked)
+            return
         # A DM has no sector channel, so derive the person's sector from their
-        # channel memberships. One sector -> use it; several -> require a 'sector:'
-        # prefix (never guess across the wall); none -> decline.
-        sector, command_text, refusal = _resolve_dm_sector(client, event.get("user"), text)
+        # channel memberships. One sector -> use it; several -> ask which one
+        # (never guess across the wall); none -> decline.
+        sector, command_text, refusal = _resolve_dm_sector(client, uid, text)
+        if refusal is _ASK_SECTOR:
+            # Multi-sector and they didn't name one: hold this message and ask.
+            mine = _user_sectors(client, uid)
+            _dm_pending_set(uid, event, mine)
+            say(_sector_prompt(mine))
+            return
         if refusal:
             say(refusal)
             return

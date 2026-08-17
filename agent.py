@@ -580,7 +580,12 @@ def _call_claude(messages: list, system: str) -> dict:
     }
     body = {
         "model": config.ANTHROPIC_MODEL,
-        "max_tokens": 1024,
+        # Generous ceiling so a batch of tool calls (e.g. someone pastes a 10-item
+        # to-do list and we emit one create_task per item) isn't truncated
+        # mid-response. Truncation is now handled safely either way (see the
+        # tool_use handling in handle_message), but a higher ceiling avoids the
+        # extra round-trips entirely.
+        "max_tokens": 4096,
         "system": system,
         "tools": TOOLS,
         "messages": messages,
@@ -678,7 +683,15 @@ def handle_message(text: str, sender_name: str = "a teammate", history=None,
         stop = data.get("stop_reason")
         messages.append({"role": "assistant", "content": content})
 
-        if stop != "tool_use":
+        # Decide the next step by what the model ACTUALLY emitted, not by
+        # stop_reason. A truncated turn (stop_reason 'max_tokens') can still carry
+        # tool_use blocks; if we treated that as a text turn we'd skip running the
+        # tools, never append their tool_result blocks, and the next API call would
+        # 400 with "tool_use ids without tool_result". So: if there are any
+        # tool_use blocks, run them and answer each one before looping.
+        has_tool_use = any(b.get("type") == "tool_use" for b in content)
+
+        if not has_tool_use:
             texts = [b["text"] for b in content if b.get("type") == "text"]
             reply = "\n".join(texts).strip()
 
