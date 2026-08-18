@@ -39,6 +39,22 @@ NOTION_VERSION = os.environ.get("NOTION_VERSION", "2022-06-28")
 #     "C0ROASTING": {"sector": "Operaciones", "subsector": "Roasting Control", "active_db": "...(same as Operaciones)", "history_db": "...", "drive_folder": "..."}
 # The subsector is a label only; the access wall is still the database.
 #
+# A sector may additionally carry two OPTIONAL keys that enable task sharing
+# (used by the "Gally" sector). A channel whose cfg omits them is unaffected:
+#     "shared_db": Notion database id of that sector's "Shared Tasks" table. When
+#         present, this sector can ASSIGN a task to a person who is NOT one of its
+#         channel members: the task is created in shared_db (not active_db) with a
+#         "Shared with" = assignee Slack id, and the assignee is DM'd. The assignee
+#         sees ONLY their own shared rows in their "what's pending"; the sector's
+#         own members see the UNION of active_db + shared_db. The shared_db is also
+#         read globally, so an assignee acting in any other channel/DM still sees
+#         the row shared with them (the one deliberate, per-row crack in the
+#         channel-is-the-wall isolation).
+#     "owner": the canonical Notion Owner value for this sector's principal (e.g.
+#         "Gally Mayer"). A shared/assigned task keeps THIS owner (the task stays
+#         under the principal's ownership); the assignee is recorded only in the
+#         "Shared with" column and the notes. Falls back to the sector name.
+#
 # When SECTORS is EMPTY (the default), the bot runs in single-database mode and
 # behaves exactly as before, using NOTION_DATABASE_ID / GDRIVE_FOLDER_ID.
 try:
@@ -60,6 +76,23 @@ def sector_for_channel(channel_id):
     if not channel_id:
         return None
     return SECTORS.get(channel_id)
+
+
+def shared_channel():
+    """Return (channel_id, cfg) of the sector that owns a shared_db (e.g. Gally),
+    or (None, None) if no sector has sharing enabled. Assumes at most one such
+    sector; returns the first if several are configured."""
+    for cid, cfg in SECTORS.items():
+        if isinstance(cfg, dict) and cfg.get("shared_db"):
+            return cid, cfg
+    return None, None
+
+
+def global_shared_db():
+    """The shared-tasks database id (read globally so an assignee sees the row
+    shared with them from any channel/DM), or None when sharing isn't configured."""
+    _cid, cfg = shared_channel()
+    return (cfg or {}).get("shared_db")
 
 # ---------------------------------------------------------------------------
 # Google Drive (Phase 2 materials storage). The bot authenticates as a service
@@ -103,6 +136,15 @@ NOTION_SCHEMA = {
     # labeled Notion "Files & media" entries. Not every task has materials.
     # NOTE: the Notion column is named "Files" (must match the DB exactly).
     "materials": {"name": "Files", "type": "files"},
+    # Optional: the Slack user id a task has been SHARED with (Gally Shared Tasks
+    # only). When Gally/Naty assign a Gally-sector task to someone who is NOT a
+    # Gally-channel member, the task is created in that sector's `shared_db` with
+    # this column set to the assignee's Slack id. It is the per-row access key:
+    # an assignee's "what's pending" reads only the shared rows whose "Shared with"
+    # contains their id. Every OTHER database leaves this empty and the code never
+    # sends it there, so adding this schema entry is inert outside the Gally flow.
+    # The Notion column is a text (rich_text) property named "Shared with".
+    "shared_with": {"name": "Shared with", "type": "rich_text"},
     # Optional completion date, written when a task is moved to its sector's
     # Historial (completed) database. Only the history databases need this column
     # to exist; on the active databases it stays empty (and the code never sends

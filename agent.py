@@ -50,6 +50,35 @@ def pop_deliveries() -> list:
     return items
 
 # ---------------------------------------------------------------------------
+# Share-notification side-channel.
+#
+# When a Gally-sector task is assigned to a non-member, we create it in the shared
+# database and need to DM the assignee that Gally shared a task with them. The
+# agent layer can't post to Slack, so (exactly like file delivery above) it QUEUES
+# the notification here on a thread-local; after handle_message returns, the Slack
+# layer drains it with pop_shares() and opens the DM. Thread-local so concurrent
+# conversations never cross-post.
+# ---------------------------------------------------------------------------
+_SHARES = threading.local()
+
+
+def _queue_share(assignee_id: str, title: str, assigner: str, due=None,
+                 priority=None) -> None:
+    if not getattr(_SHARES, "items", None):
+        _SHARES.items = []
+    _SHARES.items.append({
+        "assignee_id": assignee_id, "title": title, "assigner": assigner,
+        "due": due, "priority": priority,
+    })
+
+
+def pop_shares() -> list:
+    """Return and clear any assignee DMs queued for delivery this turn."""
+    items = getattr(_SHARES, "items", None) or []
+    _SHARES.items = []
+    return items
+
+# ---------------------------------------------------------------------------
 # Force / finalize mode.
 #
 # Normally an incomplete task (missing owner/due/priority) is NOT saved — the bot
@@ -86,12 +115,28 @@ _CTX = threading.local()
 
 def _set_ctx(sector) -> None:
     """Set (or clear) the active sector for this thread. Always called at the top
-    of handle_message so a previous call's sector never leaks into the next."""
+    of handle_message so a previous call's sector never leaks into the next.
+
+    Beyond the sector's own databases, the Slack layer may ENRICH the sector dict
+    with sharing context (see slack_app._enrich_sector): the global shared-tasks
+    database, the set of Slack ids that count as the shared sector's own members
+    (so we can tell an assignee from an owner), the requesting user's Slack id, a
+    name->Slack-id resolver, and the shared sector's canonical owner label. These
+    are all None/empty unless sharing is configured, keeping every other sector
+    exactly as before."""
     sector = sector or {}
     _CTX.active_db = sector.get("active_db")
     _CTX.history_db = sector.get("history_db")
     _CTX.sector_name = sector.get("sector")
     _CTX.subsector = sector.get("subsector")
+    # Sharing context (all optional; inert when sharing isn't configured).
+    _CTX.shared_db = sector.get("shared_db")            # global shared-tasks DB (reads)
+    _CTX.can_share = bool(sector.get("can_share"))      # this sector may ASSIGN out
+    _CTX.member_ids = set(sector.get("member_ids") or ())  # shared sector's members
+    _CTX.is_member = bool(sector.get("is_member"))      # requester is a member
+    _CTX.requester_id = sector.get("requester_id")      # requester's Slack id
+    _CTX.resolve_owner = sector.get("resolve_owner")    # callable name -> slack id|None
+    _CTX.sector_owner = sector.get("owner")             # canonical owner (e.g. "Gally Mayer")
 
 
 def _ctx_active():
@@ -104,6 +149,34 @@ def _ctx_history():
 
 def _ctx_subsector():
     return getattr(_CTX, "subsector", None)
+
+
+def _ctx_shared_db():
+    return getattr(_CTX, "shared_db", None)
+
+
+def _ctx_can_share():
+    return bool(getattr(_CTX, "can_share", False))
+
+
+def _ctx_member_ids():
+    return getattr(_CTX, "member_ids", set()) or set()
+
+
+def _ctx_is_member():
+    return bool(getattr(_CTX, "is_member", False))
+
+
+def _ctx_requester():
+    return getattr(_CTX, "requester_id", None)
+
+
+def _ctx_resolve_owner():
+    return getattr(_CTX, "resolve_owner", None)
+
+
+def _ctx_sector_owner():
+    return getattr(_CTX, "sector_owner", None)
 
 
 def finalize_pending_task(history=None, sender_name: str = "a teammate", sector=None):
@@ -161,7 +234,7 @@ TOOLS = [
             "properties": {
                 "title": {"type": "string", "description": "A concise task name you write yourself from the request."},
                 "owner": {"type": "string", "description": "Person responsible, taken from the message, e.g. 'Gally'."},
-                "due": {"type": "string", "description": "Due date as YYYY-MM-DD. You may also pass a relative phrase and it will be resolved server-side (e.g. 'mañana', 'hoy', 'lunes', 'tomorrow', 'next week', 'en 3 dias'). Ask the user if not given."},
+                "due": {"type": "string", "description": "Due date as YYYY-MM-DD. You may also pass a relative phrase and it will be resolved server-side (e.g. 'mañana', 'hoy', 'lunes', 'tomorrow', 'next week', 'en 3 dias'). Ask the user if not given. If the user explicitly says there is no due date (e.g. 'sin especificar', 'sin fecha', 'not specified', 'no due date'), pass that phrase through as the due value — do NOT invent a date and do NOT keep re-asking; the task will be created with no due date."},
                 "priority": {"type": "string", "description": "High, Medium, or Low. Ask the user if not given."},
                 "notes": {"type": "string", "description": "Details/context, derived from the user's message. Always include."},
                 "status": {"type": "string", "description": "Status if stated; otherwise omit to use the default."},
@@ -368,16 +441,68 @@ def _resolve_due(value, today=None):
     return None
 
 
+# Phrases that mean "the user deliberately chose no due date." These count as a
+# real answer to the due-date question, so the create guard stops blocking on it.
+_UNSPECIFIED_DUE = {
+    "sin especificar", "no especificar", "no especificada", "no especificado",
+    "sin fecha", "sin fecha de vencimiento", "sin plazo", "sin vencimiento",
+    "no due date", "no due", "not specified", "unspecified", "no deadline",
+    "ninguna", "ninguno", "none", "na", "n/a",
+}
+
+
+def _is_unspecified_due(value):
+    """True if the user explicitly declined a due date (ES/EN)."""
+    if not value:
+        return False
+    key = _strip_accents(str(value)).lower().strip()
+    key = re.sub(r"[.\s]+$", "", key)      # drop trailing punctuation/space
+    key = re.sub(r"\s+", " ", key)
+    return key in _UNSPECIFIED_DUE
+
+
+def _shared_assignee(owner):
+    """If THIS create is a shared-sector task (e.g. Gally) assigned to someone who
+    is NOT one of that sector's channel members, return the assignee's Slack id;
+    otherwise None (create normally in the sector's own database).
+
+    Deterministic given the enriched context: it resolves the owner NAME to a
+    Slack id via the injected resolver, then treats it as a shared assignment only
+    when the id is real AND not one of the sector's own members (Gally / Naty). No
+    resolver, no shared_db, an unresolvable name, or a member -> None, so the task
+    stays in the sector's active database exactly as before."""
+    if not _ctx_can_share() or not _ctx_shared_db() or not owner:
+        return None
+    resolver = _ctx_resolve_owner()
+    if not resolver:
+        return None
+    try:
+        oid = resolver(owner)
+    except Exception:
+        oid = None
+    if not oid:
+        return None                    # unidentifiable person -> keep it local
+    if oid in _ctx_member_ids():
+        return None                    # assigned to Gally/Naty -> a normal task
+    return oid
+
+
 def _create_task_guarded(title=None, owner=None, due=None, priority=None,
                          status=None, notes=None):
     """Refuse to create a task unless required fields are present — UNLESS we're
     in finalize mode (a listening window expired), in which case we save the task
     anyway and fill each missing required field with a placeholder so the task is
     never lost."""
-    due = _resolve_due(due)  # ISO passthrough; resolve mañana/lunes/etc.; else None
+    # A user can explicitly decline a due date ("sin especificar" / "not
+    # specified"). That is a valid answer: we create the task with no due date
+    # rather than blocking on it.
+    due_declined = _is_unspecified_due(due)
+    due = None if due_declined else _resolve_due(due)  # ISO/relative -> ISO; else None
     values = {"title": title, "owner": owner, "due": due,
               "priority": priority, "notes": notes}
     missing = [field for field in REQUIRED_FOR_CREATE if not values.get(field)]
+    if due_declined and "due" in missing:
+        missing.remove("due")  # deliberately blank, not missing
 
     if missing and not _allow_partial():
         labels = [REQUIRED_FOR_CREATE[f] for f in missing]
@@ -406,6 +531,31 @@ def _create_task_guarded(title=None, owner=None, due=None, priority=None,
         flag = "[Auto-saved without a reply. Unspecified: " + ", ".join(placeholders) + ".]"
         notes = (notes + "\n\n" + flag) if notes else flag
 
+    # Sharing: if this sector may assign out (Gally) and the owner resolves to a
+    # non-member, the task is created in the SHARED database instead of the
+    # sector's own one. It stays under the sector principal's ownership (owner ->
+    # the sector owner, e.g. "Gally Mayer"); the assignee is recorded in the
+    # "Shared with" column (their Slack id) and in a notes marker, and gets a DM.
+    assignee_id = _shared_assignee(owner)
+    if assignee_id:
+        assignee_name = owner                       # the name the assigner used
+        task_owner = _ctx_sector_owner() or owner   # ownership stays with the principal
+        marker = f"[Asignado a: {assignee_name}]"
+        notes = (notes + "\n\n" + marker) if notes else marker
+        result = notion_client.create_task(
+            title=title, owner=task_owner, due=due, priority=priority,
+            status=status, notes=notes, database_id=_ctx_shared_db(),
+            subsector=_ctx_subsector(), shared_with=assignee_id,
+        )
+        if isinstance(result, dict):
+            if result.get("created"):
+                _queue_share(assignee_id, title, task_owner, due=due,
+                             priority=priority)
+                result["shared_with_assignee"] = assignee_name
+            if placeholders:
+                result["placeholders"] = placeholders
+        return result
+
     result = notion_client.create_task(
         title=title, owner=owner, due=due, priority=priority,
         status=status, notes=notes, database_id=_ctx_active(),
@@ -416,10 +566,67 @@ def _create_task_guarded(title=None, owner=None, due=None, priority=None,
     return result
 
 
+def _shared_rows(**kwargs):
+    """Read the shared-tasks database for this turn, scoped by who is asking.
+
+    - A shared-sector MEMBER (Gally / Naty) sees EVERY shared row (their view is
+      the union of their own table and the shared table).
+    - Anyone else (an assignee) sees ONLY the rows whose "Shared with" contains
+      THEIR Slack id — never all shared tasks. This is the one, deliberate,
+      per-row read across the channel-is-the-wall isolation.
+
+    Returns [] on any error or when there's nothing to add, so a shared-table
+    hiccup never breaks a normal listing."""
+    shared_db = _ctx_shared_db()
+    if not shared_db:
+        return []
+    shared_kwargs = dict(kwargs)
+    shared_kwargs.pop("owner", None)  # shared rows are keyed by Shared with, not Owner
+    try:
+        rows = notion_client.query_tasks(database_id=shared_db, **shared_kwargs)
+    except Exception:
+        return []
+    if _ctx_is_member():
+        return rows
+    rid = _ctx_requester()
+    if not rid:
+        return []
+    return [t for t in rows if rid in (t.get("shared_with") or "")]
+
+
 def _query_tasks(**kwargs):
     """Query wrapper that pins the read to the caller's sector database. The model
-    never passes a database id; we inject the active one from the sector context."""
-    return notion_client.query_tasks(database_id=_ctx_active(), **kwargs)
+    never passes a database id; we inject the active one from the sector context.
+
+    When sharing is configured, a broad/own-tasks listing ALSO folds in the
+    caller's shared tasks (all of them for a member, only their own for an
+    assignee) so an assigned task shows up in the assignee's 'what's pending' from
+    any channel or DM. Narrow lookups (a keyword search or a specific date) are
+    left untouched so they stay a precise, single-table query."""
+    active_db = _ctx_active()
+    # active_db may be None for a pure assignee (no sector of their own); in that
+    # case skip the active read entirely rather than fall back to a default DB.
+    active = notion_client.query_tasks(database_id=active_db, **kwargs) if active_db else []
+
+    if not _ctx_shared_db():
+        return active
+
+    # Only fold shared rows into broad listings: an explicit 'incomplete' or
+    # 'owner' filter, or a bare call with no narrowing filter at all.
+    narrow_keys = ("search", "due_on", "due_before", "due_after", "status", "priority")
+    broad = bool(kwargs.get("incomplete") or kwargs.get("owner")) or not any(
+        kwargs.get(k) for k in narrow_keys)
+    if not broad:
+        return active
+
+    keep = _shared_rows(**kwargs)
+    if not keep:
+        return active
+    seen = {t.get("id") for t in active}
+    merged = active + [t for t in keep if t.get("id") not in seen]
+    # Re-sort by due date ascending, no-due last (mirrors notion_client._due_sort_key).
+    merged.sort(key=lambda t: ((t.get("due") or "").strip() == "", (t.get("due") or "")))
+    return merged
 
 
 def _update_task(task_id=None, **kwargs):
@@ -555,6 +762,11 @@ def _system_prompt(sender_name: str) -> str:
         "When a tool result comes back with status_promoted (or promoted) = true, "
         "briefly tell the user you also moved the task to In progress, in their "
         "language.\n"
+        "- SHARED ASSIGNMENT: if a create_task result includes "
+        "'shared_with_assignee', the task was assigned to that person, who has "
+        "been notified by DM and can now see it and attach files to it. Briefly "
+        "tell the person you shared/assigned the task with that name, in their "
+        "language. Do not expose any database or Slack id.\n"
         "- After a tool runs, reply concisely using SLACK formatting (mrkdwn). "
         "CRITICAL: Slack bold uses a SINGLE asterisk on each side, like "
         "*bold* \u2014 never use **double** asterisks, which Slack renders "

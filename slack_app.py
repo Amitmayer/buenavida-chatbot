@@ -27,6 +27,7 @@ import agent
 import config
 import digest
 import drive_client
+import notion_client
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger("slack-task-bot")
@@ -406,6 +407,114 @@ def _resolve_dm_sector(client, user_id: str, text: str):
     return None, text, _ASK_SECTOR
 
 
+# ---------------------------------------------------------------------------
+# Task sharing (the Gally flow)
+#
+# A sector with a `shared_db` (Gally) can ASSIGN a task to someone who isn't one
+# of its channel members. The decision (is this owner a member?) and the DM to
+# the assignee both need the Slack client, which the agent layer doesn't have. So
+# the Slack layer ENRICHES the sector dict here with everything the agent needs to
+# make the call itself: the global shared database, the shared sector's member
+# set, the requester's id, a name->Slack-id resolver, and the sector's owner
+# label. When sharing isn't configured this is a no-op and every sector behaves
+# exactly as before.
+# ---------------------------------------------------------------------------
+def _owner_resolver(client):
+    """Build a closure that maps an owner NAME to a Slack user id (or None), reusing
+    digest.resolve_user (which never guesses on an ambiguous match). The member
+    list is fetched ONCE per message here, so the closure itself is cheap; we only
+    build it for a sector that can actually assign out."""
+    try:
+        members = digest._slack_members(client)
+    except Exception:
+        log.exception("could not list Slack members for owner resolution")
+        members = []
+
+    def _resolve(name):
+        try:
+            return digest.resolve_user(name, members)
+        except Exception:
+            return None
+    return _resolve
+
+
+def _enrich_sector(client, sector, requester_id):
+    """Return a COPY of the sector dict augmented with sharing context, or the
+    sector unchanged when sharing isn't configured. Safe to call for every message
+    and for every sector — it only adds keys the agent reads when a shared_db
+    exists."""
+    if not config.sectors_enabled():
+        return sector
+    shared_db = config.global_shared_db()
+    if not shared_db:
+        return sector  # no sector has sharing enabled -> leave everything as-is
+    gally_cid, gally_cfg = config.shared_channel()
+    members = _sector_channel_members(client, gally_cid) if gally_cid else set()
+    enriched = dict(sector or {})
+    can_share = bool((sector or {}).get("shared_db"))  # only the Gally sector carries this
+    enriched["shared_db"] = shared_db
+    enriched["member_ids"] = members
+    enriched["is_member"] = bool(requester_id and requester_id in members)
+    enriched["requester_id"] = requester_id
+    enriched["can_share"] = can_share
+    enriched["owner"] = (gally_cfg or {}).get("owner") or (gally_cfg or {}).get("sector")
+    # The name->id resolver is only needed when this sector can assign out, and it
+    # costs a users.list call, so only build it then.
+    enriched["resolve_owner"] = _owner_resolver(client) if can_share else None
+    return enriched
+
+
+def _assignee_only_sector(uid):
+    """For a DM from someone who belongs to NO sector: if a Gally task has been
+    shared with them, hand back a synthetic read/edit context (no active database
+    of their own) so they can still see and attach to that task. None if sharing
+    isn't configured or nothing is shared with them (so the normal 'you're not in a
+    sector' refusal still shows for genuine strangers)."""
+    shared_db = config.global_shared_db()
+    if not shared_db:
+        return None
+    try:
+        rows = notion_client.query_tasks(database_id=shared_db)
+    except Exception:
+        log.exception("could not read shared tasks for assignee %s", uid)
+        return None
+    if not any(uid in (t.get("shared_with") or "") for t in rows):
+        return None
+    _gally_cid, gally_cfg = config.shared_channel()
+    # Files the assignee attaches land in the shared sector's Drive folder.
+    return {"sector": "Compartidas", "active_db": None, "history_db": None,
+            "drive_folder": (gally_cfg or {}).get("drive_folder")}
+
+
+def _deliver_shares(client) -> None:
+    """After the agent runs, DM each person a Gally task was just assigned to. The
+    agent queues these (it can't post to Slack); we drain and send them here, one
+    DM per assignee."""
+    for s in agent.pop_shares():
+        uid = s.get("assignee_id")
+        if not uid:
+            continue
+        bits = []
+        if s.get("due"):
+            bits.append(f"vence {s['due']}")
+        if s.get("priority"):
+            bits.append(f"prioridad {s['priority']}")
+        extra = (" (" + ", ".join(bits) + ")") if bits else ""
+        text = (
+            f"{s.get('assigner') or 'Gally'} te asignó una tarea: "
+            f"*{s.get('title') or '(sin título)'}*{extra}.\n"
+            "Puedes verla y adjuntarle archivos escribiéndome por aquí "
+            "(por ejemplo: “¿qué tengo pendiente?”)."
+        )
+        try:
+            opened = client.conversations_open(users=uid)
+            dm = opened["channel"]["id"]
+            client.chat_postMessage(channel=dm, text=text)
+            log.info("notified assignee %s of shared task %r", uid, s.get("title"))
+        except Exception:
+            log.exception("failed to DM assignee %s about shared task", uid)
+
+
 # In a shared channel the bot stays SILENT unless a message starts with one of
 # these trigger prefixes (case-insensitive). This keeps it from reacting to (and
 # spending API calls on) every message in a channel with other people. DMs and
@@ -587,9 +696,15 @@ def _respond(event, say, client, command, *, manage_window: bool, sector=None) -
     """Generate a reply, post it, and (in channels) manage the listening window:
     keep listening if the bot asked for more info, stop once the task is made."""
     sender_name = _sender_name(client, event)
+    # Augment the sector with sharing context (global shared DB, member set,
+    # requester id, resolver, owner). No-op unless sharing is configured. Done
+    # here so every caller of _respond — and the finalize timer, which inherits
+    # this sector via _open_window — sees the same enriched context.
+    sector = _enrich_sector(client, sector, event.get("user"))
     answer, status = _reply(command, _key(event), sender_name, sector)
     say(answer)
     _deliver_queued(event, client)  # re-upload any files the agent queued
+    _deliver_shares(client)         # DM anyone a task was just assigned to
 
     if not manage_window:
         return  # caller opted out of window management
@@ -801,8 +916,14 @@ def handle_message(event, say, client):
             say(_sector_prompt(mine))
             return
         if refusal:
-            say(refusal)
-            return
+            # Not in any sector — but a Gally task may have been shared with them.
+            # If so, give them a read/attach-only context for just their shared
+            # task(s); otherwise show the normal 'not in a sector' refusal.
+            syn = _assignee_only_sector(uid)
+            if syn is None:
+                say(refusal)
+                return
+            sector, command_text = syn, text
         note = _ingest_files(event, sector)  # store any attached file(s) in Drive
         # DMs read every message (no trigger needed), so the window's READ-gating
         # is moot here — but the nudge and auto-save TIMERS still matter: if the
