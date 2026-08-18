@@ -482,6 +482,8 @@ def _shared_assignee(owner):
         oid = None
     if not oid:
         return None                    # unidentifiable person -> keep it local
+    if oid == _ctx_requester():
+        return None                    # assigning to YOURSELF -> your own task
     if oid in _ctx_member_ids():
         return None                    # assigned to Gally/Naty -> a normal task
     return oid
@@ -536,7 +538,11 @@ def _create_task_guarded(title=None, owner=None, due=None, priority=None,
     # sector's own one. It stays under the sector principal's ownership (owner ->
     # the sector owner, e.g. "Gally Mayer"); the assignee is recorded in the
     # "Shared with" column (their Slack id) and in a notes marker, and gets a DM.
-    assignee_id = _shared_assignee(owner)
+    # Never auto-share on finalize. An auto-saved task (window expired with no
+    # reply) had no human-confirmed assignee — the owner was often just inferred
+    # from the sender — so it belongs in the sector's OWN database, never the
+    # shared one. Only a live, complete create can assign out.
+    assignee_id = None if _allow_partial() else _shared_assignee(owner)
     if assignee_id:
         assignee_name = owner                       # the name the assigner used
         task_owner = _ctx_sector_owner() or owner   # ownership stays with the principal

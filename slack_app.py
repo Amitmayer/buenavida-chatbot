@@ -519,7 +519,12 @@ def _deliver_shares(client) -> None:
 # these trigger prefixes (case-insensitive). This keeps it from reacting to (and
 # spending API calls on) every message in a channel with other people. DMs and
 # @mentions don't need a trigger.
-TRIGGER_PREFIXES = ("task:", "!task", "/task")
+TRIGGER_PREFIXES = (
+    "task:", "!task", "/task",
+    # Spanish — Gally and team write in Spanish, so accept the natural phrasings.
+    "tarea:", "!tarea", "/tarea",
+    "crear tarea", "nueva tarea", "agregar tarea", "añadir tarea",
+)
 
 
 def _triggered_command(text: str):
@@ -529,7 +534,8 @@ def _triggered_command(text: str):
     low = stripped.lower()
     for pfx in TRIGGER_PREFIXES:
         if low.startswith(pfx):
-            return stripped[len(pfx):].strip()
+            # Strip the prefix, then any leftover ":" — e.g. "crear tarea: X" -> "X".
+            return stripped[len(pfx):].lstrip(" :").strip()
     return None
 
 
