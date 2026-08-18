@@ -166,7 +166,7 @@ def _db_has_property(database_id: str, prop_name: str) -> bool:
 
 def create_task(title, owner=None, due=None, priority=None, status=None,
                 notes=None, completed=None, materials=None, subsector=None,
-                database_id=None) -> dict:
+                shared_with=None, database_id=None) -> dict:
     """Create a task page in the given database (or the default one). Returns
     {id, url, title}. `completed` and `materials` are used when recreating a task
     in a Historial database; normal task creation omits them. `subsector` is an
@@ -184,6 +184,7 @@ def create_task(title, owner=None, due=None, priority=None, status=None,
         "completed": completed,
         "materials": materials,
         "subsector": subsector,
+        "shared_with": shared_with,
     }
     payload = {
         "parent": {"database_id": db_id},
