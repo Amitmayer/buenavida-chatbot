@@ -1,0 +1,78 @@
+# Buena Vida OS
+
+Internal task app for an 11-person Costa Rican coffee company.
+Next.js 15 (App Router, TypeScript, Tailwind, shadcn/ui) on Railway.
+Supabase for Postgres, Auth, and Storage. Anthropic API for the assistant.
+Full spec in BUENAVIDA_SPEC.md — read it before writing code.
+
+## Security — non-negotiable
+
+- All database access goes through supabase-js carrying the signed-in user's
+  access token, using the request-scoped client in lib/supabase/server.ts.
+  Never import `pg` or open a direct Postgres connection: a raw pool connects
+  as the table owner and bypasses every RLS policy. `pg` is permitted in one
+  file only, the migration runner.
+- SUPABASE_SERVICE_ROLE_KEY may only be imported inside app/api/cron/**.
+  If you are tempted to use the service role to make a query work, the RLS
+  policy is wrong. Fix the policy.
+- Access control lives in RLS policies, never in a JavaScript `if`. A UI check
+  is a convenience, never the enforcement point.
+- `is_admin` does not imply read access. Admin manages people and teams;
+  reading is granted by team membership and by the `owner` role only.
+- The `guest` role never gets team-wide read. A guest sees only tasks they own
+  or are assigned, even in a team they belong to. The team branch of the read
+  policy is gated on `not has_role('guest')`. Guests are also excluded from the
+  brand library and the daily digest.
+- File bytes never go in Postgres. No bytea, no base64 columns. Bytes go to
+  Supabase Storage; only metadata rows go in the attachments table.
+- Storage buckets are private. Every download is a server-minted signed URL
+  with a 60s TTL. Never make a bucket public, never persist a signed URL.
+- Reject SVG uploads. Validate MIME type and size server-side before minting
+  an upload URL.
+- Never swallow an exception. No bare `catch {}`. Log to Sentry and return
+  a typed error.
+
+## The assistant
+
+- The model never generates confirmation text. Tool executions are written to
+  the tool_calls table with a status, and the UI renders ResultCard from that
+  row. Never render a success indicator from assistant prose.
+- Tools never accept a UUID the model invented. A task_id must have appeared in
+  a prior tool result within the same conversation; validate against that
+  conversation's tool_calls rows before executing.
+- team_id and user_id are derived server-side from the session and the user's
+  default_team. They are never tool parameters the model fills in freely.
+- Every tool returns a discriminated union:
+  { ok: true, data } | { ok: false, code, detail }
+  where code is not_found | forbidden | ambiguous | validation | server_error.
+  Never return a string.
+- Name resolution never guesses. An ambiguous assignee returns
+  { ok: false, code: 'ambiguous', options: [...] }.
+- Cap the tool loop at 6 iterations per turn.
+
+## Dates
+
+- All relative date parsing goes through lib/agent/dates.ts, which resolves in
+  America/Costa_Rica (UTC-6, no DST). Never use `new Date()` for user-facing
+  date logic.
+- tasks.due_date is a DATE. Do not convert it to a timestamp anywhere.
+- Strip trailing date phrases from task titles before insert.
+
+## Language
+
+- Every user-facing string lives in lib/i18n/es.ts. No Spanish literals in JSX.
+- Neutral Latin American Spanish. Never vosotros, vale, or ordenador.
+- Sentence case. Plain verbs. A button that says "Guardar" produces a toast
+  that says "Guardado".
+- Enum values stay English in the database. Translate at render time only.
+
+## Conventions
+
+- Server Components by default. 'use client' only where there is interactivity.
+- UI mutations use Server Actions, not API routes.
+- Validate every tool input and every Server Action input with zod.
+- Write a task_events row in the same transaction as every task mutation.
+- No `any`. Use the generated types in lib/db/types.ts; regenerate after every
+  migration with `supabase gen types typescript --linked`.
+- Tasks are never deleted. Use status = 'cancelled'.
+- Mobile first: design at 390px, treat desktop as the adaptation.

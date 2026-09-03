@@ -1,0 +1,16 @@
+node_modules
+.next
+out
+server.js
+.vercel
+.env
+.env.local
+.env.*.local
+scripts/people.json
+*.zip
+*.log
+tsconfig.tsbuildinfo
+.DS_Store
+supabase/.branches
+supabase/.temp
+public/sw.js.map

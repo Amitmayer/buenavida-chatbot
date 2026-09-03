@@ -1,0 +1,49 @@
+import type { Config } from "tailwindcss";
+
+const config: Config = {
+  content: [
+    "./app/**/*.{ts,tsx}",
+    "./components/**/*.{ts,tsx}",
+    "./lib/**/*.{ts,tsx}",
+  ],
+  theme: {
+    extend: {
+      colors: {
+        ink: "var(--ink)",
+        pine: "var(--pine)",
+        gold: "var(--gold)",
+        sage: "var(--sage)",
+        overdue: "var(--overdue)",
+        paper: "var(--paper)",
+        sheet: "var(--sheet)",
+        mist: "var(--mist)",
+        field: "var(--field)",
+        wash: "var(--wash)",
+        hover: "var(--hover)",
+        cream: "var(--cream)",
+        peach: "var(--peach)",
+        mute: "var(--mute)",
+        line: "var(--line)",
+        hair: "var(--hair)",
+      },
+      fontFamily: {
+        sans: ["var(--font-jost)", "Century Gothic", "ui-sans-serif", "system-ui"],
+        mono: ["var(--font-jetbrains)", "ui-monospace", "monospace"],
+      },
+      borderRadius: {
+        sm: "8px",
+        md: "12px",
+        lg: "16px",
+      },
+      fontSize: {
+        title: ["19px", { lineHeight: "1.2", letterSpacing: "-0.01em", fontWeight: "600" }],
+        task: ["20px", { lineHeight: "1.25", fontWeight: "600" }],
+        row: ["15px", { lineHeight: "1.3", fontWeight: "500" }],
+        "row-desk": ["13px", { lineHeight: "1.3", fontWeight: "500" }],
+      },
+    },
+  },
+  plugins: [],
+};
+
+export default config;

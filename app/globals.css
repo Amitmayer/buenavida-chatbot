@@ -1,0 +1,50 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --ink: #17301f;
+  --pine: #12281c;
+  --gold: #c79350;
+  --sage: #7c9a6b;
+  --overdue: #c0562f;
+  --paper: #f6f3ea;
+  --sheet: #fffdf7;
+  --mist: #e0ddd0;
+  --field: #cfcab8;
+  --wash: #edebdf;
+  --hover: #f1eee3;
+  --cream: #e8e4d6;
+  --peach: #d6a465;
+  --mute: rgba(23, 48, 31, 0.55);
+  --line: rgba(23, 48, 31, 0.32);
+  --hair: rgba(23, 48, 31, 0.2);
+}
+
+html,
+body {
+  background: var(--paper);
+  color: var(--ink);
+}
+
+body {
+  font-feature-settings: "kern" 1;
+  text-rendering: optimizeLegibility;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(23, 48, 31, 0.18);
+  border-radius: 8px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+
+@layer utilities {
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+}

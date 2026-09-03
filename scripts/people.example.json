@@ -1,0 +1,31 @@
+[
+  {
+    "email": "gally@buenavida.cr",
+    "password": "CAMBIAR",
+    "full_name": "Gally Mayer",
+    "title": "CEO, fundadora",
+    "role": "owner",
+    "default_team": "direccion",
+    "teams": ["direccion"],
+    "lead_of": ["direccion"]
+  },
+  {
+    "email": "naty@buenavida.cr",
+    "password": "CAMBIAR",
+    "full_name": "Naty",
+    "title": "Asistente de dirección",
+    "role": "member",
+    "default_team": "direccion",
+    "teams": [
+      "comercial",
+      "operaciones",
+      "usa",
+      "academia",
+      "marketing",
+      "administracion",
+      "regenerativo",
+      "direccion"
+    ],
+    "lead_of": []
+  }
+]
