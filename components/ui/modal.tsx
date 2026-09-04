@@ -56,16 +56,17 @@ export function Modal({
   if (!mounted) return null;
 
   return createPortal(
-    <div
-      className="fixed inset-0 z-[90] flex items-center justify-center bg-pine/35 p-4 backdrop-blur-[3px]"
-      onClick={onClose}
-    >
+    <div className="fixed inset-0 z-[90] flex items-center justify-center p-4">
+      <div
+        aria-hidden
+        className="absolute inset-0 bg-pine/40 backdrop-blur-[8px]"
+        onClick={onClose}
+      />
       <div
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="max-h-[90dvh] w-full max-w-md overflow-auto rounded-lg border border-line bg-sheet p-5 shadow-lg"
-        onClick={(event) => event.stopPropagation()}
+        className="relative max-h-[90dvh] w-full max-w-md overflow-auto rounded-lg border border-line bg-sheet p-5 shadow-lg"
       >
         <div className="mb-4 flex items-center justify-between gap-3">
           <h2 className="min-w-0 text-[15px] font-semibold text-ink">{title}</h2>
