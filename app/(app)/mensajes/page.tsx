@@ -12,7 +12,7 @@ export default async function MensajesPage() {
   const supabase = await createClient();
   const [{ data: people }, inbox] = await Promise.all([
     supabase.from("profiles").select("id, full_name").neq("id", profile.id).order("full_name"),
-    listInbox(profile.id),
+    listInbox(profile.id, { isGuest: profile.isGuest }),
   ]);
 
   return (

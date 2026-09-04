@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import type { Chat, ChatMessage, Profile } from "@/lib/db/types";
 import { captureError } from "@/lib/sentry";
+import { es } from "@/lib/i18n/es";
 
 export type InboxRow = {
   chat: Chat;
@@ -24,7 +25,7 @@ function titleFor(
   return people.find((p) => p.id === otherId)?.full_name ?? "Chat";
 }
 
-export async function listInbox(userId: string): Promise<InboxRow[]> {
+export async function listInbox(userId: string, opts?: { isGuest?: boolean }): Promise<InboxRow[]> {
   const supabase = await createClient();
   const { data: memberships, error } = await supabase
     .from("chat_members")
@@ -74,7 +75,8 @@ export async function listInbox(userId: string): Promise<InboxRow[]> {
   const rows: InboxRow[] = [];
   for (const membership of memberships ?? []) {
     const chat = (chats ?? []).find((item) => item.id === membership.chat_id);
-    if (!chat || chat.kind === "channel") continue;
+    if (!chat) continue;
+    if (chat.kind === "channel" && (chat.slug !== "general" || opts?.isGuest)) continue;
     const memberIds = (allMembers ?? [])
       .filter((row) => row.chat_id === chat.id)
       .map((row) => row.user_id);
@@ -91,7 +93,7 @@ export async function listInbox(userId: string): Promise<InboxRow[]> {
     const last = lastByChat.get(chat.id);
     rows.push({
       chat,
-      title: titleFor(chat, people ?? [], memberIds, userId),
+      title: chat.kind === "channel" ? es.mensajes.announcements : titleFor(chat, people ?? [], memberIds, userId),
       lastMessage: last?.content ?? null,
       lastAt: last?.created_at ?? chat.created_at,
       unread,

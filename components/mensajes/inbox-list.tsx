@@ -7,6 +7,10 @@ import { initials } from "@/lib/utils";
 export function InboxList({ rows }: { rows: InboxRow[] }) {
   const today = todayYmd();
   const sections = [
+    {
+      title: es.mensajes.announcements,
+      items: rows.filter((row) => row.kind === "channel" && row.chat.slug === "general"),
+    },
     { title: es.nav.areas, items: rows.filter((row) => row.kind === "team") },
     { title: es.mensajes.direct, items: rows.filter((row) => row.kind === "dm") },
     { title: es.mensajes.groups, items: rows.filter((row) => row.kind === "group") },
@@ -30,7 +34,11 @@ export function InboxList({ rows }: { rows: InboxRow[] }) {
               return (
                 <li key={row.chat.id} className="border-b border-line last:border-0">
                   <Link
-                    href={`/mensajes/${row.chat.id}`}
+                    href={
+                      row.kind === "channel" && row.chat.slug
+                        ? `/canales/${row.chat.slug}`
+                        : `/mensajes/${row.chat.id}`
+                    }
                     prefetch={false}
                     className="flex items-center gap-3 px-3.5 py-3 hover:bg-hover"
                   >

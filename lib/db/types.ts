@@ -34,6 +34,8 @@ export type ChatMessage = {
   sender_id: string;
   content: string;
   created_at: string;
+  via_assistant: boolean;
+  task_id: string | null;
 };
 
 
@@ -357,14 +359,17 @@ export type Database = {
       };
       chat_messages: {
         Row: ChatMessage;
-        Insert: Omit<ChatMessage, "id" | "created_at"> & {
+        Insert: Omit<ChatMessage, "id" | "created_at" | "via_assistant" | "task_id"> & {
           id?: string;
           created_at?: string;
+          via_assistant?: boolean;
+          task_id?: string | null;
         };
         Update: Partial<ChatMessage>;
         Relationships: [
           Rel<"chat_messages_chat_id_fkey", "chat_id", "chats">,
           Rel<"chat_messages_sender_id_fkey", "sender_id", "profiles">,
+          Rel<"chat_messages_task_id_fkey", "task_id", "tasks">,
         ];
       };
     };

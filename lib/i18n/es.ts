@@ -121,6 +121,7 @@ export const es = {
     newGroupTitle: "Nuevo grupo",
     members: "Integrantes",
     removeMember: "Quitar",
+    announcements: "Anuncios",
   },
   canales: {
     title: "Canales",
@@ -134,6 +135,11 @@ export const es = {
     emptyThread: "Nadie escribió todavía. Lo que va acá es del canal, no un mensaje privado.",
     pick: "Abrí un canal de la lista.",
     forbidden: "No tenés acceso a este canal.",
+    announcements: "Anuncios",
+    announcementHint: "Novedades de toda la empresa. El asistente también publica acá.",
+    announcementEmpty: "Todavía no hay anuncios.",
+    announcementComposer: "Anuncio para toda la empresa…",
+    assistant: "Asistente",
   },
   areas: {
     chat: "Chat",

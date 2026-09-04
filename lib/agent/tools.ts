@@ -5,6 +5,7 @@ import { err, ok, type ToolResult } from "@/lib/agent/result";
 import { wrapListing, sanitizeTitle } from "@/lib/agent/titles";
 import { parseDueDate, todayYmd, addDaysYmd } from "@/lib/agent/dates";
 import { captureError } from "@/lib/sentry";
+import { postToGeneral } from "@/lib/announcements";
 
 export type UserContext = {
   userId: string;
@@ -33,6 +34,7 @@ const createSchema = z.object({
   team_slug: z.string().optional(),
   area: z.string().optional(),
   notes: z.string().optional(),
+  announce: z.boolean().optional(),
 });
 
 const updateSchema = z.object({
@@ -51,6 +53,11 @@ const idSchema = z.object({ task_id: z.string().uuid() });
 const assignSchema = z.object({
   task_id: z.string().uuid(),
   assignee_name: z.string().min(1),
+});
+
+const announceSchema = z.object({
+  body: z.string().trim().min(1).max(4000),
+  task_id: z.string().uuid().optional(),
 });
 
 export const toolDefinitions = [
@@ -90,6 +97,10 @@ export const toolDefinitions = [
         team_slug: { type: "string" },
         area: { type: "string" },
         notes: { type: "string" },
+        announce: {
+          type: "boolean",
+          description: "Si es true, publica la tarea en Anuncios para toda la empresa.",
+        },
       },
       required: ["title"],
     },
@@ -131,6 +142,19 @@ export const toolDefinitions = [
         assignee_name: { type: "string" },
       },
       required: ["task_id", "assignee_name"],
+    },
+  },
+  {
+    name: "announce",
+    description:
+      "Publica un anuncio para toda la empresa. Úsalo para novedades importantes o para adjuntar una tarea que todos deben ver. No lo uses para trabajo rutinario de un solo equipo.",
+    input_schema: {
+      type: "object",
+      properties: {
+        body: { type: "string", description: "Texto del anuncio, en español, corto." },
+        task_id: { type: "string", description: "Tarea ya vista en esta conversación, opcional." },
+      },
+      required: ["body"],
     },
   },
 ] as const;
@@ -356,7 +380,19 @@ async function createTask(
     captureError(error, { where: "create_task" });
     return err("server_error", "No se pudo guardar la tarea.");
   }
-  return ok(summarize(data));
+  const created = summarize(data);
+  if (parsed.data.announce && !ctx.isGuest) {
+    const posted = await postToGeneral(supabase, {
+      userId: ctx.userId,
+      body: created.title,
+      taskId: created.id,
+      viaAssistant: true,
+    });
+    if (!posted.ok) {
+      captureError(new Error("announce after create_task failed"), { where: "create_task.announce" });
+    }
+  }
+  return ok(created);
 }
 
 async function updateTask(
@@ -437,6 +473,34 @@ async function assignTask(
   return ok(summarize(data));
 }
 
+async function announce(
+  supabase: Client,
+  ctx: UserContext,
+  conversationId: string,
+  input: unknown,
+): Promise<ToolResult<{ id: string; title: string; task_id: string | null }>> {
+  if (ctx.isGuest) {
+    return err("forbidden", "Esta cuenta no publica en Anuncios.");
+  }
+  const parsed = announceSchema.safeParse(input);
+  if (!parsed.success) return err("validation", "Falta el texto del anuncio.");
+  const taskId = parsed.data.task_id ?? null;
+  if (taskId) {
+    const known = await requireKnownTask(supabase, conversationId, taskId);
+    if (!known.ok) return known;
+  }
+  const posted = await postToGeneral(supabase, {
+    userId: ctx.userId,
+    body: parsed.data.body,
+    taskId,
+    viaAssistant: true,
+  });
+  if (!posted.ok) {
+    return err("server_error", "No se pudo publicar el anuncio.");
+  }
+  return ok({ id: posted.id, title: parsed.data.body, task_id: taskId });
+}
+
 export async function executeTool(args: {
   supabase: Client;
   ctx: UserContext;
@@ -458,6 +522,8 @@ export async function executeTool(args: {
       return completeTask(supabase, conversationId, input);
     case "assign_task":
       return assignTask(supabase, conversationId, input);
+    case "announce":
+      return announce(supabase, ctx, conversationId, input);
     default:
       return err("validation", `Herramienta desconocida: ${name}`);
   }

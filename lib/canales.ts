@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import type { ChannelFile, ChannelSection, Chat, ChatMessage, Profile } from "@/lib/db/types";
+import type { ChannelSection, Chat, Profile, TaskPriority } from "@/lib/db/types";
 import { captureError } from "@/lib/sentry";
 
 export type ChannelRow = {
@@ -12,6 +12,13 @@ export type ChannelRow = {
   lastAt: string | null;
   unread: number;
   members: { user_id: string; full_name: string }[];
+};
+
+export type ChannelTask = {
+  id: string;
+  title: string;
+  due_date: string | null;
+  priority: TaskPriority;
 };
 
 export const SECTION_ORDER: ChannelSection[] = ["strategic", "ops", "company"];
@@ -140,6 +147,11 @@ export async function loadChannel(slug: string, userId: string) {
     .eq("chat_id", chat.id)
     .eq("user_id", userId);
 
+  const taskIds = [...new Set((messages ?? []).map((row) => row.task_id).filter((id): id is string => Boolean(id)))];
+  const { data: tasks } = taskIds.length
+    ? await supabase.from("tasks").select("id, title, due_date, priority").in("id", taskIds)
+    : { data: [] };
+
   return {
     chat,
     slug: chat.slug,
@@ -150,8 +162,14 @@ export async function loadChannel(slug: string, userId: string) {
       user_id: person.id,
       full_name: person.full_name,
     })),
-    messages: (messages ?? []) as ChatMessage[],
-    files: (files ?? []) as ChannelFile[],
+    messages: messages ?? [],
+    files: files ?? [],
+    tasks: (tasks ?? []).map((task) => ({
+      id: task.id,
+      title: task.title,
+      due_date: task.due_date,
+      priority: task.priority,
+    })),
   };
 }
 

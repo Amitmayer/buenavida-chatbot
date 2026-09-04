@@ -57,9 +57,13 @@ export default async function CanalPage({
           </Link>
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <h1 className="truncate text-[16px] font-semibold text-ink">#{thread.title}</h1>
+              <h1 className="truncate text-[16px] font-semibold text-ink">
+                {slug === "general" ? es.canales.announcements : `#${thread.title}`}
+              </h1>
               <p className="truncate text-[11px] text-ink/50">
-                {es.canales.members}: {names || thread.members.length}
+                {slug === "general"
+                  ? es.canales.announcementHint
+                  : `${es.canales.members}: ${names || thread.members.length}`}
               </p>
             </div>
             <div className="flex shrink-0 items-center gap-3 xl:hidden">
@@ -73,16 +77,19 @@ export default async function CanalPage({
               </Link>
             </div>
           </div>
-          {thread.purpose ? (
+          {slug === "general" || !thread.purpose ? null : (
             <p className="mt-1 text-[11px] leading-relaxed text-ink/45">{thread.purpose}</p>
-          ) : null}
+          )}
         </div>
         <ThreadView
           chatId={thread.chat.id}
           userId={profile.id}
           members={thread.members}
           initial={thread.messages}
-          emptyLabel={es.canales.emptyThread}
+          emptyLabel={slug === "general" ? es.canales.announcementEmpty : es.canales.emptyThread}
+          layout={slug === "general" ? "announcements" : "thread"}
+          tasks={thread.tasks}
+          composerPlaceholder={slug === "general" ? es.canales.announcementComposer : undefined}
         />
       </div>
       <ChannelFilesRail slug={slug} files={files} />

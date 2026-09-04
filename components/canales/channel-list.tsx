@@ -39,7 +39,9 @@ export function ChannelList({
                       }`}
                     >
                       <span className="w-3 shrink-0 font-mono text-[11px] text-gold">#</span>
-                      <span className="min-w-0 flex-1 truncate text-[12.5px]">{row.title}</span>
+                      <span className="min-w-0 flex-1 truncate text-[12.5px]">
+                        {row.slug === "general" ? es.canales.announcements : row.title}
+                      </span>
                       {row.unread > 0 ? (
                         <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-overdue px-1 font-mono text-[9px] text-paper">
                           {row.unread}
