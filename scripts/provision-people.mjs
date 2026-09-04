@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 
 const PEOPLE_PATH = resolve(process.cwd(), "scripts/people.json");
 const ENV_PATH = resolve(process.cwd(), ".env.local");
+const COMPANY_CHANNELS = ["general", "bot-alertas"];
 
 const Person = {
   parse(raw) {
@@ -26,6 +27,8 @@ const Person = {
       default_team: raw.default_team ? String(raw.default_team) : null,
       teams: Array.isArray(raw.teams) ? raw.teams.map(String) : [],
       lead_of: Array.isArray(raw.lead_of) ? raw.lead_of.map(String) : [],
+      channels: Array.isArray(raw.channels) ? raw.channels.map(String) : [],
+      reports_to: raw.reports_to ? String(raw.reports_to).trim().toLowerCase() : null,
     };
   },
 };
@@ -73,12 +76,20 @@ const supabase = createClient(url, service, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
 
-const { data: teams, error: teamsError } = await supabase.from("teams").select("id, slug");
+const [{ data: teams, error: teamsError }, { data: channels, error: channelsError }] = await Promise.all([
+  supabase.from("teams").select("id, slug"),
+  supabase.from("chats").select("id, slug").eq("kind", "channel"),
+]);
 if (teamsError) {
   console.error(teamsError.message);
   process.exit(1);
 }
+if (channelsError) {
+  console.error(channelsError.message);
+  process.exit(1);
+}
 const teamId = Object.fromEntries((teams ?? []).map((team) => [team.slug, team.id]));
+const channelId = Object.fromEntries((channels ?? []).map((chat) => [chat.slug, chat.id]));
 
 function requireTeam(slug, email) {
   const id = teamId[slug];
@@ -86,6 +97,13 @@ function requireTeam(slug, email) {
   return id;
 }
 
+function requireChannel(slug, email) {
+  const id = channelId[slug];
+  if (!id) throw new Error(`${email}: no existe el canal ${slug}`);
+  return id;
+}
+
+const byEmail = new Map();
 let ok = 0;
 for (const row of people) {
   const person = Person.parse(row);
@@ -126,7 +144,8 @@ for (const row of people) {
     .eq("id", userId);
   if (profileError) throw profileError;
 
-  for (const slug of person.teams) {
+  const wantedTeams = new Set(person.teams);
+  for (const slug of wantedTeams) {
     const { error: memberError } = await supabase.from("team_members").upsert({
       team_id: requireTeam(slug, person.email),
       user_id: userId,
@@ -134,7 +153,63 @@ for (const row of people) {
     });
     if (memberError) throw memberError;
   }
+  const { data: currentTeams, error: currentTeamsError } = await supabase
+    .from("team_members")
+    .select("team_id")
+    .eq("user_id", userId);
+  if (currentTeamsError) throw currentTeamsError;
+  const wantedTeamIds = new Set([...wantedTeams].map((slug) => requireTeam(slug, person.email)));
+  for (const row of currentTeams ?? []) {
+    if (wantedTeamIds.has(row.team_id)) continue;
+    const { error: dropError } = await supabase
+      .from("team_members")
+      .delete()
+      .eq("user_id", userId)
+      .eq("team_id", row.team_id);
+    if (dropError) throw dropError;
+  }
+
+  const wantedChannels = new Set(person.channels);
+  if (person.role !== "guest") {
+    for (const slug of COMPANY_CHANNELS) wantedChannels.add(slug);
+  }
+  if (Object.keys(channelId).length > 0) {
+    for (const slug of wantedChannels) {
+      const { error: channelError } = await supabase.from("chat_members").upsert({
+        chat_id: requireChannel(slug, person.email),
+        user_id: userId,
+      });
+      if (channelError) throw channelError;
+    }
+    const { data: currentChannels, error: currentChannelsError } = await supabase
+      .from("chat_members")
+      .select("chat_id")
+      .eq("user_id", userId)
+      .in("chat_id", Object.values(channelId));
+    if (currentChannelsError) throw currentChannelsError;
+    const wantedChannelIds = new Set([...wantedChannels].map((slug) => requireChannel(slug, person.email)));
+    for (const row of currentChannels ?? []) {
+      if (wantedChannelIds.has(row.chat_id)) continue;
+      const { error: dropError } = await supabase
+        .from("chat_members")
+        .delete()
+        .eq("user_id", userId)
+        .eq("chat_id", row.chat_id);
+      if (dropError) throw dropError;
+    }
+  }
+
+  byEmail.set(person.email, { userId, reports_to: person.reports_to });
   ok += 1;
+}
+
+for (const [email, row] of byEmail) {
+  const reportsToId = row.reports_to ? byEmail.get(row.reports_to)?.userId ?? null : null;
+  if (row.reports_to && !reportsToId) {
+    throw new Error(`${email}: reports_to ${row.reports_to} no está en la lista`);
+  }
+  const { error } = await supabase.from("profiles").update({ reports_to: reportsToId }).eq("id", row.userId);
+  if (error) throw error;
 }
 
 console.log(`${ok} cuentas listas. Nadie puede registrarse solo; solo estas claves entran.`);

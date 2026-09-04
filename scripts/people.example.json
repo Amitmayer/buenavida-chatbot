@@ -7,7 +7,9 @@
     "role": "owner",
     "default_team": "direccion",
     "teams": ["direccion"],
-    "lead_of": ["direccion"]
+    "lead_of": ["direccion"],
+    "reports_to": null,
+    "channels": ["ventas-cr", "estrategia", "academia", "usa", "admin", "regenerativo"]
   },
   {
     "email": "naty@buenavida.cr",
@@ -26,6 +28,8 @@
       "regenerativo",
       "direccion"
     ],
-    "lead_of": []
+    "lead_of": [],
+    "reports_to": "gally@buenavida.cr",
+    "channels": []
   }
 ]
