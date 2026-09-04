@@ -29,6 +29,12 @@ export const es = {
     submit: "Entrar",
     hint: "Usá el correo y la clave que te asignaron. No hay registro.",
     footer: "San José, CR",
+    assigned: "Entrás con lo que te asignaron.",
+    buena: "Buena",
+    vida: "Vida",
+    os: "OS",
+    specialty: "Specialty",
+    coffee: "Coffee",
     error: "Correo o clave incorrectos.",
   },
   crash: {
