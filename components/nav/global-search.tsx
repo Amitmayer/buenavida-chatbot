@@ -15,8 +15,10 @@ type Hit =
 export function GlobalSearch() {
   const router = useRouter();
   const box = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
+  const [expanded, setExpanded] = useState(false);
   const [hits, setHits] = useState<Hit[]>([]);
   const [active, setActive] = useState(0);
   const [pending, start] = useTransition();
@@ -44,11 +46,18 @@ export function GlobalSearch() {
 
   useEffect(() => {
     function onPointer(event: MouseEvent) {
-      if (!box.current?.contains(event.target as Node)) setOpen(false);
+      if (!box.current?.contains(event.target as Node)) {
+        setOpen(false);
+        setExpanded(false);
+      }
     }
     document.addEventListener("mousedown", onPointer);
     return () => document.removeEventListener("mousedown", onPointer);
   }, []);
+
+  useEffect(() => {
+    if (expanded) inputRef.current?.focus();
+  }, [expanded]);
 
   function go(hit?: Hit) {
     const pick = hit ?? hits[active];
@@ -56,6 +65,7 @@ export function GlobalSearch() {
       const q = query.trim();
       if (q) router.push(`/tareas?q=${encodeURIComponent(q)}`);
       setOpen(false);
+      setExpanded(false);
       return;
     }
     if (pick.kind === "person") {
@@ -64,11 +74,15 @@ export function GlobalSearch() {
       start(() => {
         void openDmAction(form);
       });
+      setOpen(false);
+      setExpanded(false);
+      setQuery("");
       return;
     }
     if (pick.kind === "task") router.push(`/tareas/${pick.id}`);
     else router.push(pick.href);
     setOpen(false);
+    setExpanded(false);
     setQuery("");
   }
 
@@ -79,76 +93,108 @@ export function GlobalSearch() {
   ].filter((group) => group.rows.length > 0);
 
   return (
-    <div ref={box} className="relative min-w-0">
-      <form
-        className="flex h-[34px] w-[168px] items-center gap-2 rounded-[9px] border border-line bg-sheet px-3 text-[12.5px] text-ink/45 md:w-[240px]"
-        onSubmit={(e) => {
-          e.preventDefault();
-          go();
+    <div ref={box} className="relative shrink-0">
+      <button
+        type="button"
+        aria-label={es.nav.search}
+        aria-expanded={expanded}
+        onClick={() => {
+          setExpanded((on) => {
+            const next = !on;
+            if (next) setOpen(true);
+            else setOpen(false);
+            return next;
+          });
         }}
+        className="flex h-[34px] w-[34px] items-center justify-center rounded-[9px] border border-line bg-sheet text-ink md:hidden"
       >
-        <span className="font-mono text-[11px]">⌕</span>
-        <input
-          value={query}
-          onChange={(e) => {
-            setQuery(e.target.value);
-            setOpen(true);
+        <span className="font-mono text-[13px]" aria-hidden>
+          ⌕
+        </span>
+      </button>
+      <div
+        className={
+          expanded
+            ? "absolute right-0 top-full z-[80] mt-1 w-[min(calc(100vw-2rem),320px)] rounded-[9px] border border-line bg-sheet p-2 shadow-lg"
+            : "hidden md:block"
+        }
+      >
+        <form
+          className="flex h-[34px] w-full items-center gap-2 rounded-[9px] border border-line bg-sheet px-3 text-[12.5px] text-ink/45 md:w-[240px]"
+          onSubmit={(e) => {
+            e.preventDefault();
+            go();
           }}
-          onFocus={() => {
-            if (hits.length > 0) setOpen(true);
-          }}
-          onKeyDown={(e) => {
-            if (!open || hits.length === 0) return;
-            if (e.key === "ArrowDown") {
-              e.preventDefault();
-              setActive((i) => Math.min(i + 1, hits.length - 1));
-            } else if (e.key === "ArrowUp") {
-              e.preventDefault();
-              setActive((i) => Math.max(i - 1, 0));
-            } else if (e.key === "Escape") {
-              setOpen(false);
-            }
-          }}
-          placeholder={es.nav.search}
-          className="min-w-0 flex-1 bg-transparent text-[12.5px] text-ink outline-none placeholder:text-ink/45"
-        />
-      </form>
-      {open && query.trim().length >= 2 ? (
-        <div className="absolute right-0 z-[80] mt-1 w-[min(100vw-2rem,320px)] overflow-hidden rounded-[9px] border border-line bg-sheet shadow-lg">
-          {hits.length === 0 ? (
-            <p className="px-3 py-2.5 text-[13px] text-ink/55">{es.nav.searchEmpty}</p>
-          ) : (
-            grouped.map((group) => (
-              <div key={group.key} className="border-b border-line last:border-0">
-                <p className="bg-wash px-3 py-1.5 font-mono text-[10px] tracking-[0.12em] text-ink/55">
-                  {group.title.toUpperCase()}
-                </p>
-                <ul>
-                  {group.rows.map((hit) => {
-                    const index = hits.indexOf(hit);
-                    return (
-                      <li key={`${hit.kind}-${hit.id}`}>
-                        <button
-                          type="button"
-                          disabled={pending}
-                          onMouseDown={(e) => e.preventDefault()}
-                          onClick={() => go(hit)}
-                          className={`flex w-full flex-col items-start px-3 py-2 text-left ${
-                            index === active ? "bg-wash" : "hover:bg-hover"
-                          }`}
-                        >
-                          <span className="truncate text-[13px] font-medium text-ink">{hit.label}</span>
-                          <span className="truncate text-[11px] text-ink/50">{hit.hint}</span>
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
-            ))
-          )}
-        </div>
-      ) : null}
+        >
+          <span className="font-mono text-[11px]" aria-hidden>
+            ⌕
+          </span>
+          <input
+            ref={inputRef}
+            value={query}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setOpen(true);
+            }}
+            onFocus={() => {
+              if (hits.length > 0) setOpen(true);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") {
+                setOpen(false);
+                setExpanded(false);
+                return;
+              }
+              if (!open || hits.length === 0) return;
+              if (e.key === "ArrowDown") {
+                e.preventDefault();
+                setActive((i) => Math.min(i + 1, hits.length - 1));
+              } else if (e.key === "ArrowUp") {
+                e.preventDefault();
+                setActive((i) => Math.max(i - 1, 0));
+              }
+            }}
+            placeholder={es.nav.search}
+            className="min-w-0 flex-1 bg-transparent text-[12.5px] text-ink outline-none placeholder:text-ink/45"
+          />
+        </form>
+        {open && query.trim().length >= 2 ? (
+          <div className="mt-1 overflow-hidden rounded-[9px] border border-line bg-sheet md:absolute md:right-0 md:z-[80] md:mt-1 md:w-[320px] md:shadow-lg">
+            {hits.length === 0 ? (
+              <p className="px-3 py-2.5 text-[13px] text-ink/55">{es.nav.searchEmpty}</p>
+            ) : (
+              grouped.map((group) => (
+                <div key={group.key} className="border-b border-line last:border-0">
+                  <p className="bg-wash px-3 py-1.5 font-mono text-[10px] tracking-[0.12em] text-ink/55">
+                    {group.title.toUpperCase()}
+                  </p>
+                  <ul>
+                    {group.rows.map((hit) => {
+                      const index = hits.indexOf(hit);
+                      return (
+                        <li key={`${hit.kind}-${hit.id}`}>
+                          <button
+                            type="button"
+                            disabled={pending}
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={() => go(hit)}
+                            className={`flex w-full flex-col items-start px-3 py-2 text-left ${
+                              index === active ? "bg-wash" : "hover:bg-hover"
+                            }`}
+                          >
+                            <span className="truncate text-[13px] font-medium text-ink">{hit.label}</span>
+                            <span className="truncate text-[11px] text-ink/50">{hit.hint}</span>
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              ))
+            )}
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 }

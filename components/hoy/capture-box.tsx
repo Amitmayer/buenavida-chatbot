@@ -261,10 +261,11 @@ export function CaptureBox({
         <button
           type="button"
           onClick={resetAndOpen}
-          className="flex h-[34px] items-center gap-2 rounded-[9px] bg-pine px-3.5 text-[12.5px] font-medium text-cream hover:bg-[#1B3A28]"
+          aria-label={es.hoy.createTask}
+          className="flex h-[34px] w-[34px] items-center justify-center rounded-[9px] bg-pine text-[12.5px] font-medium text-cream hover:bg-[#1B3A28] md:w-auto md:gap-2 md:px-3.5"
         >
           <span className="font-mono text-[12px]">+</span>
-          {es.hoy.createTask}
+          <span className="hidden md:inline">{es.hoy.createTask}</span>
         </button>
       ) : trigger === "inline" ? (
         <button

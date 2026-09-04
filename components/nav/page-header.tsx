@@ -33,14 +33,14 @@ export function PageHeader({
   const subtitle = area ? es.areas.chat : fallbackSub;
 
   return (
-    <header className="flex h-[62px] shrink-0 items-center gap-4 border-b border-line bg-paper/90 px-4 backdrop-blur-[6px] md:px-7">
-      <div className="min-w-0">
+    <header className="flex h-[62px] shrink-0 items-center gap-2 border-b border-line bg-paper/90 px-4 backdrop-blur-[6px] md:gap-4 md:px-7">
+      <div className="min-w-0 flex-1">
         <div className="truncate text-title text-ink">{title}</div>
       </div>
       {subtitle ? (
         <div className="hidden font-mono text-[11px] text-ink/45 md:block">{subtitle}</div>
       ) : null}
-      <div className="ml-auto flex min-w-0 items-center gap-2">
+      <div className="ml-auto flex shrink-0 items-center gap-1.5 md:gap-2">
         <GlobalSearch />
         {conversationId ? <CaptureBox conversationId={conversationId} trigger="button" /> : null}
       </div>

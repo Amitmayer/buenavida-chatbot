@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { es } from "@/lib/i18n/es";
 import { EmptyState } from "@/components/empty-state";
 import { BrandUploader } from "@/components/files/brand-uploader";
@@ -35,6 +35,8 @@ export function FileBrowser({
 }) {
   const [query, setQuery] = useState("");
   const [folder, setFolder] = useState(initialFolder ?? folders[0]?.id ?? "");
+  const [searchOpen, setSearchOpen] = useState(false);
+  const fileSearch = useRef<HTMLInputElement>(null);
   const selected = folders.find((item) => item.id === folder) ?? folders[0];
   const visible = files.filter((file) => {
     const q = query.trim().toLowerCase();
@@ -45,6 +47,10 @@ export function FileBrowser({
   const emptyTitle =
     selected?.kind === "channel" ? es.files.channelEmpty : es.files.empty;
   const canUpload = selected?.kind === "marca" ? canUploadMarca : selected?.kind === "channel";
+
+  useEffect(() => {
+    if (searchOpen) fileSearch.current?.focus();
+  }, [searchOpen]);
 
   const groupedFolders = useMemo(() => {
     const marca = folders.filter((item) => item.kind === "marca");
@@ -87,19 +93,39 @@ export function FileBrowser({
         ))}
       </aside>
       <div className="min-w-0 flex-1 overflow-auto">
-        <div className="flex flex-wrap items-center gap-3 px-4 py-5 md:px-7">
+        <div className="flex items-center gap-2 px-4 pt-3.5 pb-2 md:gap-3 md:px-7 md:py-5">
+          <button
+            type="button"
+            aria-label={es.files.search}
+            aria-expanded={searchOpen}
+            onClick={() => setSearchOpen((on) => !on)}
+            className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-[9px] border border-ink/15 bg-sheet text-ink md:hidden"
+          >
+            <span className="font-mono text-[13px]" aria-hidden>
+              ⌕
+            </span>
+          </button>
           <input
+            ref={fileSearch}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
+            onBlur={() => {
+              if (!query.trim()) setSearchOpen(false);
+            }}
             placeholder={es.files.search}
-            className="h-[34px] w-full rounded-[9px] border border-ink/15 bg-sheet px-3 text-[12.5px] placeholder:text-ink/45 md:w-[220px]"
+            className={
+              searchOpen
+                ? "h-[34px] min-w-0 flex-1 rounded-[9px] border border-ink/15 bg-sheet px-3 text-[12.5px] placeholder:text-ink/45 md:block md:w-[220px] md:flex-none"
+                : "hidden h-[34px] rounded-[9px] border border-ink/15 bg-sheet px-3 text-[12.5px] placeholder:text-ink/45 md:block md:w-[220px]"
+            }
           />
+          {searchOpen ? null : <span className="min-w-0 flex-1 md:hidden" />}
           <span className="hidden flex-1 md:block" />
           {canUpload ? (
             selected?.kind === "marca" ? (
               <BrandUploader compact />
             ) : (
-              <ChannelUploader chatIdSlug={selected?.id} />
+              <ChannelUploader chatIdSlug={selected?.id} compact />
             )
           ) : null}
         </div>
