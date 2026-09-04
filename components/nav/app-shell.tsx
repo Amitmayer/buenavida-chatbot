@@ -43,7 +43,7 @@ export function AppShell({
   ];
 
   return (
-    <div className="flex h-dvh overflow-hidden bg-paper">
+    <div className="flex h-dvh flex-col overflow-hidden bg-paper md:flex-row">
       <aside className="hidden w-[252px] shrink-0 flex-col bg-pine px-3.5 pb-3.5 pt-[18px] text-cream md:flex">
         <Link href="/hoy" className="relative mb-5 block px-1">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -75,11 +75,11 @@ export function AppShell({
       </aside>
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <PageHeader conversationId={conversationId} teams={teams} />
-        <main className="flex min-h-0 min-w-0 flex-1 flex-col pb-[52px] md:pb-0">{children}</main>
+        <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">{children}</main>
+        <nav className="z-20 shrink-0 border-t border-ink/10 bg-paper px-2 pb-[max(10px,env(safe-area-inset-bottom))] pt-0.5 md:hidden">
+          <NavLinks items={items} variant="tab" />
+        </nav>
       </div>
-      <nav className="fixed inset-x-0 bottom-0 z-20 border-t border-ink/10 bg-paper px-2 pb-2.5 md:hidden">
-        <NavLinks items={items} variant="tab" />
-      </nav>
     </div>
   );
 }
