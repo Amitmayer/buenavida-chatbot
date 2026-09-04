@@ -1,10 +1,15 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import type { InboxRow } from "@/lib/mensajes";
 import { es } from "@/lib/i18n/es";
 import { crTimeLabel, crInstantYmd, todayYmd, crRelativeStamp } from "@/lib/agent/dates";
-import { initials } from "@/lib/utils";
+import { initials, cn } from "@/lib/utils";
 
 export function InboxList({ rows }: { rows: InboxRow[] }) {
+  const path = usePathname();
+  const activeId = path.startsWith("/mensajes/") ? path.slice("/mensajes/".length) : "";
   const today = todayYmd();
   const sections = [
     {
@@ -34,13 +39,12 @@ export function InboxList({ rows }: { rows: InboxRow[] }) {
               return (
                 <li key={row.chat.id} className="border-b border-line last:border-0">
                   <Link
-                    href={
-                      row.kind === "channel" && row.chat.slug
-                        ? `/canales/${row.chat.slug}`
-                        : `/mensajes/${row.chat.id}`
-                    }
-                    prefetch={false}
-                    className="flex items-center gap-3 px-3.5 py-3 hover:bg-hover"
+                    href={`/mensajes/${row.chat.id}`}
+                    scroll={false}
+                    className={cn(
+                      "flex items-center gap-3 px-3.5 py-3 hover:bg-hover",
+                      activeId === row.chat.id && "bg-wash",
+                    )}
                   >
                     <span
                       className={

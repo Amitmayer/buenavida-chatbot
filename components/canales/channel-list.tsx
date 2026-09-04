@@ -1,7 +1,11 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { es } from "@/lib/i18n/es";
 import type { ChannelRow } from "@/lib/canales";
 import type { ChannelSection } from "@/lib/db/types";
+import { cn } from "@/lib/utils";
 
 const SECTION: Record<ChannelSection, string> = {
   strategic: es.canales.strategic,
@@ -11,11 +15,10 @@ const SECTION: Record<ChannelSection, string> = {
 
 export function ChannelList({
   groups,
-  active,
 }: {
   groups: { section: ChannelSection; rows: ChannelRow[] }[];
-  active?: string;
 }) {
+  const path = usePathname();
   return (
     <nav className="flex min-h-0 flex-1 flex-col overflow-auto bg-sheet py-4">
       {groups.length === 0 ? (
@@ -28,15 +31,18 @@ export function ChannelList({
             </p>
             <ul className="flex flex-col gap-px px-2">
               {group.rows.map((row) => {
-                const on = active === row.slug;
+                const href =
+                  row.slug === "general" ? `/mensajes/${row.chat.id}` : `/canales/${row.slug}`;
+                const on = path === href || path === `/canales/${row.slug}`;
                 return (
                   <li key={row.chat.id}>
                     <Link
-                      href={`/canales/${row.slug}`}
-                      prefetch={false}
-                      className={`flex items-center gap-2 rounded-[8px] px-2.5 py-1.5 ${
-                        on ? "bg-wash font-medium text-ink" : "text-ink/70 hover:bg-hover hover:text-ink"
-                      }`}
+                      href={href}
+                      scroll={false}
+                      className={cn(
+                        "flex items-center gap-2 rounded-[8px] px-2.5 py-1.5",
+                        on ? "bg-wash font-medium text-ink" : "text-ink/70 hover:bg-hover hover:text-ink",
+                      )}
                     >
                       <span className="w-3 shrink-0 font-mono text-[11px] text-gold">#</span>
                       <span className="min-w-0 flex-1 truncate text-[12.5px]">
