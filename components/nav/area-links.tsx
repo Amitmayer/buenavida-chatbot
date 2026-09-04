@@ -23,7 +23,6 @@ export function AreaLinks({ teams }: { teams: Pick<Team, "id" | "slug" | "name">
           <Link
             key={team.id}
             href={`/areas/${team.slug}`}
-            prefetch={false}
             onClick={() => setCurrent(team.slug)}
             className={
               on

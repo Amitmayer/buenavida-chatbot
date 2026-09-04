@@ -35,7 +35,6 @@ export function NavLinks({
             <li key={item.href}>
               <Link
                 href={item.href}
-                prefetch={false}
                 className={cn(
                   "relative flex items-center gap-2.5 rounded-[9px] px-2.5 py-[9px] text-[13.5px]",
                   on ? "text-cream" : "text-cream/78 hover:bg-cream/[0.07] hover:text-cream",
@@ -69,7 +68,6 @@ export function NavLinks({
           <li key={item.href} className="min-w-0 flex-1">
             <Link
               href={item.href}
-              prefetch={false}
               className={cn(
                 "block border-t-2 px-1 pb-1.5 pt-2.5 text-center text-[11px]",
                 on

@@ -20,6 +20,7 @@ export const es = {
     searchTasks: "Tareas",
     searchFiles: "Archivos",
     searchWrite: "Escribir",
+    loading: "Cargando",
   },
   auth: {
     title: "Buena Vida OS",

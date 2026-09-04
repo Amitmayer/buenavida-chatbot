@@ -24,51 +24,50 @@ export default async function ArchivosPage({
     })),
   ];
 
-  const files: LibraryFile[] = [];
-  if (!profile.isGuest) {
-    const { data: brand } = await supabase
-      .from("brand_files")
-      .select("*")
-      .order("created_at", { ascending: false });
-    const bucket = process.env.STORAGE_BUCKET_BRAND ?? "marca";
-    for (const file of brand ?? []) {
-      const signed = await supabase.storage
-        .from(bucket)
-        .createSignedUrl(file.storage_path, SIGNED_URL_TTL_SECONDS);
-      files.push({
-        id: file.id,
-        filename: file.filename,
-        folder: "marca",
-        mime_type: file.mime_type,
-        size_bytes: file.size_bytes,
-        url: signed.data?.signedUrl ?? null,
-      });
-    }
-  }
-
   const channelIds = channels.map((channel) => channel.chat.id);
-  if (channelIds.length > 0) {
-    const { data: channelFiles } = await supabase
-      .from("channel_files")
-      .select("*")
-      .in("chat_id", channelIds)
-      .order("created_at", { ascending: false });
-    const bucket = process.env.STORAGE_BUCKET_CHANNELS ?? "channel-files";
-    const slugByChat = Object.fromEntries(channels.map((channel) => [channel.chat.id, channel.slug]));
-    for (const file of channelFiles ?? []) {
-      const signed = await supabase.storage
-        .from(bucket)
-        .createSignedUrl(file.storage_path, SIGNED_URL_TTL_SECONDS);
-      files.push({
-        id: file.id,
-        filename: file.filename,
-        folder: slugByChat[file.chat_id] ?? file.chat_id,
-        mime_type: file.mime_type,
-        size_bytes: file.size_bytes,
-        url: signed.data?.signedUrl ?? null,
-      });
-    }
-  }
+  const slugByChat = Object.fromEntries(channels.map((channel) => [channel.chat.id, channel.slug]));
+  const brandBucket = process.env.STORAGE_BUCKET_BRAND ?? "marca";
+  const channelBucket = process.env.STORAGE_BUCKET_CHANNELS ?? "channel-files";
+
+  const [{ data: brand }, { data: channelFiles }] = await Promise.all([
+    profile.isGuest
+      ? Promise.resolve({ data: [] as { id: string; filename: string; storage_path: string; mime_type: string; size_bytes: number }[] })
+      : supabase.from("brand_files").select("*").order("created_at", { ascending: false }),
+    channelIds.length > 0
+      ? supabase.from("channel_files").select("*").in("chat_id", channelIds).order("created_at", { ascending: false })
+      : Promise.resolve({ data: [] as { id: string; filename: string; storage_path: string; mime_type: string; size_bytes: number; chat_id: string }[] }),
+  ]);
+
+  const files: LibraryFile[] = (
+    await Promise.all([
+      ...(brand ?? []).map(async (file) => {
+        const signed = await supabase.storage
+          .from(brandBucket)
+          .createSignedUrl(file.storage_path, SIGNED_URL_TTL_SECONDS);
+        return {
+          id: file.id,
+          filename: file.filename,
+          folder: "marca",
+          mime_type: file.mime_type,
+          size_bytes: file.size_bytes,
+          url: signed.data?.signedUrl ?? null,
+        } satisfies LibraryFile;
+      }),
+      ...(channelFiles ?? []).map(async (file) => {
+        const signed = await supabase.storage
+          .from(channelBucket)
+          .createSignedUrl(file.storage_path, SIGNED_URL_TTL_SECONDS);
+        return {
+          id: file.id,
+          filename: file.filename,
+          folder: slugByChat[file.chat_id] ?? file.chat_id,
+          mime_type: file.mime_type,
+          size_bytes: file.size_bytes,
+          url: signed.data?.signedUrl ?? null,
+        } satisfies LibraryFile;
+      }),
+    ])
+  );
 
   const initialFolder =
     carpeta && folders.some((folder) => folder.id === carpeta)

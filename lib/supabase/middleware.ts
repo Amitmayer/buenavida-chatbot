@@ -1,6 +1,7 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import type { Database } from "@/lib/db/types";
+import { shouldRefreshSession, hasAuthSessionCookie } from "@/lib/supabase/session-freshness";
 
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request });
@@ -25,9 +26,7 @@ export async function updateSession(request: NextRequest) {
     path === "/manifest.webmanifest" ||
     path === "/sw.js";
 
-  const hasSession = request.cookies
-    .getAll()
-    .some((cookie) => cookie.name.includes("-auth-token"));
+  const hasSession = hasAuthSessionCookie(request.cookies.getAll());
 
   if (!hasSession) {
     if (!isPublic) {
@@ -36,6 +35,16 @@ export async function updateSession(request: NextRequest) {
       next.searchParams.set("next", path);
       return NextResponse.redirect(next);
     }
+    return response;
+  }
+
+  if (path === "/entrar") {
+    const next = request.nextUrl.clone();
+    next.pathname = "/hoy";
+    return NextResponse.redirect(next);
+  }
+
+  if (!shouldRefreshSession(request.cookies.getAll())) {
     return response;
   }
 
@@ -68,16 +77,10 @@ export async function updateSession(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   if (!user && !isPublic) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/entrar";
-    url.searchParams.set("next", path);
-    return NextResponse.redirect(url);
-  }
-
-  if (user && path === "/entrar") {
-    const url = request.nextUrl.clone();
-    url.pathname = "/hoy";
-    return NextResponse.redirect(url);
+    const login = request.nextUrl.clone();
+    login.pathname = "/entrar";
+    login.searchParams.set("next", path);
+    return NextResponse.redirect(login);
   }
 
   return response;

@@ -45,7 +45,7 @@ export function AppShell({
   return (
     <div className="flex h-dvh overflow-hidden bg-paper">
       <aside className="hidden w-[252px] shrink-0 flex-col bg-pine px-3.5 pb-3.5 pt-[18px] text-cream md:flex">
-        <Link href="/hoy" prefetch={false} className="relative mb-5 block px-1">
+        <Link href="/hoy" className="relative mb-5 block px-1">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={LOGO}

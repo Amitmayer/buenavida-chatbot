@@ -60,8 +60,11 @@ export const getSessionProfile = cache(async (): Promise<SessionProfile | null> 
 
   let [{ data: profile, error }, { data: memberships }] = await load();
   if (isJwtSkew(error)) {
-    await new Promise((resolve) => setTimeout(resolve, 1500));
     [{ data: profile, error }, { data: memberships }] = await load();
+    if (isJwtSkew(error)) {
+      await new Promise((resolve) => setTimeout(resolve, 400));
+      [{ data: profile, error }, { data: memberships }] = await load();
+    }
   }
   if (error || !profile) {
     captureError(error, { where: "getSessionProfile" });
@@ -122,7 +125,10 @@ export async function listVisibleTasks(opts: {
   return (data ?? []) as unknown as TaskRow[];
 }
 
-export async function ensureConversation(userId: string, title: string): Promise<string | null> {
+export const ensureConversation = cache(async function ensureConversation(
+  userId: string,
+  title: string,
+): Promise<string | null> {
   const supabase = await createClient();
   const { data: existing } = await supabase
     .from("conversations")
@@ -138,4 +144,4 @@ export async function ensureConversation(userId: string, title: string): Promise
     .select("id")
     .single();
   return inserted.data?.id ?? null;
-}
+});

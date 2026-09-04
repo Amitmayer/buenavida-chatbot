@@ -21,9 +21,9 @@ export default async function HoyPage({
   const scope = new Set(verTodo ? [] : profile.teams.map((t) => t.id));
   const inScope = (teamId: string) => verTodo || scope.has(teamId);
 
-  const [open, allWeek] = await Promise.all([
+  const [open, weekDoneRows] = await Promise.all([
     listVisibleTasks({ today, weekEnd, openOnly: true }),
-    listVisibleTasks({ today, weekEnd, due: "week", openOnly: false }),
+    listVisibleTasks({ today, weekEnd, due: "week", status: "done" }),
   ]);
   const overdue = open.filter((task) => task.due_date && task.due_date < today && inScope(task.team_id));
   const dueToday = open.filter((task) => task.due_date === today && inScope(task.team_id));
@@ -34,7 +34,7 @@ export default async function HoyPage({
   const weekOpen = open.filter(
     (task) => task.due_date && task.due_date >= today && task.due_date <= weekEnd && inScope(task.team_id),
   );
-  const weekDone = allWeek.filter((task) => task.status === "done" && inScope(task.team_id));
+  const weekDone = weekDoneRows.filter((task) => inScope(task.team_id));
   const oldest = overdue.reduce((max, task) => {
     if (!task.due_date) return max;
     return Math.max(max, daysBetweenYmd(task.due_date, today));
@@ -82,7 +82,6 @@ export default async function HoyPage({
                   {overdue[0] ? (
                     <Link
                       href={`/tareas/${overdue[0].id}`}
-                      prefetch={false}
                       className="rounded-[8px] bg-gold px-3.5 py-2 text-[12.5px] font-medium text-pine hover:bg-peach"
                     >
                       {es.hoy.startOverdue}
@@ -90,7 +89,6 @@ export default async function HoyPage({
                   ) : null}
                   <Link
                     href="/tareas?due=week"
-                    prefetch={false}
                     className="rounded-[8px] border border-cream/40 px-3.5 py-2 text-[12.5px] text-cream hover:bg-cream/10"
                   >
                     {es.hoy.seeWeek}
