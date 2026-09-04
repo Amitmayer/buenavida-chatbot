@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import { teamBlurb } from "@/lib/i18n/es";
 import { teamEdge } from "@/components/tasks/team-colors";
 import type { Team } from "@/lib/db/types";
 
@@ -19,6 +20,7 @@ export function AreaLinks({ teams }: { teams: Pick<Team, "id" | "slug" | "name">
     <div className="flex flex-col gap-px">
       {teams.map((team) => {
         const on = path.startsWith("/areas/") && current === team.slug;
+        const blurb = teamBlurb(team.slug);
         return (
           <Link
             key={team.id}
@@ -37,7 +39,10 @@ export function AreaLinks({ teams }: { teams: Pick<Team, "id" | "slug" | "name">
               className="relative h-1.5 w-1.5 shrink-0 rounded-full"
               style={{ background: teamEdge(team.slug) }}
             />
-            <span className="relative min-w-0 flex-1 truncate">{team.name}</span>
+            <span className="relative min-w-0 flex-1 leading-tight">
+              <span className="block truncate">{team.name}</span>
+              {blurb ? <span className="block truncate text-[10px] text-cream/40">{blurb}</span> : null}
+            </span>
           </Link>
         );
       })}

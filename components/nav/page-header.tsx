@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { es } from "@/lib/i18n/es";
+import { es, teamBlurb } from "@/lib/i18n/es";
 import { crStampLabel, todayYmd } from "@/lib/agent/dates";
 import { CaptureBox } from "@/components/hoy/capture-box";
 import { GlobalSearch } from "@/components/nav/global-search";
@@ -30,12 +30,18 @@ export function PageHeader({
   const key = Object.keys(HEADS).find((href) => path === href || path.startsWith(`${href}/`)) ?? "/hoy";
   const [fallbackTitle, fallbackSub] = HEADS[key]();
   const title = area?.name ?? (path.startsWith("/areas") ? es.nav.areas : fallbackTitle);
-  const subtitle = area ? es.areas.chat : fallbackSub;
+  const blurb = teamBlurb(area?.slug);
+  const subtitle = area ? "" : fallbackSub;
 
   return (
     <header className="flex h-[62px] shrink-0 items-center gap-2 border-b border-line bg-paper/90 px-4 backdrop-blur-[6px] md:gap-4 md:px-7">
       <div className="min-w-0 flex-1">
-        <div className="truncate text-title text-ink">{title}</div>
+        <div className="flex min-w-0 items-baseline gap-2">
+          <div className="truncate text-title text-ink">{title}</div>
+          {blurb ? (
+            <p className="min-w-0 truncate text-[11px] font-normal text-ink/45">{blurb}</p>
+          ) : null}
+        </div>
       </div>
       {subtitle ? (
         <div className="hidden font-mono text-[11px] text-ink/45 md:block">{subtitle}</div>

@@ -400,6 +400,7 @@ export type Database = {
       };
       is_chat_member: { Args: { c: string }; Returns: boolean };
       open_or_get_dm: { Args: { p_other: string }; Returns: string };
+      profile_directory: { Args: { p_id: string }; Returns: Json };
       create_group_chat: {
         Args: { p_title: string; p_member_ids: string[] };
         Returns: string;

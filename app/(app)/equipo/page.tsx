@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { es } from "@/lib/i18n/es";
+import { es, teamBlurb } from "@/lib/i18n/es";
 import { createClient } from "@/lib/supabase/server";
 import { getSessionProfile } from "@/lib/session";
 import { updateMembershipAction, updateProfileRoleAction } from "./actions";
@@ -55,8 +55,15 @@ export default async function EquipoPage() {
                     className="h-1.5 w-1.5 shrink-0 rounded-full"
                     style={{ background: teamEdge(team.slug) }}
                   />
-                  <span className="min-w-0 flex-1 truncate text-[11.5px] font-semibold text-ink">
-                    {team.name}
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[11.5px] font-semibold text-ink">
+                      {team.name}
+                    </span>
+                    {teamBlurb(team.slug) ? (
+                      <span className="block truncate text-[10px] text-ink/45">
+                        {teamBlurb(team.slug)}
+                      </span>
+                    ) : null}
                   </span>
                   <span className="font-mono text-[10.5px] text-ink/45">{count}</span>
                 </div>

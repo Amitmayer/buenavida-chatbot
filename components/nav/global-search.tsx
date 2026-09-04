@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { es } from "@/lib/i18n/es";
 import { createClient } from "@/lib/supabase/client";
 import { fold } from "@/lib/utils";
-import { openDmAction } from "@/app/(app)/mensajes/actions";
+import { PersonProfile } from "@/components/nav/person-profile";
 
 type Hit =
   | { kind: "person"; id: string; label: string; hint: string }
@@ -21,7 +21,7 @@ export function GlobalSearch() {
   const [expanded, setExpanded] = useState(false);
   const [hits, setHits] = useState<Hit[]>([]);
   const [active, setActive] = useState(0);
-  const [pending, start] = useTransition();
+  const [personId, setPersonId] = useState<string | null>(null);
 
   useEffect(() => {
     const q = query.trim();
@@ -69,11 +69,7 @@ export function GlobalSearch() {
       return;
     }
     if (pick.kind === "person") {
-      const form = new FormData();
-      form.set("user_id", pick.id);
-      start(() => {
-        void openDmAction(form);
-      });
+      setPersonId(pick.id);
       setOpen(false);
       setExpanded(false);
       setQuery("");
@@ -175,7 +171,6 @@ export function GlobalSearch() {
                         <li key={`${hit.kind}-${hit.id}`}>
                           <button
                             type="button"
-                            disabled={pending}
                             onMouseDown={(e) => e.preventDefault()}
                             onClick={() => go(hit)}
                             className={`flex w-full flex-col items-start px-3 py-2 text-left ${
@@ -195,6 +190,7 @@ export function GlobalSearch() {
           </div>
         ) : null}
       </div>
+      {personId ? <PersonProfile userId={personId} onClose={() => setPersonId(null)} /> : null}
     </div>
   );
 }

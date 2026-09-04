@@ -140,6 +140,16 @@ export const es = {
     tasks: "Tareas",
     emptyChat: "Este chat es solo de este área. No se mezcla con los grupos.",
     noChat: "Este área no tiene chat para esta cuenta.",
+    blurbs: {
+      comercial: "B2B, ruta, cotizaciones",
+      operaciones: "Tueste, bodega, envíos",
+      usa: "Clientes US y exportaciones",
+      academia: "Talleres, cursos, eventos",
+      marketing: "Diseño, etiquetas, contenido",
+      administracion: "Cobros, facturas, oficina",
+      regenerativo: "Certificación y fincas",
+      direccion: "Estrategia y alianzas",
+    },
   },
   resultCard: {
     guardando: "Guardando",
@@ -255,6 +265,7 @@ export const es = {
     guestNote: "Solo ve las tareas y archivos que se le asignan.",
     manage: "Administrar",
     forbidden: "No tienes acceso a esta pantalla.",
+    profile: "Perfil",
   },
   roles: {
     owner: "Dirección",
@@ -286,3 +297,12 @@ export const es = {
 } as const;
 
 export type Messages = typeof es;
+
+export function teamBlurb(slug: string | undefined): string {
+  if (!slug) return "";
+  if (slug in es.areas.blurbs) {
+    return es.areas.blurbs[slug as keyof typeof es.areas.blurbs];
+  }
+  return "";
+}
+
