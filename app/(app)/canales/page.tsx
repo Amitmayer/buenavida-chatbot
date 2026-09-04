@@ -6,7 +6,7 @@ import { es } from "@/lib/i18n/es";
 export default async function CanalesPage() {
   const profile = await getSessionProfile();
   if (!profile) return null;
-  const rows = await listChannels(profile.id);
+  const rows = await listChannels(profile.id, { hasFullAccess: profile.hasFullAccess });
   const groups = groupChannels(rows);
 
   return (

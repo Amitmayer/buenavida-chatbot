@@ -123,7 +123,7 @@ export async function POST(request: Request) {
           ctx: {
             userId: profile.id,
             defaultTeamId: profile.default_team,
-            teamSlugs: profile.teams.map((t) => ({ id: t.id, slug: t.slug, name: t.name })),
+            teamSlugs: profile.accessibleTeams.map((t) => ({ id: t.id, slug: t.slug, name: t.name })),
             isGuest: profile.isGuest,
             isOwner: profile.isOwner,
             fullName: profile.full_name,

@@ -54,6 +54,7 @@ export type Profile = {
   role: UserRole;
   reports_to: string | null;
   default_team: string | null;
+  full_access: boolean;
   created_at: string;
 };
 
@@ -379,6 +380,7 @@ export type Database = {
     Functions: {
       is_team_member: { Args: { t: string }; Returns: boolean };
       has_role: { Args: { r: UserRole }; Returns: boolean };
+      has_full_access: { Args: Record<PropertyKey, never>; Returns: boolean };
       is_owner_or_admin: { Args: Record<PropertyKey, never>; Returns: boolean };
       create_task_with_event: {
         Args: {

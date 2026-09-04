@@ -29,6 +29,7 @@ const Person = {
       lead_of: Array.isArray(raw.lead_of) ? raw.lead_of.map(String) : [],
       channels: Array.isArray(raw.channels) ? raw.channels.map(String) : [],
       reports_to: raw.reports_to ? String(raw.reports_to).trim().toLowerCase() : null,
+      full_access: Boolean(raw.full_access),
     };
   },
 };
@@ -140,6 +141,7 @@ for (const row of people) {
       title: person.title,
       role: person.role,
       default_team: defaultTeam,
+      full_access: person.full_access,
     })
     .eq("id", userId);
   if (profileError) throw profileError;

@@ -16,7 +16,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
     <AppShell
       name={profile.full_name}
       roleLabel={roleLabel}
-      teams={profile.teams}
+      teams={profile.accessibleTeams}
       showEquipo={profile.isAdmin}
       showArchivos
       conversationId={conversationId}

@@ -21,7 +21,7 @@ export default async function AreaPage({
   const { data: team } = await supabase.from("teams").select("*").eq("slug", slug).maybeSingle();
   if (!team) notFound();
   const member = profile.teams.some((item) => item.id === team.id);
-  if (!member && !profile.isOwner) notFound();
+  if (!member && !profile.hasFullAccess) notFound();
 
   const today = todayYmd();
   const tasks = await listVisibleTasks({

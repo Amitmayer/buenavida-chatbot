@@ -30,6 +30,7 @@
     ],
     "lead_of": [],
     "reports_to": "gally@buenavida.cr",
+    "full_access": true,
     "channels": []
   }
 ]

@@ -20,7 +20,7 @@ export default async function CanalPage({
   if (!profile) return null;
   const [thread, rows] = await Promise.all([
     loadChannel(slug, profile.id),
-    listChannels(profile.id),
+    listChannels(profile.id, { hasFullAccess: profile.hasFullAccess }),
   ]);
   if (!thread) notFound();
   const groups = groupChannels(rows);

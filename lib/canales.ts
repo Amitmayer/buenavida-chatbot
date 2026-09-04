@@ -23,7 +23,10 @@ export type ChannelTask = {
 
 export const SECTION_ORDER: ChannelSection[] = ["strategic", "ops", "company"];
 
-export async function listChannels(userId: string): Promise<ChannelRow[]> {
+export async function listChannels(
+  userId: string,
+  opts?: { hasFullAccess?: boolean },
+): Promise<ChannelRow[]> {
   const supabase = await createClient();
   const { data: memberships, error } = await supabase
     .from("chat_members")
@@ -33,15 +36,18 @@ export async function listChannels(userId: string): Promise<ChannelRow[]> {
     captureError(error, { where: "listChannels.memberships" });
     throw error;
   }
-  const chatIds = (memberships ?? []).map((row) => row.chat_id);
-  if (chatIds.length === 0) return [];
+  const memberChatIds = (memberships ?? []).map((row) => row.chat_id);
+  if (!opts?.hasFullAccess && memberChatIds.length === 0) return [];
 
-  const { data: chats, error: chatsError } = await supabase
+  let chatsQuery = supabase
     .from("chats")
     .select("*")
-    .in("id", chatIds)
     .eq("kind", "channel")
     .order("sort_order", { ascending: true });
+  if (!opts?.hasFullAccess) {
+    chatsQuery = chatsQuery.in("id", memberChatIds);
+  }
+  const { data: chats, error: chatsError } = await chatsQuery;
   if (chatsError) {
     captureError(chatsError, { where: "listChannels.chats" });
     throw chatsError;

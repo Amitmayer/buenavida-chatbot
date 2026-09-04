@@ -14,7 +14,7 @@ export default async function ArchivosPage({
   if (!profile) return null;
   const { carpeta } = await searchParams;
   const supabase = await createClient();
-  const channels = await listChannels(profile.id);
+  const channels = await listChannels(profile.id, { hasFullAccess: profile.hasFullAccess });
   const folders: LibraryFolder[] = [
     ...(profile.isGuest ? [] : [{ id: "marca", label: es.files.marca, kind: "marca" as const }]),
     ...channels.map((channel) => ({

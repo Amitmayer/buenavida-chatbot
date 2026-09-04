@@ -31,9 +31,11 @@ export const createTaskSchema = z.object({
 
 export type SessionProfile = Profile & {
   teams: Team[];
+  accessibleTeams: Team[];
   isGuest: boolean;
   isOwner: boolean;
   isAdmin: boolean;
+  hasFullAccess: boolean;
 };
 
 function isJwtSkew(error: unknown): boolean {
@@ -77,12 +79,20 @@ export const getSessionProfile = cache(async (): Promise<SessionProfile | null> 
       return nested as Team | undefined;
     })
     .filter((t): t is Team => Boolean(t));
+  const hasFullAccess = profile.role === "owner" || profile.full_access;
+  let accessibleTeams = teams;
+  if (hasFullAccess) {
+    const { data: allTeams } = await supabase.from("teams").select("*").order("name");
+    accessibleTeams = allTeams ?? teams;
+  }
   return {
     ...profile,
     teams,
+    accessibleTeams,
     isGuest: profile.role === "guest",
     isOwner: profile.role === "owner",
     isAdmin: profile.role === "admin" || profile.role === "owner",
+    hasFullAccess,
   };
 });
 

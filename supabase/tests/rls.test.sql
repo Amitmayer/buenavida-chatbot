@@ -4,7 +4,7 @@
 
 begin;
 
-select plan(27);
+select plan(30);
 
 insert into public.brand_files (
   storage_path, filename, mime_type, size_bytes, folder, uploaded_by
@@ -113,8 +113,16 @@ select is(
 call public.test_login('a0000000-0000-0000-0000-000000000002');
 select is(
   (select count(*)::int from public.tasks),
-  24,
-  'Naty is a member of all eight teams and still cannot see restricted'
+  25,
+  'Naty (full_access) sees every task, including restricted'
+);
+select lives_ok(
+  $$
+    update public.tasks
+    set status = 'in_progress'
+    where id = 'c0000000-0000-0000-0000-000000000004'
+  $$,
+  'Naty can update a restricted task she does not own'
 );
 
 call public.test_login('a0000000-0000-0000-0000-000000000004');
@@ -134,6 +142,32 @@ select is((select count(*)::int from public.tasks), 4, 'Jenny visible count');
 
 call public.test_login('a0000000-0000-0000-0000-00000000000b');
 select is((select count(*)::int from public.tasks), 6, 'Jhonny visible count');
+
+-- Owner and full_access can write outside their memberships ----------------
+
+call public.test_login('a0000000-0000-0000-0000-000000000001');
+select lives_ok(
+  $$
+    insert into public.tasks (
+      title, team_id, owner_id, created_by, status, priority, visibility
+    ) values (
+      'Gally crea en Comercial',
+      'b0000000-0000-0000-0000-000000000001',
+      'a0000000-0000-0000-0000-000000000001',
+      'a0000000-0000-0000-0000-000000000001',
+      'open', 'medium', 'team'
+    )
+  $$,
+  'Gally (owner) can create a task in Comercial without membership'
+);
+select lives_ok(
+  $$
+    update public.tasks
+    set notes = 'Gally edita Regenerativo'
+    where id = 'c0000000-0000-0000-0000-000000000018'
+  $$,
+  'Gally can update a Regenerativo task she does not own'
+);
 
 -- Inserts into non-member teams fail ----------------------------------------
 

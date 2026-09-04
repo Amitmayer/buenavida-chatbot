@@ -54,20 +54,28 @@ export function CaptureBox({
       const {
         data: { user },
       } = await supabase.auth.getUser();
-      const [{ data: profiles }, { data: memberships }] = await Promise.all([
-        supabase.from("profiles").select("id, full_name").order("full_name"),
-        user
-          ? supabase.from("team_members").select("team_id, teams(id, slug, name)").eq("user_id", user.id)
-          : Promise.resolve({ data: [] }),
-      ]);
+      const [{ data: profiles }, { data: me }, { data: memberships }, { data: allTeams }] =
+        await Promise.all([
+          supabase.from("profiles").select("id, full_name").order("full_name"),
+          user
+            ? supabase.from("profiles").select("role, full_access").eq("id", user.id).maybeSingle()
+            : Promise.resolve({ data: null }),
+          user
+            ? supabase.from("team_members").select("team_id, teams(id, slug, name)").eq("user_id", user.id)
+            : Promise.resolve({ data: [] }),
+          supabase.from("teams").select("id, slug, name").order("name"),
+        ]);
       setPeople((profiles ?? []) as Person[]);
-      const nextTeams = (memberships ?? [])
-        .map((row) => {
-          const nested = row.teams as unknown;
-          if (Array.isArray(nested)) return nested[0] as TeamOpt | undefined;
-          return nested as TeamOpt | undefined;
-        })
-        .filter((team): team is TeamOpt => Boolean(team));
+      const nextTeams =
+        me?.role === "owner" || me?.full_access
+          ? ((allTeams ?? []) as TeamOpt[])
+          : (memberships ?? [])
+              .map((row) => {
+                const nested = row.teams as unknown;
+                if (Array.isArray(nested)) return nested[0] as TeamOpt | undefined;
+                return nested as TeamOpt | undefined;
+              })
+              .filter((team): team is TeamOpt => Boolean(team));
       setTeams(nextTeams);
       setTeamId((prev) => prev || nextTeams[0]?.id || "");
     })();

@@ -111,7 +111,8 @@ update public.profiles set
   title = 'Asistente de dirección',
   role = 'member',
   reports_to = 'a0000000-0000-0000-0000-000000000001',
-  default_team = 'b0000000-0000-0000-0000-000000000008'
+  default_team = 'b0000000-0000-0000-0000-000000000008',
+  full_access = true
 where id = 'a0000000-0000-0000-0000-000000000002';
 
 update public.profiles set
