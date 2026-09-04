@@ -5,6 +5,7 @@ import Link from "next/link";
 import { toast } from "sonner";
 import { es } from "@/lib/i18n/es";
 import { Button } from "@/components/ui/button";
+import { modalCloseClassName, ModalCloseIcon } from "@/components/ui/modal";
 import { AppSelect } from "@/components/ui/select";
 import { completeTaskAction, updateTaskAction, cancelTaskAction } from "@/app/(app)/tareas/actions";
 import { AttachmentList } from "@/components/files/attachment-list";
@@ -74,11 +75,8 @@ export function TaskDetail({
                 rows={2}
                 className="min-w-0 flex-1 resize-none bg-transparent text-task leading-snug text-ink outline-none"
               />
-              <Link
-                href="/tareas"
-                className="shrink-0 pt-1 text-[11px] font-semibold text-ink/50"
-              >
-                {es.tasks.close}
+              <Link href="/tareas" aria-label={es.tasks.close} className={modalCloseClassName}>
+                <ModalCloseIcon />
               </Link>
             </div>
             {due.kind === "overdue" && task.due_date ? (

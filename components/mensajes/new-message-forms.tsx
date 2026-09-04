@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useState } from "react";
 import { MessageSquarePlus, Users, X } from "lucide-react";
 import { es } from "@/lib/i18n/es";
 import { Button } from "@/components/ui/button";
+import { Modal } from "@/components/ui/modal";
 import { openDmAction, createGroupAction } from "@/app/(app)/mensajes/actions";
 import { PeopleTypeahead, type PersonOption } from "@/components/mensajes/people-typeahead";
 
@@ -119,34 +120,5 @@ export function NewMessageForms({
         </Modal>
       ) : null}
     </>
-  );
-}
-
-function Modal({
-  title,
-  onClose,
-  children,
-}: {
-  title: string;
-  onClose: () => void;
-  children: ReactNode;
-}) {
-  return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center bg-pine/50 p-4" onClick={onClose}>
-      <div
-        role="dialog"
-        aria-label={title}
-        className="w-full max-w-md rounded-lg border border-ink/10 bg-sheet p-5 shadow-lg"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="mb-4 flex items-start justify-between gap-3">
-          <h2 className="text-[18px] font-semibold text-ink">{title}</h2>
-          <button type="button" onClick={onClose} className="text-[11px] font-semibold text-ink/50">
-            {es.tasks.close}
-          </button>
-        </div>
-        {children}
-      </div>
-    </div>
   );
 }

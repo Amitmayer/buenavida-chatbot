@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { es } from "@/lib/i18n/es";
 import { Button } from "@/components/ui/button";
 import { AppSelect } from "@/components/ui/select";
+import { Modal } from "@/components/ui/modal";
 import { ResultCard } from "@/components/chat/result-card";
 import { createClient } from "@/lib/supabase/client";
 
@@ -40,11 +40,8 @@ export function CaptureBox({
   const [teams, setTeams] = useState<TeamOpt[]>([]);
   const [busy, setBusy] = useState(false);
   const [tool, setTool] = useState<Tool | null>(null);
-  const [mounted, setMounted] = useState(false);
   const field = useRef<HTMLInputElement>(null);
   const router = useRouter();
-
-  useEffect(() => setMounted(true), []);
 
   useEffect(() => {
     if (open) field.current?.focus();
@@ -145,115 +142,88 @@ export function CaptureBox({
     setTool(null);
   }
 
-  const dialog =
-    open && mounted
-      ? createPortal(
-          <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-pine/35 p-4 backdrop-blur-[3px]"
-            onClick={() => setOpen(false)}
-          >
-            <div
-              role="dialog"
-              aria-label={es.hoy.captureTitle}
-              className="max-h-[90dvh] w-full max-w-md overflow-auto rounded-lg border border-line bg-sheet p-5 shadow-lg"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="mb-4 flex items-center justify-between">
-                <p className="text-[15px] font-semibold text-ink">{es.hoy.captureTitle}</p>
-                <button
-                  type="button"
-                  onClick={() => setOpen(false)}
-                  className="text-[11px] font-semibold text-ink/50"
-                >
-                  {es.tasks.close}
-                </button>
-              </div>
-              <form
-                className="space-y-3"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  void send();
-                }}
-              >
-                <Field label={es.tasks.colTask}>
-                  <input
-                    ref={field}
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    required
-                    maxLength={200}
-                    placeholder={es.hoy.capturePlaceholder}
-                    className={fieldClass}
-                    onKeyDown={(e) => {
-                      if (e.key === "Escape") setOpen(false);
-                    }}
-                  />
-                </Field>
-                <Field label={es.tasks.assignee}>
-                  <AppSelect
-                    value={assigneeId}
-                    placeholder={es.tasks.unassigned}
-                    onValueChange={setAssigneeId}
-                    options={people.map((person) => ({
-                      value: person.id,
-                      label: person.full_name,
-                    }))}
-                  />
-                </Field>
-                {teams.length > 0 ? (
-                  <Field label={es.tasks.team}>
-                    <AppSelect
-                      value={teamId}
-                      onValueChange={setTeamId}
-                      options={teams.map((team) => ({ value: team.id, label: team.name }))}
-                    />
-                  </Field>
-                ) : null}
-                <div className="grid grid-cols-2 gap-3">
-                  <Field label={es.tasks.due}>
-                    <input
-                      type="date"
-                      value={due}
-                      onChange={(e) => setDue(e.target.value)}
-                      className={fieldClass}
-                    />
-                  </Field>
-                  <Field label={es.tasks.priority}>
-                    <AppSelect
-                      value={priority}
-                      onValueChange={(value) =>
-                        setPriority(value as "low" | "medium" | "high" | "urgent")
-                      }
-                      options={(["low", "medium", "high", "urgent"] as const).map((level) => ({
-                        value: level,
-                        label: es.priority[level],
-                      }))}
-                    />
-                  </Field>
-                </div>
-                <Field label={es.tasks.notes}>
-                  <textarea
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                    rows={2}
-                    className="w-full resize-none rounded-[9px] border border-line bg-sheet px-3 py-2 text-[14px] text-ink outline-none focus:border-ink"
-                  />
-                </Field>
-                <Button type="submit" disabled={busy || !title.trim()} className="h-11 w-full text-[13px]">
-                  {es.hoy.createTask}
-                </Button>
-              </form>
-              {tool ? (
-                <div className="mt-3">
-                  <ResultCard status={tool.status} name={tool.name} result={tool.result} />
-                </div>
-              ) : null}
-              <p className="mt-3 text-[11px] leading-relaxed text-ink/50">{es.hoy.captureHint}</p>
-            </div>
-          </div>,
-          document.body,
-        )
-      : null;
+  const dialog = open ? (
+    <Modal title={es.hoy.captureTitle} onClose={() => setOpen(false)}>
+      <form
+        className="space-y-3"
+        onSubmit={(e) => {
+          e.preventDefault();
+          void send();
+        }}
+      >
+        <Field label={es.tasks.colTask}>
+          <input
+            ref={field}
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            required
+            maxLength={200}
+            placeholder={es.hoy.capturePlaceholder}
+            className={fieldClass}
+          />
+        </Field>
+        <Field label={es.tasks.assignee}>
+          <AppSelect
+            value={assigneeId}
+            placeholder={es.tasks.unassigned}
+            onValueChange={setAssigneeId}
+            options={people.map((person) => ({
+              value: person.id,
+              label: person.full_name,
+            }))}
+          />
+        </Field>
+        {teams.length > 0 ? (
+          <Field label={es.tasks.team}>
+            <AppSelect
+              value={teamId}
+              onValueChange={setTeamId}
+              options={teams.map((team) => ({ value: team.id, label: team.name }))}
+            />
+          </Field>
+        ) : null}
+        <div className="grid grid-cols-2 gap-3">
+          <Field label={es.tasks.due}>
+            <input
+              type="date"
+              value={due}
+              onChange={(e) => setDue(e.target.value)}
+              className={fieldClass}
+            />
+          </Field>
+          <Field label={es.tasks.priority}>
+            <AppSelect
+              value={priority}
+              onValueChange={(value) =>
+                setPriority(value as "low" | "medium" | "high" | "urgent")
+              }
+              options={(["low", "medium", "high", "urgent"] as const).map((level) => ({
+                value: level,
+                label: es.priority[level],
+              }))}
+            />
+          </Field>
+        </div>
+        <Field label={es.tasks.notes}>
+          <textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            rows={2}
+            className="w-full resize-none rounded-[9px] border border-line bg-sheet px-3 py-2 text-[14px] text-ink outline-none focus:border-ink"
+          />
+        </Field>
+        <Button type="submit" disabled={busy || !title.trim()} className="h-11 w-full text-[13px]">
+          {es.hoy.createTask}
+        </Button>
+      </form>
+      {tool ? (
+        <div className="mt-3">
+          <ResultCard status={tool.status} name={tool.name} result={tool.result} />
+        </div>
+      ) : null}
+      <p className="mt-3 text-[11px] leading-relaxed text-ink/50">{es.hoy.captureHint}</p>
+    </Modal>
+  ) : null;
 
   return (
     <div className="relative">
