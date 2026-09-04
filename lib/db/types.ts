@@ -156,6 +156,19 @@ export type ChannelFile = {
   created_at: string;
 };
 
+type Rel<
+  Name extends string,
+  Col extends string,
+  To extends string,
+  One extends boolean = false,
+> = {
+  foreignKeyName: Name;
+  columns: [Col];
+  isOneToOne: One;
+  referencedRelation: To;
+  referencedColumns: ["id"];
+};
+
 export type Database = {
   public: {
     Tables: {
@@ -163,7 +176,10 @@ export type Database = {
         Row: Profile;
         Insert: Partial<Profile> & Pick<Profile, "id" | "full_name">;
         Update: Partial<Profile>;
-        Relationships: [];
+        Relationships: [
+          Rel<"profiles_reports_to_fkey", "reports_to", "profiles">,
+          Rel<"profiles_default_team_fkey", "default_team", "teams">,
+        ];
       };
       teams: {
         Row: Team;
@@ -175,7 +191,10 @@ export type Database = {
         Row: TeamMember;
         Insert: TeamMember;
         Update: Partial<TeamMember>;
-        Relationships: [];
+        Relationships: [
+          Rel<"team_members_team_id_fkey", "team_id", "teams">,
+          Rel<"team_members_user_id_fkey", "user_id", "profiles">,
+        ];
       };
       tasks: {
         Row: Task;
@@ -185,7 +204,12 @@ export type Database = {
           completed_at?: string | null;
         };
         Update: Partial<Task>;
-        Relationships: [];
+        Relationships: [
+          Rel<"tasks_team_id_fkey", "team_id", "teams">,
+          Rel<"tasks_owner_id_fkey", "owner_id", "profiles">,
+          Rel<"tasks_assignee_id_fkey", "assignee_id", "profiles">,
+          Rel<"tasks_created_by_fkey", "created_by", "profiles">,
+        ];
       };
       task_events: {
         Row: TaskEvent;
@@ -194,7 +218,10 @@ export type Database = {
           created_at?: string;
         };
         Update: Partial<TaskEvent>;
-        Relationships: [];
+        Relationships: [
+          Rel<"task_events_task_id_fkey", "task_id", "tasks">,
+          Rel<"task_events_actor_id_fkey", "actor_id", "profiles">,
+        ];
       };
       attachments: {
         Row: Attachment;
@@ -203,7 +230,10 @@ export type Database = {
           created_at?: string;
         };
         Update: Partial<Attachment>;
-        Relationships: [];
+        Relationships: [
+          Rel<"attachments_task_id_fkey", "task_id", "tasks">,
+          Rel<"attachments_uploaded_by_fkey", "uploaded_by", "profiles">,
+        ];
       };
       conversations: {
         Row: Conversation;
@@ -212,25 +242,32 @@ export type Database = {
           created_at?: string;
         };
         Update: Partial<Conversation>;
-        Relationships: [];
+        Relationships: [Rel<"conversations_user_id_fkey", "user_id", "profiles">];
       };
       messages: {
         Row: Message;
-        Insert: Omit<Message, "id" | "created_at"> & {
+        Insert: Omit<Message, "id" | "created_at" | "client_message_id"> & {
           id?: string;
           created_at?: string;
+          client_message_id?: string | null;
         };
         Update: Partial<Message>;
-        Relationships: [];
+        Relationships: [Rel<"messages_conversation_id_fkey", "conversation_id", "conversations">];
       };
       tool_calls: {
         Row: ToolCall;
-        Insert: Omit<ToolCall, "id" | "created_at"> & {
+        Insert: Omit<ToolCall, "id" | "created_at" | "result" | "error_code" | "task_id"> & {
           id?: string;
           created_at?: string;
+          result?: Json | null;
+          error_code?: string | null;
+          task_id?: string | null;
         };
         Update: Partial<ToolCall>;
-        Relationships: [];
+        Relationships: [
+          Rel<"tool_calls_message_id_fkey", "message_id", "messages">,
+          Rel<"tool_calls_task_id_fkey", "task_id", "tasks">,
+        ];
       };
       digest_runs: {
         Row: {
@@ -253,7 +290,7 @@ export type Database = {
           status: string;
           detail: string | null;
         }>;
-        Relationships: [];
+        Relationships: [Rel<"digest_runs_user_id_fkey", "user_id", "profiles">];
       };
       brand_files: {
         Row: BrandFile;
@@ -262,7 +299,7 @@ export type Database = {
           created_at?: string;
         };
         Update: Partial<BrandFile>;
-        Relationships: [];
+        Relationships: [Rel<"brand_files_uploaded_by_fkey", "uploaded_by", "profiles">];
       };
       channel_files: {
         Row: ChannelFile;
@@ -271,7 +308,10 @@ export type Database = {
           created_at?: string;
         };
         Update: Partial<ChannelFile>;
-        Relationships: [];
+        Relationships: [
+          Rel<"channel_files_chat_id_fkey", "chat_id", "chats">,
+          Rel<"channel_files_uploaded_by_fkey", "uploaded_by", "profiles">,
+        ];
       };
       push_subscriptions: {
         Row: {
@@ -295,19 +335,25 @@ export type Database = {
           p256dh: string;
           auth: string;
         }>;
-        Relationships: [];
+        Relationships: [Rel<"push_subscriptions_user_id_fkey", "user_id", "profiles">];
       };
       chats: {
         Row: Chat;
         Insert: Partial<Chat> & Pick<Chat, "kind">;
         Update: Partial<Chat>;
-        Relationships: [];
+        Relationships: [
+          Rel<"chats_team_id_fkey", "team_id", "teams">,
+          Rel<"chats_created_by_fkey", "created_by", "profiles">,
+        ];
       };
       chat_members: {
         Row: ChatMember;
         Insert: Pick<ChatMember, "chat_id" | "user_id"> & Partial<ChatMember>;
         Update: Partial<Pick<ChatMember, "last_read_at">>;
-        Relationships: [];
+        Relationships: [
+          Rel<"chat_members_chat_id_fkey", "chat_id", "chats">,
+          Rel<"chat_members_user_id_fkey", "user_id", "profiles">,
+        ];
       };
       chat_messages: {
         Row: ChatMessage;
@@ -316,14 +362,19 @@ export type Database = {
           created_at?: string;
         };
         Update: Partial<ChatMessage>;
-        Relationships: [];
+        Relationships: [
+          Rel<"chat_messages_chat_id_fkey", "chat_id", "chats">,
+          Rel<"chat_messages_sender_id_fkey", "sender_id", "profiles">,
+        ];
       };
     };
-    Views: Record<string, never>;
+    Views: {
+      [_ in never]: never;
+    };
     Functions: {
       is_team_member: { Args: { t: string }; Returns: boolean };
       has_role: { Args: { r: UserRole }; Returns: boolean };
-      is_owner_or_admin: { Args: Record<string, never>; Returns: boolean };
+      is_owner_or_admin: { Args: Record<PropertyKey, never>; Returns: boolean };
       create_task_with_event: {
         Args: {
           p_title: string;
@@ -361,6 +412,8 @@ export type Database = {
       task_visibility: TaskVisibility;
       chat_kind: ChatKind;
     };
-    CompositeTypes: Record<string, never>;
+    CompositeTypes: {
+      [_ in never]: never;
+    };
   };
 };

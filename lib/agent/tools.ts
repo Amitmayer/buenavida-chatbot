@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Database, Task, TaskPriority, TaskStatus } from "@/lib/db/types";
+import type { Database, Json, Task, TaskPriority, TaskStatus } from "@/lib/db/types";
 import { err, ok, type ToolResult } from "@/lib/agent/result";
 import { wrapListing, sanitizeTitle } from "@/lib/agent/titles";
 import { parseDueDate, todayYmd, addDaysYmd } from "@/lib/agent/dates";
@@ -368,7 +368,7 @@ async function updateTask(
   if (!parsed.success) return err("validation", "Datos de actualización no válidos.");
   const known = await requireKnownTask(supabase, conversationId, parsed.data.task_id);
   if (!known.ok) return known;
-  const patch: Record<string, unknown> = {};
+  const patch: { [key: string]: Json | undefined } = {};
   if (parsed.data.title) patch.title = sanitizeTitle(parsed.data.title).title;
   if (parsed.data.notes !== undefined) patch.notes = parsed.data.notes;
   if (parsed.data.due_date !== undefined) {

@@ -4,15 +4,22 @@ import { getSessionProfile } from "@/lib/session";
 import { channelStoragePath, validateUpload } from "@/lib/storage";
 import { captureError } from "@/lib/sentry";
 
-const schema = z
-  .object({
-    filename: z.string().min(1),
-    mimeType: z.string().min(1),
-    sizeBytes: z.number().int().positive(),
-    slug: z.string().min(1).max(80).optional(),
-    chatId: z.string().uuid().optional(),
-  })
-  .refine((value) => Boolean(value.slug || value.chatId), { message: "channel" });
+const uploadFields = z.object({
+  filename: z.string().min(1),
+  mimeType: z.string().min(1),
+  sizeBytes: z.number().int().positive(),
+  slug: z.string().min(1).max(80).optional(),
+  chatId: z.string().uuid().optional(),
+});
+
+const schema = uploadFields.refine((value) => Boolean(value.slug || value.chatId), {
+  message: "channel",
+});
+
+const putSchema = uploadFields.extend({ path: z.string().min(1) }).refine(
+  (value) => Boolean(value.slug || value.chatId),
+  { message: "channel" },
+);
 
 async function loadChannel(
   supabase: Awaited<ReturnType<typeof createClient>>,
@@ -49,7 +56,7 @@ export async function POST(request: Request) {
 export async function PUT(request: Request) {
   const profile = await getSessionProfile();
   if (!profile) return Response.json({ error: "forbidden" }, { status: 403 });
-  const parsed = schema.extend({ path: z.string().min(1) }).safeParse(await request.json());
+  const parsed = putSchema.safeParse(await request.json());
   if (!parsed.success) return Response.json({ error: "validation" }, { status: 400 });
 
   const supabase = await createClient();

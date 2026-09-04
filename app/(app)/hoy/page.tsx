@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { es } from "@/lib/i18n/es";
 import { getSessionProfile, listVisibleTasks, ensureConversation } from "@/lib/session";
@@ -40,7 +41,7 @@ export default async function HoyPage({
   }, 0);
   const conversationId = await ensureConversation(profile.id, es.chat.title);
 
-  let hero = es.hoy.heroClear;
+  let hero: string = es.hoy.heroClear;
   if (overdue.length > 0 && dueToday.length > 0) {
     hero = es.hoy.heroMix
       .replace("{today}", String(dueToday.length))
@@ -261,7 +262,7 @@ function Kpi({ n, label }: { n: number; label: string }) {
   );
 }
 
-function SectionLabel({ children, tone }: { children: string; tone?: "overdue" }) {
+function SectionLabel({ children, tone }: { children: ReactNode; tone?: "overdue" }) {
   return (
     <div className="mb-3 flex items-center gap-2.5">
       <span

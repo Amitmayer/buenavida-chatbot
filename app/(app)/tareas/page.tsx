@@ -5,6 +5,7 @@ import { getSessionProfile, listVisibleTasks, type TaskRow as TaskRowData } from
 import { createClient } from "@/lib/supabase/server";
 import { TaskRow } from "@/components/tasks/task-row";
 import { TaskFilters } from "@/components/tasks/filters";
+import { EmptyState } from "@/components/empty-state";
 import { fold } from "@/lib/utils";
 
 export default async function TareasPage({

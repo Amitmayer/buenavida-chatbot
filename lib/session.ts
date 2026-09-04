@@ -1,7 +1,7 @@
 import { cache } from "react";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
-import type { Profile, Task, Team } from "@/lib/db/types";
+import type { Profile, Task, TaskStatus, Team } from "@/lib/db/types";
 import { captureError } from "@/lib/sentry";
 
 export const taskPatchSchema = z.object({
@@ -91,7 +91,7 @@ export async function listVisibleTasks(opts: {
   if (opts.teamId) query = query.eq("team_id", opts.teamId);
   if (opts.area) query = query.eq("area", opts.area);
   if (opts.assigneeId) query = query.eq("assignee_id", opts.assigneeId);
-  if (opts.status) query = query.eq("status", opts.status);
+  if (opts.status) query = query.eq("status", opts.status as TaskStatus);
   else if (opts.openOnly) query = query.in("status", ["open", "in_progress"]);
   if (opts.due === "overdue") query = query.lt("due_date", opts.today).in("status", ["open", "in_progress"]);
   if (opts.due === "today") query = query.eq("due_date", opts.today);
