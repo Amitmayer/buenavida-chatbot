@@ -1,9 +1,8 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { es } from "@/lib/i18n/es";
 import { getSessionProfile } from "@/lib/session";
-import { groupChannels, listChannels, loadChannel } from "@/lib/canales";
-import { ChannelList } from "@/components/canales/channel-list";
+import { loadChannel } from "@/lib/canales";
 import { ChannelFilesRail } from "@/components/canales/channel-files-rail";
 import { ChannelUploader } from "@/components/files/channel-uploader";
 import { ThreadView } from "@/components/mensajes/thread-view";
@@ -18,12 +17,11 @@ export default async function CanalPage({
   const { slug } = await params;
   const profile = await getSessionProfile();
   if (!profile) return null;
-  const [thread, rows] = await Promise.all([
-    loadChannel(slug, profile.id),
-    listChannels(profile.id),
-  ]);
+  const thread = await loadChannel(slug, profile.id);
   if (!thread) notFound();
-  const groups = groupChannels(rows);
+  if (slug === "general") {
+    redirect(`/mensajes/${thread.chat.id}`);
+  }
   const supabase = await createClient();
   const bucket = process.env.STORAGE_BUCKET_CHANNELS ?? "channel-files";
   const files = await Promise.all(
@@ -46,10 +44,7 @@ export default async function CanalPage({
     .join(", ");
 
   return (
-    <div className="flex min-h-0 flex-1">
-      <div className="hidden w-[260px] shrink-0 border-r border-ink/10 md:block">
-        <ChannelList groups={groups} active={slug} />
-      </div>
+    <div className="flex min-h-0 min-w-0 flex-1">
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <div className="border-b border-ink/10 px-4 py-3">
           <Link href="/canales" className="mb-1 inline-block text-[11px] font-medium text-ink/50 md:hidden">
@@ -57,39 +52,30 @@ export default async function CanalPage({
           </Link>
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <h1 className="truncate text-[16px] font-semibold text-ink">
-                {slug === "general" ? es.canales.announcements : `#${thread.title}`}
-              </h1>
+              <h1 className="truncate text-[16px] font-semibold text-ink">#{thread.title}</h1>
               <p className="truncate text-[11px] text-ink/50">
-                {slug === "general"
-                  ? es.canales.announcementHint
-                  : `${es.canales.members}: ${names || thread.members.length}`}
+                {es.canales.members}: {names || thread.members.length}
               </p>
             </div>
             <div className="flex shrink-0 items-center gap-3 xl:hidden">
               <ChannelUploader chatIdSlug={slug} compact />
-              <Link
-                href={`/archivos?carpeta=${slug}`}
-                prefetch={false}
-                className="text-[11px] font-semibold text-pine"
-              >
+              <Link href={`/archivos?carpeta=${slug}`} className="text-[11px] font-semibold text-pine">
                 {es.canales.openFiles}
               </Link>
             </div>
           </div>
-          {slug === "general" || !thread.purpose ? null : (
+          {thread.purpose ? (
             <p className="mt-1 text-[11px] leading-relaxed text-ink/45">{thread.purpose}</p>
-          )}
+          ) : null}
         </div>
         <ThreadView
+          key={thread.chat.id}
           chatId={thread.chat.id}
           userId={profile.id}
           members={thread.members}
           initial={thread.messages}
-          emptyLabel={slug === "general" ? es.canales.announcementEmpty : es.canales.emptyThread}
-          layout={slug === "general" ? "announcements" : "thread"}
+          emptyLabel={es.canales.emptyThread}
           tasks={thread.tasks}
-          composerPlaceholder={slug === "general" ? es.canales.announcementComposer : undefined}
         />
       </div>
       <ChannelFilesRail slug={slug} files={files} />

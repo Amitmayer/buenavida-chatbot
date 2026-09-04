@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import type { Chat, ChatMessage, Profile } from "@/lib/db/types";
+import type { Chat, Profile } from "@/lib/db/types";
 import { captureError } from "@/lib/sentry";
 import { es } from "@/lib/i18n/es";
 
@@ -138,14 +138,32 @@ export async function loadThread(chatId: string, userId: string) {
     .eq("chat_id", chatId)
     .eq("user_id", userId);
 
+  const taskIds = [
+    ...new Set((messages ?? []).map((row) => row.task_id).filter((id): id is string => Boolean(id))),
+  ];
+  const { data: tasks } = taskIds.length
+    ? await supabase.from("tasks").select("id, title, due_date, priority").in("id", taskIds)
+    : { data: [] };
+
+  const title =
+    chat.kind === "channel" && chat.slug === "general"
+      ? es.mensajes.announcements
+      : titleFor(chat, people ?? [], memberIds, userId);
+
   return {
     chat,
-    title: titleFor(chat, people ?? [], memberIds, userId),
+    title,
     members: (people ?? []).map((person) => ({
       user_id: person.id,
       full_name: person.full_name,
     })),
-    messages: (messages ?? []) as ChatMessage[],
+    messages: messages ?? [],
+    tasks: (tasks ?? []).map((task) => ({
+      id: task.id,
+      title: task.title,
+      due_date: task.due_date,
+      priority: task.priority,
+    })),
   };
 }
 
