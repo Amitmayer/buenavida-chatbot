@@ -6,6 +6,7 @@ server.js
 .env
 .env.local
 .env.*.local
+.railway
 scripts/people.json
 *.zip
 *.log

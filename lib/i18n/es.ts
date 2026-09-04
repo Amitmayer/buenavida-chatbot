@@ -30,6 +30,10 @@ export const es = {
     footer: "San José, CR",
     error: "Correo o clave incorrectos.",
   },
+  crash: {
+    title: "No se pudo cargar.",
+    retry: "Reintentar",
+  },
   hoy: {
     title: "Inicio",
     overdue: "Vencidas",

@@ -36,16 +36,33 @@ export type SessionProfile = Profile & {
   isAdmin: boolean;
 };
 
+function isJwtSkew(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const code = "code" in error ? String(error.code) : "";
+  const message = "message" in error ? String(error.message) : "";
+  return code === "PGRST303" || /jwt issued at future/i.test(message);
+}
+
 export const getSessionProfile = cache(async (): Promise<SessionProfile | null> => {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return null;
-  const [{ data: profile, error }, { data: memberships }] = await Promise.all([
-    supabase.from("profiles").select("*").eq("id", user.id).single(),
-    supabase.from("team_members").select("team_id, teams(*)").eq("user_id", user.id),
-  ]);
+  const userId = user.id;
+
+  async function load() {
+    return Promise.all([
+      supabase.from("profiles").select("*").eq("id", userId).single(),
+      supabase.from("team_members").select("team_id, teams(*)").eq("user_id", userId),
+    ]);
+  }
+
+  let [{ data: profile, error }, { data: memberships }] = await load();
+  if (isJwtSkew(error)) {
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    [{ data: profile, error }, { data: memberships }] = await load();
+  }
   if (error || !profile) {
     captureError(error, { where: "getSessionProfile" });
     return null;
