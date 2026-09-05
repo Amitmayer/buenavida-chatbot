@@ -12,6 +12,7 @@ import type { Team } from "@/lib/db/types";
 const ITEMS = [
   { href: "/hoy", label: es.nav.hoy },
   { href: "/mensajes", label: es.nav.mensajes },
+  { href: "/correo", label: es.nav.correo },
   { href: "/chat", label: es.nav.chat },
   { href: "/tareas", label: es.nav.tareas },
   { href: "/archivos", label: es.nav.archivos },
@@ -27,6 +28,7 @@ export function AppShell({
   teams,
   showEquipo,
   showArchivos,
+  showCorreo = false,
   conversationId,
 }: {
   children: ReactNode;
@@ -35,10 +37,15 @@ export function AppShell({
   teams: Pick<Team, "id" | "slug" | "name">[];
   showEquipo: boolean;
   showArchivos: boolean;
+  showCorreo?: boolean;
   conversationId: string | null;
 }) {
   const items = [
-    ...ITEMS.filter((item) => item.href !== "/archivos" || showArchivos),
+    ...ITEMS.filter((item) => {
+      if (item.href === "/archivos") return showArchivos;
+      if (item.href === "/correo") return showCorreo;
+      return true;
+    }),
     ...(showEquipo ? [{ href: "/equipo", label: es.nav.equipo }] : []),
   ];
 

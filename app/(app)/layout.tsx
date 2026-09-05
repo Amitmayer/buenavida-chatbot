@@ -19,6 +19,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
       teams={profile.accessibleTeams}
       showEquipo={profile.isAdmin}
       showArchivos
+      showCorreo={!profile.isGuest}
       conversationId={conversationId}
     >
       {children}

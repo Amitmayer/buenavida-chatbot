@@ -1,0 +1,167 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { z } from "zod";
+import { createClient } from "@/lib/supabase/server";
+import { createTaskSchema, getSessionProfile } from "@/lib/session";
+import { accessTokenFor } from "@/lib/email/accounts";
+import { draftReplyText, syncInbox } from "@/lib/email/sync";
+import { sendMessage } from "@/lib/email/gmail";
+import { sanitizeTitle } from "@/lib/agent/titles";
+import { captureError } from "@/lib/sentry";
+
+export async function syncMailAction() {
+  const profile = await getSessionProfile();
+  if (!profile || profile.isGuest) return { ok: false as const, detail: "forbidden" };
+  const supabase = await createClient();
+  const ready = await accessTokenFor(supabase, profile.id);
+  if (!ready) return { ok: false as const, detail: "not_connected" };
+  try {
+    const result = await syncInbox(supabase, {
+      userId: profile.id,
+      accountId: ready.account.id,
+      accessToken: ready.accessToken,
+    });
+    revalidatePath("/correo");
+    return { ok: true as const, inserted: result.inserted };
+  } catch (error) {
+    captureError(error, { where: "syncMailAction" });
+    return { ok: false as const, detail: "server_error" };
+  }
+}
+
+export async function disconnectMailAction() {
+  const profile = await getSessionProfile();
+  if (!profile || profile.isGuest) return { ok: false as const, detail: "forbidden" };
+  const supabase = await createClient();
+  const { error } = await supabase.from("email_accounts").delete().eq("user_id", profile.id);
+  if (error) {
+    captureError(error, { where: "disconnectMailAction" });
+    return { ok: false as const, detail: "server_error" };
+  }
+  revalidatePath("/correo");
+  return { ok: true as const };
+}
+
+export async function sendMailAction(formData: FormData) {
+  const profile = await getSessionProfile();
+  if (!profile || profile.isGuest) return { ok: false as const, detail: "forbidden" };
+  const parsed = z
+    .object({
+      email_id: z.string().uuid(),
+      body: z.string().trim().min(1).max(8000),
+    })
+    .safeParse({
+      email_id: formData.get("email_id"),
+      body: formData.get("body"),
+    });
+  if (!parsed.success) return { ok: false as const, detail: "validation" };
+  const supabase = await createClient();
+  const ready = await accessTokenFor(supabase, profile.id);
+  if (!ready) return { ok: false as const, detail: "not_connected" };
+  const { data: original, error } = await supabase
+    .from("emails")
+    .select("*")
+    .eq("id", parsed.data.email_id)
+    .eq("user_id", profile.id)
+    .maybeSingle();
+  if (error || !original) return { ok: false as const, detail: "not_found" };
+  const to = original.inbound
+    ? (original.from_address.match(/<([^>]+)>/)?.[1] ?? original.from_address)
+    : (original.to_addresses[0] ?? "");
+  if (!to) return { ok: false as const, detail: "validation" };
+  const subject = original.subject.toLowerCase().startsWith("re:")
+    ? original.subject
+    : `Re: ${original.subject || "(sin asunto)"}`;
+  try {
+    await sendMessage(ready.accessToken, {
+      from: ready.account.email,
+      to,
+      subject,
+      body: parsed.data.body,
+      inReplyTo: original.rfc_message_id,
+      threadId: original.thread_id,
+    });
+  } catch (sendError) {
+    captureError(sendError, { where: "sendMailAction" });
+    return { ok: false as const, detail: "server_error" };
+  }
+  revalidatePath("/correo");
+  revalidatePath(`/correo/${original.id}`);
+  return { ok: true as const };
+}
+
+export async function draftMailAction(emailId: string) {
+  const profile = await getSessionProfile();
+  if (!profile || profile.isGuest) return { ok: false as const, detail: "forbidden" };
+  const id = z.string().uuid().safeParse(emailId);
+  if (!id.success) return { ok: false as const, detail: "validation" };
+  const supabase = await createClient();
+  const { data: row } = await supabase
+    .from("emails")
+    .select("*")
+    .eq("id", id.data)
+    .eq("user_id", profile.id)
+    .maybeSingle();
+  if (!row) return { ok: false as const, detail: "not_found" };
+  try {
+    const draft = await draftReplyText({
+      from: row.from_address,
+      subject: row.subject,
+      body: row.body_text || row.snippet,
+    });
+    if (!draft) return { ok: false as const, detail: "server_error" };
+    await supabase.from("emails").update({ draft_reply: draft }).eq("id", row.id);
+    revalidatePath(`/correo/${row.id}`);
+    return { ok: true as const, draft };
+  } catch (error) {
+    captureError(error, { where: "draftMailAction" });
+    return { ok: false as const, detail: "server_error" };
+  }
+}
+
+export async function taskFromMailAction(formData: FormData) {
+  const profile = await getSessionProfile();
+  if (!profile || profile.isGuest) return { ok: false as const, detail: "forbidden" };
+  const emailId = z.string().uuid().safeParse(formData.get("email_id"));
+  if (!emailId.success) return { ok: false as const, detail: "validation" };
+  const supabase = await createClient();
+  const { data: row } = await supabase
+    .from("emails")
+    .select("*")
+    .eq("id", emailId.data)
+    .eq("user_id", profile.id)
+    .maybeSingle();
+  if (!row) return { ok: false as const, detail: "not_found" };
+  const teamId = profile.default_team;
+  if (!teamId) return { ok: false as const, detail: "validation" };
+  const title = sanitizeTitle(row.subject || row.snippet || "Correo").title;
+  const notes = [row.summary, `De: ${row.from_address}`, row.snippet].filter(Boolean).join("\n\n");
+  const parsed = createTaskSchema.safeParse({
+    title,
+    notes,
+    team_id: teamId,
+  });
+  if (!parsed.success) return { ok: false as const, detail: "validation" };
+  const { data, error } = await supabase.rpc("create_task_with_event", {
+    p_title: parsed.data.title,
+    p_notes: parsed.data.notes ?? null,
+    p_team_id: parsed.data.team_id,
+    p_area: null,
+    p_owner_id: profile.id,
+    p_assignee_id: profile.id,
+    p_due_date: null,
+    p_priority: "medium",
+    p_visibility: "team",
+    p_source: "email",
+  });
+  if (error || !data) {
+    captureError(error, { where: "taskFromMailAction" });
+    return { ok: false as const, detail: "server_error" };
+  }
+  await supabase.from("emails").update({ task_id: data.id }).eq("id", row.id);
+  revalidatePath("/hoy");
+  revalidatePath("/tareas");
+  revalidatePath(`/correo/${row.id}`);
+  return { ok: true as const, taskId: data.id };
+}

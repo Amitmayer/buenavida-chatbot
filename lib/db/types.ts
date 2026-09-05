@@ -38,6 +38,40 @@ export type ChatMessage = {
   task_id: string | null;
 };
 
+export type EmailAccount = {
+  id: string;
+  user_id: string;
+  provider: string;
+  email: string;
+  refresh_token_enc: string;
+  access_token_enc: string | null;
+  access_expires_at: string | null;
+  scope: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type Email = {
+  id: string;
+  account_id: string;
+  user_id: string;
+  gmail_id: string;
+  thread_id: string;
+  rfc_message_id: string | null;
+  from_address: string;
+  to_addresses: string[];
+  subject: string;
+  snippet: string;
+  body_text: string;
+  occurred_at: string;
+  unread: boolean;
+  inbound: boolean;
+  summary: string | null;
+  draft_reply: string | null;
+  task_id: string | null;
+  created_at: string;
+};
+
 
 export type Json =
   | string
@@ -371,6 +405,37 @@ export type Database = {
           Rel<"chat_messages_chat_id_fkey", "chat_id", "chats">,
           Rel<"chat_messages_sender_id_fkey", "sender_id", "profiles">,
           Rel<"chat_messages_task_id_fkey", "task_id", "tasks">,
+        ];
+      };
+      email_accounts: {
+        Row: EmailAccount;
+        Insert: Omit<EmailAccount, "id" | "created_at" | "updated_at" | "access_token_enc" | "access_expires_at" | "scope"> & {
+          id?: string;
+          created_at?: string;
+          updated_at?: string;
+          access_token_enc?: string | null;
+          access_expires_at?: string | null;
+          scope?: string | null;
+          provider?: string;
+        };
+        Update: Partial<EmailAccount>;
+        Relationships: [Rel<"email_accounts_user_id_fkey", "user_id", "profiles">];
+      };
+      emails: {
+        Row: Email;
+        Insert: Omit<Email, "id" | "created_at" | "summary" | "draft_reply" | "task_id" | "rfc_message_id"> & {
+          id?: string;
+          created_at?: string;
+          summary?: string | null;
+          draft_reply?: string | null;
+          task_id?: string | null;
+          rfc_message_id?: string | null;
+        };
+        Update: Partial<Email>;
+        Relationships: [
+          Rel<"emails_account_id_fkey", "account_id", "email_accounts">,
+          Rel<"emails_user_id_fkey", "user_id", "profiles">,
+          Rel<"emails_task_id_fkey", "task_id", "tasks">,
         ];
       };
     };
