@@ -53,9 +53,9 @@ export function MailThread({
   const listHref = correoHref({ folder, filter, query });
 
   useEffect(() => {
-    if (!mail.unread) return;
+    if (!mail.unread || !mail.inbound || draft) return;
     void markReadAction(mail.id).catch(() => undefined);
-  }, [mail.id, mail.unread]);
+  }, [mail.id, mail.unread, mail.inbound, draft]);
 
   useEffect(() => {
     setBody(draft ? (mail.body_text || mail.draft_reply || "") : (mail.draft_reply ?? ""));

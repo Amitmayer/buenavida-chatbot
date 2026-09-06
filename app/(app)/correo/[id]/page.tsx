@@ -52,7 +52,7 @@ export default async function CorreoThreadPage({
       html =
         (await hydrateMailHtml(supabase, { accessToken: ready.accessToken, mail: selectedMail })) ||
         html;
-      if (selectedMail.unread) {
+      if (selectedMail.unread && selectedMail.inbound && !selectedMail.is_draft) {
         await markReadAction(selectedMail.id);
       }
     }

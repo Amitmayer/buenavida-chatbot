@@ -112,20 +112,22 @@ export function MailWorkspace({
             ))}
           </div>
           <div className="mt-3 flex gap-4">
-            {FILTERS.map((item) => (
-              <Link
-                key={item.id}
-                href={correoHref({ folder, filter: item.id, query })}
-                className={cn(
-                  "pb-1 text-[12.5px]",
-                  filter === item.id
-                    ? "border-b-2 border-pine font-semibold text-ink"
-                    : "text-ink/45 hover:text-ink",
-                )}
-              >
-                {item.label}
-              </Link>
-            ))}
+            {FILTERS.filter((item) => folder !== "sent" && folder !== "drafts" ? true : item.id !== "unread").map(
+              (item) => (
+                <Link
+                  key={item.id}
+                  href={correoHref({ folder, filter: item.id, query })}
+                  className={cn(
+                    "pb-1 text-[12.5px]",
+                    filter === item.id
+                      ? "border-b-2 border-pine font-semibold text-ink"
+                      : "text-ink/45 hover:text-ink",
+                  )}
+                >
+                  {item.label}
+                </Link>
+              ),
+            )}
           </div>
         </div>
         {connect ? null : <MailboxToolbar address={address} canModify={canModify} />}
@@ -148,7 +150,9 @@ export function MailWorkspace({
           )}
         </div>
         <p className="border-t border-ink/[0.06] px-4 py-2 text-[11px] text-ink/40">
-          {es.correo.countLine.replace("{n}", String(rows.length)).replace("{u}", String(counts.unread))}
+          {folder === "sent"
+            ? es.correo.countSent.replace("{n}", String(rows.length))
+            : es.correo.countLine.replace("{n}", String(rows.length)).replace("{u}", String(counts.unread))}
         </p>
       </section>
 

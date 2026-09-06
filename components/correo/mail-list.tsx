@@ -39,6 +39,7 @@ export function MailList({
           folder === "sent" || folder === "drafts"
             ? row.to_addresses[0] ?? row.from_address
             : row.from_address;
+        const showUnread = folder !== "sent" && folder !== "drafts";
         return (
           <li key={row.id}>
             <Link
@@ -49,21 +50,23 @@ export function MailList({
                 on ? "bg-wash" : "",
               )}
             >
-              <span className="mt-1 w-3.5 shrink-0">
-                {row.unread ? (
-                  <Flag
-                    aria-label={es.correo.unread}
-                    className="h-3.5 w-3.5 fill-overdue text-overdue"
-                    strokeWidth={1.75}
-                  />
-                ) : null}
-              </span>
+              {showUnread ? (
+                <span className="mt-1 w-3.5 shrink-0">
+                  {row.unread ? (
+                    <Flag
+                      aria-label={es.correo.unread}
+                      className="h-3.5 w-3.5 fill-overdue text-overdue"
+                      strokeWidth={1.75}
+                    />
+                  ) : null}
+                </span>
+              ) : null}
               <div className="min-w-0 flex-1">
                 <div className="flex items-baseline justify-between gap-2">
                   <p
                     className={cn(
                       "min-w-0 truncate text-[13px]",
-                      row.unread ? "font-semibold text-ink" : "font-medium text-ink",
+                      showUnread && row.unread ? "font-semibold text-ink" : "font-medium text-ink",
                     )}
                   >
                     {folder === "sent" || folder === "drafts"

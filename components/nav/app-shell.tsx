@@ -1,14 +1,13 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { NavLinks } from "@/components/nav/nav-links";
 import { PageHeader } from "@/components/nav/page-header";
 import { ProfileMenu } from "@/components/nav/profile-menu";
 import { AreaLinks } from "@/components/nav/area-links";
-import { MailBoxes } from "@/components/correo/mail-boxes";
 import { SidebarToggle, SidebarUi } from "@/components/nav/sidebar-ui";
 import { es } from "@/lib/i18n/es";
 import { cn } from "@/lib/utils";
@@ -117,11 +116,6 @@ export function AppShell({
               variant="side"
               badges={mailCounts && mailCounts.unread > 0 ? { "/correo": mailCounts.unread } : undefined}
             />
-            {showCorreo && mailCounts ? (
-              <Suspense fallback={null}>
-                <MailBoxes counts={mailCounts} />
-              </Suspense>
-            ) : null}
             {teams.length > 0 ? (
               <>
                 <p className="px-2 pb-2 pt-[22px] font-mono text-[9.5px] tracking-[0.16em] text-cream/40">

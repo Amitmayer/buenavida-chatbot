@@ -74,7 +74,9 @@ export function filterMails(
   const needle = fold(args.query.trim());
   return rows.filter((row) => {
     if (!inFolder(row, args.folder)) return false;
-    if (args.filter === "unread" && !row.unread) return false;
+    if (args.folder !== "sent" && args.folder !== "drafts" && args.filter === "unread" && !row.unread) {
+      return false;
+    }
     if (args.filter === "task" && !row.task_id) return false;
     if (!needle) return true;
     return fold(

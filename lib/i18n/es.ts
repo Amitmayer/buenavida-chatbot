@@ -324,6 +324,7 @@ export const es = {
     taskFromMail: "Tarea creada desde este correo",
     openTask: "Ver en Tareas",
     countLine: "{n} correos · {u} sin leer",
+    countSent: "{n} enviados",
     connect: "Conectar Gmail",
     connectTitle: "Conectá tu correo",
     connectHint: "Entra con la cuenta que ya usás. Nadie más ve esta bandeja.",

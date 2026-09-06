@@ -58,4 +58,9 @@ describe("mailbox folders", () => {
     expect(filterMails(rows, { folder: "inbox", filter: "all", query: "tueste" })).toHaveLength(1);
     expect(filterMails(rows, { folder: "sent", filter: "all", query: "" })).toHaveLength(0);
   });
+
+  it("does not apply unread filter to sent mail", () => {
+    const sent = mail({ inbound: false, unread: true, gmail_id: "s2" });
+    expect(filterMails([sent], { folder: "sent", filter: "unread", query: "" })).toHaveLength(1);
+  });
 });
