@@ -57,6 +57,9 @@ export function MailWorkspace({
 
   return (
     <div className="flex min-h-0 flex-1 overflow-hidden">
+      <div className="hidden shrink-0 flex-col items-center pt-3.5 md:flex">
+        <SidebarToggle className="mx-1.5" />
+      </div>
       {connect ? null : (
         <aside className="hidden w-[168px] shrink-0 flex-col border-r border-ink/10 bg-sheet md:flex">
           <Suspense fallback={null}>
@@ -75,12 +78,9 @@ export function MailWorkspace({
       >
         <div className="border-b border-ink/[0.06] px-4 pb-3 pt-4 md:px-5">
           <div className="flex items-start justify-between gap-3">
-            <div className="flex min-w-0 items-start gap-2">
-              <SidebarToggle className="-ml-1 mt-0.5" />
-              <div>
-                <h1 className="text-[22px] font-semibold tracking-tight text-ink">{es.correo.title}</h1>
-                <p className="mt-0.5 font-mono text-[10.5px] text-ink/40">{crStampLabel(todayYmd())}</p>
-              </div>
+            <div>
+              <h1 className="text-[22px] font-semibold tracking-tight text-ink">{es.correo.title}</h1>
+              <p className="mt-0.5 font-mono text-[10.5px] text-ink/40">{crStampLabel(todayYmd())}</p>
             </div>
             {connect ? null : <ComposeButton />}
           </div>
@@ -130,7 +130,7 @@ export function MailWorkspace({
         </div>
         {connect ? null : <MailboxToolbar address={address} canModify={canModify} />}
         <Suspense fallback={null}>
-          <AutoSync run={autoSync} />
+          <AutoSync run={autoSync} live={!connect} />
         </Suspense>
         <div className="min-h-0 flex-1 overflow-auto">
           {rows.length === 0 ? (

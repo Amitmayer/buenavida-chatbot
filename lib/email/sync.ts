@@ -8,11 +8,11 @@ type Client = SupabaseClient<Database>;
 
 export async function syncInbox(
   supabase: Client,
-  args: { userId: string; accountId: string; accessToken: string; first?: boolean },
+  args: { userId: string; accountId: string; accessToken: string; first?: boolean; watch?: boolean },
 ): Promise<{ inserted: number }> {
-  const inboxMax = args.first ? 24 : 80;
-  const sentMax = args.first ? 16 : 40;
-  const insertMax = args.first ? 16 : 40;
+  const inboxMax = args.watch ? 15 : args.first ? 24 : 80;
+  const sentMax = args.watch ? 8 : args.first ? 16 : 40;
+  const insertMax = args.watch ? 12 : args.first ? 16 : 40;
   const [inboxDrafts, sent] = await Promise.all([
     listMessageIds(args.accessToken, inboxMax, "in:inbox OR in:drafts"),
     listMessageIds(args.accessToken, sentMax, "in:sent"),
@@ -31,41 +31,43 @@ export async function syncInbox(
     .eq("account_id", args.accountId)
     .in("gmail_id", ids);
   const have = new Set((existing ?? []).map((row) => row.gmail_id));
-  const stale = (existing ?? []).filter((row) => !row.body_html).slice(0, 20);
-  for (const row of stale) {
-    try {
-      const parsed = await getMessage(args.accessToken, row.gmail_id);
-      await supabase
-        .from("emails")
-        .update({
-          body_html: parsed.html || null,
-          body_text: parsed.body,
-          unread: parsed.unread,
-          archived: parsed.archived,
-          is_draft: parsed.isDraft,
-        })
-        .eq("id", row.id);
-    } catch (error) {
-      captureError(error, { where: "email.sync.backfill" });
-    }
-  }
-  const known = (existing ?? []).filter((row) => row.body_html);
-  for (let i = 0; i < known.length; i += 8) {
-    const chunk = known.slice(i, i + 8);
-    await Promise.all(
-      chunk.map(async (row) => {
-        const labels = await getMessageLabels(args.accessToken, row.gmail_id);
-        if (labels.length === 0) return;
+  if (!args.watch) {
+    const stale = (existing ?? []).filter((row) => !row.body_html).slice(0, 20);
+    for (const row of stale) {
+      try {
+        const parsed = await getMessage(args.accessToken, row.gmail_id);
         await supabase
           .from("emails")
           .update({
-            unread: labels.includes("UNREAD"),
-            archived: !labels.includes("INBOX") && !labels.includes("DRAFT") && !labels.includes("SENT"),
-            is_draft: labels.includes("DRAFT"),
+            body_html: parsed.html || null,
+            body_text: parsed.body,
+            unread: parsed.unread,
+            archived: parsed.archived,
+            is_draft: parsed.isDraft,
           })
           .eq("id", row.id);
-      }),
-    );
+      } catch (error) {
+        captureError(error, { where: "email.sync.backfill" });
+      }
+    }
+    const known = (existing ?? []).filter((row) => row.body_html);
+    for (let i = 0; i < known.length; i += 8) {
+      const chunk = known.slice(i, i + 8);
+      await Promise.all(
+        chunk.map(async (row) => {
+          const labels = await getMessageLabels(args.accessToken, row.gmail_id);
+          if (labels.length === 0) return;
+          await supabase
+            .from("emails")
+            .update({
+              unread: labels.includes("UNREAD"),
+              archived: !labels.includes("INBOX") && !labels.includes("DRAFT") && !labels.includes("SENT"),
+              is_draft: labels.includes("DRAFT"),
+            })
+            .eq("id", row.id);
+        }),
+      );
+    }
   }
   const missing = listed.filter((row) => !have.has(row.id)).slice(0, insertMax);
   let inserted = 0;

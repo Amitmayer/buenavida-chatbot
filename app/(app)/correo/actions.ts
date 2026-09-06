@@ -11,7 +11,7 @@ import { sanitizeTitle } from "@/lib/agent/titles";
 import { isDraft } from "@/lib/email/mailbox";
 import { captureError } from "@/lib/sentry";
 
-export async function syncMailAction() {
+export async function syncMailAction(opts?: { watch?: boolean }) {
   const profile = await getSessionProfile();
   if (!profile || profile.isGuest) return { ok: false as const, detail: "forbidden" };
   const supabase = await createClient();
@@ -22,8 +22,10 @@ export async function syncMailAction() {
       userId: profile.id,
       accountId: ready.account.id,
       accessToken: ready.accessToken,
+      watch: opts?.watch,
     });
     revalidatePath("/correo");
+    revalidatePath("/", "layout");
     return { ok: true as const, inserted: result.inserted };
   } catch (error) {
     captureError(error, { where: "syncMailAction" });
