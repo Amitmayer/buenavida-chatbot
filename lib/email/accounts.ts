@@ -9,6 +9,7 @@ export type ConnectedAccount = {
   id: string;
   email: string;
   user_id: string;
+  canModify: boolean;
 };
 
 type AccountRow = Database["public"]["Tables"]["email_accounts"]["Row"];
@@ -29,7 +30,12 @@ export async function publicAccount(
 ): Promise<ConnectedAccount | null> {
   const row = await loadAccount(supabase, userId);
   if (!row) return null;
-  return { id: row.id, email: row.email, user_id: row.user_id };
+  return {
+    id: row.id,
+    email: row.email,
+    user_id: row.user_id,
+    canModify: (row.scope ?? "").includes("gmail.modify"),
+  };
 }
 
 export async function accessTokenFor(supabase: Client, userId: string): Promise<{

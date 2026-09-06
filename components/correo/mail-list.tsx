@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Flag } from "lucide-react";
 import { es } from "@/lib/i18n/es";
 import { crDateLabel, crInstantYmd, crTimeLabel, todayYmd } from "@/lib/agent/dates";
 import { cn } from "@/lib/utils";
@@ -48,9 +49,13 @@ export function MailList({
                 on ? "bg-wash" : "",
               )}
             >
-              <span className="mt-1.5 w-2 shrink-0">
-                {row.unread && folder === "inbox" ? (
-                  <span className="block h-1.5 w-1.5 rounded-full bg-[#E07A3D]" />
+              <span className="mt-1 w-3.5 shrink-0">
+                {row.unread ? (
+                  <Flag
+                    aria-label={es.correo.unread}
+                    className="h-3.5 w-3.5 fill-overdue text-overdue"
+                    strokeWidth={1.75}
+                  />
                 ) : null}
               </span>
               <div className="min-w-0 flex-1">

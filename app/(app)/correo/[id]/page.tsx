@@ -53,6 +53,7 @@ export default async function CorreoThreadPage({
   return (
     <MailWorkspace
       address={account.email}
+      canModify={account.canModify}
       rows={filterMails(all, { folder, filter, query })}
       selected={selectedMail}
       counts={countFolders(all)}

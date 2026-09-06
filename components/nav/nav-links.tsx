@@ -56,7 +56,7 @@ export function NavLinks({
                 </span>
                 <span className="relative">{item.label}</span>
                 {(badges?.[item.href] ?? 0) > 0 ? (
-                  <span className="relative ml-auto rounded-full bg-[#E07A3D] px-1.5 font-mono text-[10px] text-cream">
+                  <span className="relative ml-auto rounded-full bg-overdue px-1.5 font-mono text-[10px] text-paper">
                     {badges?.[item.href]}
                   </span>
                 ) : null}
@@ -85,7 +85,7 @@ export function NavLinks({
             >
               {item.label}
               {(badges?.[item.href] ?? 0) > 0 ? (
-                <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-[#E07A3D]" />
+                <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-overdue" />
               ) : null}
             </Link>
           </li>

@@ -47,11 +47,11 @@ export function MailBoxes({ counts }: { counts: MailCounts }) {
                   <span className="absolute inset-0 rounded-[9px] bg-cream/[0.11] shadow-[inset_2px_0_0_#C79350]" />
                 ) : null}
                 <span className="relative">{FOLDER_LABEL[id]}</span>
-                {badge[id] > 0 ? (
-                  <span className="relative rounded-full bg-[#E07A3D] px-1.5 font-mono text-[10px] text-cream">
-                    {badge[id]}
-                  </span>
-                ) : null}
+                  {badge[id] > 0 ? (
+                    <span className="relative rounded-full bg-overdue px-1.5 font-mono text-[10px] text-paper">
+                      {badge[id]}
+                    </span>
+                  ) : null}
               </Link>
             </li>
           );

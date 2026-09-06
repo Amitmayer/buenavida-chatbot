@@ -36,6 +36,7 @@ export default async function CorreoPage({
   return (
     <MailWorkspace
       address={account?.email ?? ""}
+      canModify={account?.canModify ?? false}
       rows={account ? filterMails(all, { folder, filter, query }) : []}
       selected={null}
       counts={account ? countFolders(all) : countFolders([])}

@@ -34,6 +34,7 @@ export function MailWorkspace({
   query,
   connect,
   html,
+  canModify = false,
 }: {
   address: string;
   rows: Email[];
@@ -44,6 +45,7 @@ export function MailWorkspace({
   query: string;
   connect?: ReactNode;
   html?: string;
+  canModify?: boolean;
 }) {
   return (
     <div className="flex min-h-0 flex-1 overflow-hidden">
@@ -99,7 +101,7 @@ export function MailWorkspace({
             ))}
           </div>
         </div>
-        {connect ? null : <MailboxToolbar address={address} />}
+        {connect ? null : <MailboxToolbar address={address} canModify={canModify} />}
         <div className="min-h-0 flex-1 overflow-auto">
           {rows.length === 0 ? (
             <div className="px-4">

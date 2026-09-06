@@ -9,6 +9,7 @@ export const GMAIL_SCOPES = [
   "openid",
   "email",
   "https://www.googleapis.com/auth/gmail.readonly",
+  "https://www.googleapis.com/auth/gmail.modify",
   "https://www.googleapis.com/auth/gmail.send",
 ].join(" ");
 
@@ -17,6 +18,7 @@ export type GmailTokens = {
   refresh_token?: string;
   expires_in: number;
   id_token?: string;
+  scope?: string;
 };
 
 export type ParsedMessage = {
@@ -237,18 +239,56 @@ function parseAddresses(raw: string) {
 
 export async function listMessageIds(
   accessToken: string,
-  max = 40,
+  max = 100,
 ): Promise<{ id: string; threadId: string }[]> {
-  const url = new URL(`${GMAIL}/messages`);
-  url.searchParams.set("maxResults", String(max));
-  url.searchParams.set("q", "in:inbox OR in:sent OR in:drafts");
-  const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
-  if (!res.ok) {
-    captureError(new Error(`gmail list ${res.status}`), { where: "gmail.list" });
-    throw new Error("gmail_list");
+  const out: { id: string; threadId: string }[] = [];
+  let pageToken: string | undefined;
+  while (out.length < max) {
+    const url = new URL(`${GMAIL}/messages`);
+    url.searchParams.set("maxResults", String(Math.min(100, max - out.length)));
+    url.searchParams.set("q", "in:inbox OR in:sent OR in:drafts");
+    if (pageToken) url.searchParams.set("pageToken", pageToken);
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+    if (!res.ok) {
+      captureError(new Error(`gmail list ${res.status}`), { where: "gmail.list" });
+      throw new Error("gmail_list");
+    }
+    const data = (await res.json()) as {
+      messages?: { id: string; threadId: string }[];
+      nextPageToken?: string;
+    };
+    out.push(...(data.messages ?? []));
+    if (!data.nextPageToken) break;
+    pageToken = data.nextPageToken;
   }
-  const data = (await res.json()) as { messages?: { id: string; threadId: string }[] };
-  return data.messages ?? [];
+  return out.slice(0, max);
+}
+
+export async function getMessageLabels(accessToken: string, id: string): Promise<string[]> {
+  const res = await fetch(`${GMAIL}/messages/${id}?format=minimal`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok) {
+    captureError(new Error(`gmail labels ${res.status}`), { where: "gmail.labels" });
+    return [];
+  }
+  const data = (await res.json()) as { labelIds?: string[] };
+  return data.labelIds ?? [];
+}
+
+export async function markGmailRead(accessToken: string, gmailId: string) {
+  const res = await fetch(`${GMAIL}/messages/${encodeURIComponent(gmailId)}/modify`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ removeLabelIds: ["UNREAD"] }),
+  });
+  if (!res.ok) {
+    captureError(new Error(`gmail modify ${res.status}`), { where: "gmail.markRead" });
+    throw new Error("gmail_modify");
+  }
 }
 
 export async function getMessage(accessToken: string, id: string): Promise<ParsedMessage> {

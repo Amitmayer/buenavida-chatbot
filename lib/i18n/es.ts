@@ -339,6 +339,8 @@ export const es = {
     disconnect: "Desconectar",
     disconnected: "Desconectado",
     disconnectError: "No se pudo desconectar.",
+    reconnect: "Volvé a conectar Gmail para marcar leídos allá.",
+    unread: "Sin leer",
     back: "Atrás",
     summary: "Resumen",
     draft: "Borrador",

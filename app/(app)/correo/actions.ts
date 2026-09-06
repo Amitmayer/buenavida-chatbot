@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createTaskSchema, getSessionProfile } from "@/lib/session";
 import { accessTokenFor } from "@/lib/email/accounts";
 import { draftReplyText, summarizeEmailText, syncInbox } from "@/lib/email/sync";
-import { sendMessage } from "@/lib/email/gmail";
+import { markGmailRead, sendMessage } from "@/lib/email/gmail";
 import { sanitizeTitle } from "@/lib/agent/titles";
 import { isDraft } from "@/lib/email/mailbox";
 import { captureError } from "@/lib/sentry";
@@ -295,8 +295,26 @@ export async function markReadAction(emailId: string) {
   const id = z.string().uuid().safeParse(emailId);
   if (!id.success) return { ok: false as const, detail: "forbidden" };
   const supabase = await createClient();
-  await supabase.from("emails").update({ unread: false }).eq("id", id.data).eq("user_id", profile.id);
+  const { data: row } = await supabase
+    .from("emails")
+    .select("id, gmail_id, unread")
+    .eq("id", id.data)
+    .eq("user_id", profile.id)
+    .maybeSingle();
+  if (!row) return { ok: false as const, detail: "not_found" };
+  if (row.unread) {
+    await supabase.from("emails").update({ unread: false }).eq("id", row.id);
+    const ready = await accessTokenFor(supabase, profile.id);
+    if (ready) {
+      try {
+        await markGmailRead(ready.accessToken, row.gmail_id);
+      } catch (error) {
+        captureError(error, { where: "markReadAction.gmail" });
+      }
+    }
+  }
   revalidatePath("/correo");
+  revalidatePath(`/correo/${row.id}`);
   return { ok: true as const };
 }
 

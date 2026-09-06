@@ -1,7 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/db/types";
-import { getMessage, listMessageIds } from "@/lib/email/gmail";
+import { getMessage, getMessageLabels, listMessageIds } from "@/lib/email/gmail";
 import { captureError } from "@/lib/sentry";
 
 type Client = SupabaseClient<Database>;
@@ -10,29 +10,52 @@ export async function syncInbox(
   supabase: Client,
   args: { userId: string; accountId: string; accessToken: string },
 ): Promise<{ inserted: number }> {
-  const listed = await listMessageIds(args.accessToken, 40);
+  const listed = await listMessageIds(args.accessToken, 100);
   const ids = listed.map((row) => row.id);
   if (ids.length === 0) return { inserted: 0 };
   const { data: existing } = await supabase
     .from("emails")
-    .select("gmail_id, body_html")
+    .select("id, gmail_id, body_html")
     .eq("account_id", args.accountId)
     .in("gmail_id", ids);
   const have = new Set((existing ?? []).map((row) => row.gmail_id));
-  const stale = (existing ?? []).filter((row) => !row.body_html).slice(0, 10);
+  const stale = (existing ?? []).filter((row) => !row.body_html).slice(0, 20);
   for (const row of stale) {
     try {
       const parsed = await getMessage(args.accessToken, row.gmail_id);
       await supabase
         .from("emails")
-        .update({ body_html: parsed.html || null, body_text: parsed.body })
-        .eq("account_id", args.accountId)
-        .eq("gmail_id", row.gmail_id);
+        .update({
+          body_html: parsed.html || null,
+          body_text: parsed.body,
+          unread: parsed.unread,
+          archived: parsed.archived,
+          is_draft: parsed.isDraft,
+        })
+        .eq("id", row.id);
     } catch (error) {
       captureError(error, { where: "email.sync.backfill" });
     }
   }
-  const missing = listed.filter((row) => !have.has(row.id)).slice(0, 15);
+  const known = (existing ?? []).filter((row) => row.body_html);
+  for (let i = 0; i < known.length; i += 8) {
+    const chunk = known.slice(i, i + 8);
+    await Promise.all(
+      chunk.map(async (row) => {
+        const labels = await getMessageLabels(args.accessToken, row.gmail_id);
+        if (labels.length === 0) return;
+        await supabase
+          .from("emails")
+          .update({
+            unread: labels.includes("UNREAD"),
+            archived: !labels.includes("INBOX") && !labels.includes("DRAFT") && !labels.includes("SENT"),
+            is_draft: labels.includes("DRAFT"),
+          })
+          .eq("id", row.id);
+      }),
+    );
+  }
+  const missing = listed.filter((row) => !have.has(row.id)).slice(0, 40);
   let inserted = 0;
   for (const item of missing) {
     const parsed = await getMessage(args.accessToken, item.id);

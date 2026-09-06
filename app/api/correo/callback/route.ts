@@ -42,7 +42,7 @@ export async function GET(request: Request) {
         refresh_token_enc: encryptSecret(tokens.refresh_token),
         access_token_enc: encryptSecret(tokens.access_token),
         access_expires_at: new Date(Date.now() + tokens.expires_in * 1000).toISOString(),
-        scope: "gmail",
+        scope: tokens.scope ?? "gmail",
         updated_at: new Date().toISOString(),
       },
       { onConflict: "user_id,provider" },
