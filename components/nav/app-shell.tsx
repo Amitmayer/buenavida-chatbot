@@ -88,7 +88,7 @@ export function AppShell({
       <div className="flex h-dvh flex-col overflow-hidden bg-paper md:flex-row">
         <aside
           className={cn(
-            "hidden h-full shrink-0 overflow-hidden bg-pine text-cream md:flex",
+            "hidden h-full min-w-0 shrink-0 overflow-hidden bg-pine text-cream md:flex",
             animate ? "transition-[width] duration-300 ease-in-out" : "",
             open ? "w-[252px]" : "w-0",
           )}

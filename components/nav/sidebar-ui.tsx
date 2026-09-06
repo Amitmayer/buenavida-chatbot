@@ -38,7 +38,7 @@ export function SidebarToggle({
         "hidden h-7 w-7 shrink-0 items-center justify-center rounded-full md:flex",
         edge
           ? "text-[#8FBF7A] hover:bg-cream/10 hover:text-[#B7D9A8]"
-          : "text-pine hover:bg-pine/10",
+          : "text-[#5BA85F] hover:bg-[#5BA85F]/10 hover:text-[#3E8A42]",
         className,
       )}
     >
