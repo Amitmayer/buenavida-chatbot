@@ -61,7 +61,7 @@ export function MailActions({ mail }: { mail: Email }) {
           start(async () => {
             const result = await sendMailAction(new FormData(form));
             if (result.ok) {
-              toast.success(es.correo.sent);
+              toast.success(es.correo.sentOk);
               setBody("");
             } else toast.error(es.correo.sendError);
           });

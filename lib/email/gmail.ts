@@ -30,6 +30,8 @@ export type ParsedMessage = {
   occurredAt: string;
   unread: boolean;
   inbound: boolean;
+  isDraft: boolean;
+  archived: boolean;
 };
 
 function clientId() {
@@ -179,7 +181,7 @@ export async function listMessageIds(
 ): Promise<{ id: string; threadId: string }[]> {
   const url = new URL(`${GMAIL}/messages`);
   url.searchParams.set("maxResults", String(max));
-  url.searchParams.set("q", "in:inbox OR in:sent");
+  url.searchParams.set("q", "in:inbox OR in:sent OR in:drafts");
   const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
   if (!res.ok) {
     captureError(new Error(`gmail list ${res.status}`), { where: "gmail.list" });
@@ -228,7 +230,9 @@ export async function getMessage(accessToken: string, id: string): Promise<Parse
     body,
     occurredAt: occurred,
     unread: labels.includes("UNREAD"),
-    inbound: !labels.includes("SENT"),
+    inbound: !labels.includes("SENT") && !labels.includes("DRAFT"),
+    isDraft: labels.includes("DRAFT"),
+    archived: !labels.includes("INBOX") && !labels.includes("DRAFT") && !labels.includes("SENT"),
   };
 }
 

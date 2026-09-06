@@ -4,47 +4,49 @@ import { createClient } from "@/lib/supabase/server";
 import { publicAccount } from "@/lib/email/accounts";
 import { gmailConfigured } from "@/lib/email/gmail";
 import { ConnectPanel } from "@/components/correo/connect-panel";
-import { InboxList } from "@/components/correo/inbox-list";
-import { MailboxToolbar } from "@/components/correo/mailbox-toolbar";
-import { EmptyState } from "@/components/empty-state";
-import { es } from "@/lib/i18n/es";
+import { MailWorkspace } from "@/components/correo/mail-workspace";
+import { countFolders, filterMails, parseFilter, parseFolder } from "@/lib/email/mailbox";
+import type { Email } from "@/lib/db/types";
 
 export default async function CorreoPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; ok?: string }>;
+  searchParams: Promise<{ buzon?: string; filtro?: string; q?: string; error?: string }>;
 }) {
   const profile = await getSessionProfile();
   if (!profile) return null;
   if (profile.isGuest) redirect("/hoy");
+
   const params = await searchParams;
   const supabase = await createClient();
   const account = await publicAccount(supabase, profile.id);
-  if (!account) {
-    return <ConnectPanel configured={gmailConfigured()} error={params.error} />;
-  }
-  const { data: rows } = await supabase
+  const folder = parseFolder(params.buzon);
+  const filter = parseFilter(params.filtro);
+  const query = params.q ?? "";
+
+  const { data: emails } = await supabase
     .from("emails")
     .select("*")
     .eq("user_id", profile.id)
     .order("occurred_at", { ascending: false })
-    .limit(80);
+    .limit(200);
+
+  const all = (emails ?? []) as Email[];
 
   return (
-    <div className="flex min-h-0 flex-1 overflow-hidden">
-      <div className="min-w-0 flex-1 overflow-auto bg-sheet md:max-w-[320px] md:border-r md:border-line">
-        <MailboxToolbar address={account.email} />
-        {(rows ?? []).length === 0 ? (
-          <div className="px-3.5">
-            <EmptyState title={es.correo.empty} hint={es.correo.emptyHint} />
-          </div>
-        ) : (
-          <InboxList rows={rows ?? []} />
-        )}
-      </div>
-      <div className="hidden min-w-0 flex-1 items-center justify-center md:flex">
-        <p className="text-[13px] text-ink/45">{es.correo.pick}</p>
-      </div>
-    </div>
+    <MailWorkspace
+      address={account?.email ?? ""}
+      rows={account ? filterMails(all, { folder, filter, query }) : []}
+      selected={null}
+      counts={account ? countFolders(all) : countFolders([])}
+      folder={folder}
+      filter={filter}
+      query={query}
+      connect={
+        account ? undefined : (
+          <ConnectPanel configured={gmailConfigured()} error={params.error} />
+        )
+      }
+    />
   );
 }

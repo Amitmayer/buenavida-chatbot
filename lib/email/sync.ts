@@ -37,6 +37,8 @@ export async function syncInbox(
       occurred_at: parsed.occurredAt,
       unread: parsed.unread,
       inbound: parsed.inbound,
+      is_draft: parsed.isDraft,
+      archived: parsed.archived,
     });
     if (error) {
       captureError(error, { where: "email.sync.insert" });
@@ -87,6 +89,34 @@ async function summarizeNew(supabase: Client, userId: string) {
       captureError(error, { where: "email.summarize" });
     }
   }
+}
+
+export async function summarizeEmailText(args: {
+  from: string;
+  subject: string;
+  body: string;
+}): Promise<string> {
+  const key = process.env.ANTHROPIC_API_KEY;
+  if (!key) return "";
+  const anthropic = new Anthropic({ apiKey: key });
+  const model = process.env.ANTHROPIC_DIGEST_MODEL ?? "claude-haiku-4-5";
+  const response = await anthropic.messages.create({
+    model,
+    max_tokens: 160,
+    messages: [
+      {
+        role: "user",
+        content: [
+          "Resume este correo en dos frases, español latinoamericano neutro.",
+          "No inventes. Si pide una acción, dilo.",
+          `De: ${args.from}`,
+          `Asunto: ${args.subject}`,
+          args.body.slice(0, 6000),
+        ].join("\n"),
+      },
+    ],
+  });
+  return response.content[0]?.type === "text" ? response.content[0].text.trim() : "";
 }
 
 export async function draftReplyText(args: {

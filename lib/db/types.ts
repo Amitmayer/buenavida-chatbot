@@ -66,6 +66,8 @@ export type Email = {
   occurred_at: string;
   unread: boolean;
   inbound: boolean;
+  archived: boolean;
+  is_draft: boolean;
   summary: string | null;
   draft_reply: string | null;
   task_id: string | null;
@@ -423,13 +425,25 @@ export type Database = {
       };
       emails: {
         Row: Email;
-        Insert: Omit<Email, "id" | "created_at" | "summary" | "draft_reply" | "task_id" | "rfc_message_id"> & {
+        Insert: Omit<
+          Email,
+          | "id"
+          | "created_at"
+          | "summary"
+          | "draft_reply"
+          | "task_id"
+          | "rfc_message_id"
+          | "archived"
+          | "is_draft"
+        > & {
           id?: string;
           created_at?: string;
           summary?: string | null;
           draft_reply?: string | null;
           task_id?: string | null;
           rfc_message_id?: string | null;
+          archived?: boolean;
+          is_draft?: boolean;
         };
         Update: Partial<Email>;
         Relationships: [

@@ -1,12 +1,16 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { Suspense } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { NavLinks } from "@/components/nav/nav-links";
 import { PageHeader } from "@/components/nav/page-header";
 import { ProfileMenu } from "@/components/nav/profile-menu";
 import { AreaLinks } from "@/components/nav/area-links";
+import { MailBoxes } from "@/components/correo/mail-boxes";
 import { es } from "@/lib/i18n/es";
+import type { MailCounts } from "@/lib/email/mailbox";
 import type { Team } from "@/lib/db/types";
 
 const ITEMS = [
@@ -30,6 +34,7 @@ export function AppShell({
   showArchivos,
   showCorreo = false,
   conversationId,
+  mailCounts,
 }: {
   children: ReactNode;
   name: string;
@@ -39,7 +44,10 @@ export function AppShell({
   showArchivos: boolean;
   showCorreo?: boolean;
   conversationId: string | null;
+  mailCounts?: MailCounts | null;
 }) {
+  const path = usePathname();
+  const hideHeader = path.startsWith("/correo");
   const items = [
     ...ITEMS.filter((item) => {
       if (item.href === "/archivos") return showArchivos;
@@ -67,7 +75,16 @@ export function AppShell({
         <p className="px-2 pb-2 font-mono text-[9.5px] tracking-[0.16em] text-cream/40">
           {es.nav.work.toUpperCase()}
         </p>
-        <NavLinks items={items} variant="side" />
+        <NavLinks
+          items={items}
+          variant="side"
+          badges={mailCounts && mailCounts.unread > 0 ? { "/correo": mailCounts.unread } : undefined}
+        />
+        {showCorreo && mailCounts ? (
+          <Suspense fallback={null}>
+            <MailBoxes counts={mailCounts} />
+          </Suspense>
+        ) : null}
         {teams.length > 0 ? (
           <>
             <p className="px-2 pb-2 pt-[22px] font-mono text-[9.5px] tracking-[0.16em] text-cream/40">
@@ -81,10 +98,14 @@ export function AppShell({
         </div>
       </aside>
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-        <PageHeader conversationId={conversationId} teams={teams} />
+        {hideHeader ? null : <PageHeader conversationId={conversationId} teams={teams} />}
         <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">{children}</main>
         <nav className="z-20 shrink-0 border-t border-ink/10 bg-paper px-2 pb-[max(10px,env(safe-area-inset-bottom))] pt-0.5 md:hidden">
-          <NavLinks items={items} variant="tab" />
+          <NavLinks
+            items={items}
+            variant="tab"
+            badges={mailCounts && mailCounts.unread > 0 ? { "/correo": mailCounts.unread } : undefined}
+          />
         </nav>
       </div>
     </div>

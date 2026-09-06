@@ -3,21 +3,16 @@
 import { useTransition } from "react";
 import { toast } from "sonner";
 import { es } from "@/lib/i18n/es";
-import { Button } from "@/components/ui/button";
 import { disconnectMailAction, syncMailAction } from "@/app/(app)/correo/actions";
 
 export function MailboxToolbar({ address }: { address: string }) {
   const [pending, start] = useTransition();
 
   return (
-    <div className="flex items-center gap-2 px-3.5 py-3">
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-[12px] text-ink/55">{address}</p>
-      </div>
-      <Button
+    <div className="flex items-center gap-3 border-b border-ink/[0.06] px-4 py-2">
+      <p className="min-w-0 flex-1 truncate text-[11px] text-ink/45">{address}</p>
+      <button
         type="button"
-        variant="secondary"
-        size="sm"
         disabled={pending}
         onClick={() => {
           start(async () => {
@@ -26,13 +21,12 @@ export function MailboxToolbar({ address }: { address: string }) {
             else toast.error(es.correo.syncError);
           });
         }}
+        className="text-[11px] font-medium text-ink/60 hover:text-ink disabled:opacity-40"
       >
         {es.correo.sync}
-      </Button>
-      <Button
+      </button>
+      <button
         type="button"
-        variant="ghost"
-        size="sm"
         disabled={pending}
         onClick={() => {
           start(async () => {
@@ -41,9 +35,10 @@ export function MailboxToolbar({ address }: { address: string }) {
             else toast.error(es.correo.disconnectError);
           });
         }}
+        className="text-[11px] font-medium text-ink/45 hover:text-ink disabled:opacity-40"
       >
         {es.correo.disconnect}
-      </Button>
+      </button>
     </div>
   );
 }

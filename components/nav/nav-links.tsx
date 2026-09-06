@@ -18,9 +18,11 @@ const ICONS: Record<string, string> = {
 export function NavLinks({
   items,
   variant,
+  badges,
 }: {
   items: readonly { href: string; label: string }[];
   variant: "side" | "tab";
+  badges?: Record<string, number>;
 }) {
   const path = usePathname();
   function active(href: string) {
@@ -53,6 +55,11 @@ export function NavLinks({
                   {ICONS[item.href] ?? "·"}
                 </span>
                 <span className="relative">{item.label}</span>
+                {(badges?.[item.href] ?? 0) > 0 ? (
+                  <span className="relative ml-auto rounded-full bg-[#E07A3D] px-1.5 font-mono text-[10px] text-cream">
+                    {badges?.[item.href]}
+                  </span>
+                ) : null}
               </Link>
             </li>
           );
@@ -70,13 +77,16 @@ export function NavLinks({
             <Link
               href={item.href}
               className={cn(
-                "block border-t-2 px-1 pb-1.5 pt-2.5 text-center text-[11px]",
+                "relative block border-t-2 px-1 pb-1.5 pt-2.5 text-center text-[11px]",
                 on
                   ? "border-gold font-semibold text-pine"
                   : "border-transparent font-medium text-ink/55",
               )}
             >
               {item.label}
+              {(badges?.[item.href] ?? 0) > 0 ? (
+                <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-[#E07A3D]" />
+              ) : null}
             </Link>
           </li>
         );
