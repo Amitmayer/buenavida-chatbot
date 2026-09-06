@@ -3,22 +3,38 @@ import { createClient } from "@/lib/supabase/server";
 import { getSessionProfile } from "@/lib/session";
 import { ChatClient } from "@/components/chat/chat-client";
 
-export default async function ChatPage() {
+export default async function ChatPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ c?: string }>;
+}) {
   const profile = await getSessionProfile();
   if (!profile) return null;
+  const { c } = await searchParams;
   const supabase = await createClient();
-  let { data: conversation } = await supabase
+  const { data: rows } = await supabase
     .from("conversations")
-    .select("*")
+    .select("id, title, created_at")
     .eq("user_id", profile.id)
     .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    .limit(20);
+
+  let conversation = (rows ?? []).find((row) => row.id === c) ?? null;
+  if (!conversation && c) {
+    const { data: one } = await supabase
+      .from("conversations")
+      .select("id, title, created_at")
+      .eq("id", c)
+      .eq("user_id", profile.id)
+      .maybeSingle();
+    conversation = one;
+  }
+  if (!conversation) conversation = rows?.[0] ?? null;
   if (!conversation) {
     const inserted = await supabase
       .from("conversations")
       .insert({ user_id: profile.id, title: es.chat.title })
-      .select("*")
+      .select("id, title, created_at")
       .single();
     conversation = inserted.data;
   }
@@ -50,7 +66,7 @@ export default async function ChatPage() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <ChatClient conversationId={conversation.id} initial={initial} />
+      <ChatClient key={conversation.id} conversationId={conversation.id} initial={initial} />
     </div>
   );
 }

@@ -30,10 +30,12 @@ export function Modal({
   title,
   onClose,
   children,
+  size = "md",
 }: {
   title: string;
   onClose: () => void;
   children: ReactNode;
+  size?: "md" | "xl";
 }) {
   const [mounted, setMounted] = useState(false);
 
@@ -66,10 +68,22 @@ export function Modal({
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="relative max-h-[90dvh] w-full max-w-md overflow-auto rounded-lg border border-line bg-sheet p-5 shadow-lg"
+        className={cn(
+          "relative w-full overflow-auto rounded-lg border border-line bg-sheet shadow-lg",
+          size === "xl"
+            ? "max-h-[92dvh] max-w-[920px] p-7 md:p-8"
+            : "max-h-[90dvh] max-w-md p-5",
+        )}
       >
         <div className="mb-4 flex items-center justify-between gap-3">
-          <h2 className="min-w-0 text-[15px] font-semibold text-ink">{title}</h2>
+          <h2
+            className={cn(
+              "min-w-0 font-semibold text-ink",
+              size === "xl" ? "text-[22px] md:text-[26px]" : "text-[15px]",
+            )}
+          >
+            {title}
+          </h2>
           <ModalClose onClose={onClose} />
         </div>
         {children}

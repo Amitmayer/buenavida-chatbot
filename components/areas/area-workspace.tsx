@@ -42,7 +42,7 @@ export function AreaWorkspace({
         </div>
         <div
           className={cn(
-            "flex min-h-0 w-full shrink-0 flex-col border-line bg-sheet md:w-[340px] md:border-l",
+            "flex min-h-0 w-full shrink-0 flex-col border-ink/15 bg-wash md:w-[420px] md:border-l-2 xl:w-[480px]",
             tab !== "chat" && "hidden md:flex",
             tab === "chat" && "flex",
           )}

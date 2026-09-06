@@ -6,6 +6,7 @@ import { crStampLabel, todayYmd } from "@/lib/agent/dates";
 import { CaptureBox } from "@/components/hoy/capture-box";
 import { GlobalSearch } from "@/components/nav/global-search";
 import { SidebarToggle } from "@/components/nav/sidebar-ui";
+import { ChatHistoryButton } from "@/components/chat/chat-history";
 import type { Team } from "@/lib/db/types";
 
 const HEADS: Record<string, () => [string, string]> = {
@@ -49,6 +50,7 @@ export function PageHeader({
         <div className="hidden font-mono text-[15px] font-medium text-ink/70 md:block">{subtitle}</div>
       ) : null}
       <div className="ml-auto flex shrink-0 items-center gap-2 md:gap-3">
+        {path.startsWith("/chat") ? <ChatHistoryButton /> : null}
         <GlobalSearch />
         {conversationId ? <CaptureBox conversationId={conversationId} trigger="button" /> : null}
       </div>

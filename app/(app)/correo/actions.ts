@@ -5,7 +5,7 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { createTaskSchema, getSessionProfile } from "@/lib/session";
 import { accessTokenFor } from "@/lib/email/accounts";
-import { draftReplyText, summarizeEmailText, syncInbox } from "@/lib/email/sync";
+import { draftComposeText, draftReplyText, summarizeEmailText, syncInbox } from "@/lib/email/sync";
 import { markGmailRead, sendMessage } from "@/lib/email/gmail";
 import { sanitizeTitle } from "@/lib/agent/titles";
 import { isDraft } from "@/lib/email/mailbox";
@@ -190,6 +190,31 @@ export async function draftMailAction(emailId: string) {
     return { ok: true as const, draft };
   } catch (error) {
     captureError(error, { where: "draftMailAction" });
+    return { ok: false as const, detail: "server_error" };
+  }
+}
+
+export async function composeDraftAction(formData: FormData) {
+  const profile = await getSessionProfile();
+  if (!profile || profile.isGuest) return { ok: false as const, detail: "forbidden" };
+  const parsed = z
+    .object({
+      to: z.string().trim().max(200),
+      subject: z.string().trim().max(200),
+      prompt: z.string().trim().min(1).max(2000),
+    })
+    .safeParse({
+      to: String(formData.get("to") ?? "").trim(),
+      subject: String(formData.get("subject") ?? ""),
+      prompt: String(formData.get("prompt") ?? "").trim(),
+    });
+  if (!parsed.success) return { ok: false as const, detail: "validation" };
+  try {
+    const draft = await draftComposeText(parsed.data);
+    if (!draft) return { ok: false as const, detail: "server_error" };
+    return { ok: true as const, draft };
+  } catch (error) {
+    captureError(error, { where: "composeDraftAction" });
     return { ok: false as const, detail: "server_error" };
   }
 }

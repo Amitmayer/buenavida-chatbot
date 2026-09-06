@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 import { es } from "@/lib/i18n/es";
-import { Button } from "@/components/ui/button";
 import { ResultCard } from "@/components/chat/result-card";
 
 type Tool = {
@@ -105,74 +104,77 @@ export function ChatClient({
   }
 
   return (
-    <div className="mx-auto flex min-h-0 w-full max-w-[840px] flex-1 flex-col px-4 py-7 md:px-7">
-      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto">
-        {items.length === 0 ? (
-          <p className="text-[13.5px] leading-relaxed text-ink/70">{es.chat.empty}</p>
-        ) : null}
-        {items.map((item) =>
-          item.type === "text" ? (
-            <div key={item.id} className="flex gap-3">
-              <span
-                className={
-                  item.role === "user"
-                    ? "flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-wash font-mono text-[11px] text-ink"
-                    : "flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-pine font-mono text-[11px] text-gold"
-                }
-              >
-                {item.role === "user" ? "·" : "✳"}
-              </span>
-              <div className="min-w-0 flex-1">
-                {item.role === "user" ? null : (
-                  <p className="mb-1 text-[12px] font-medium text-ink/55">{es.chat.title}</p>
-                )}
-                <p className="text-[13.5px] leading-relaxed text-ink">{item.text}</p>
+    <div className="flex min-h-0 flex-1 flex-col items-center px-4 pt-6 md:px-9">
+      <div className="flex min-h-0 w-full max-w-[1100px] flex-1 flex-col">
+        <div className="flex min-h-0 flex-1 flex-col justify-end gap-5 overflow-y-auto pb-6">
+          {items.length === 0 ? (
+            <p className="text-[18px] leading-relaxed text-ink/70 md:text-[22px]">{es.chat.empty}</p>
+          ) : null}
+          {items.map((item) =>
+            item.type === "text" ? (
+              item.role === "user" ? (
+                <div key={item.id} className="flex justify-end">
+                  <p className="max-w-[720px] rounded-[20px] rounded-br-[6px] bg-ink px-6 py-[18px] text-[18px] leading-relaxed text-cream md:text-[23px]">
+                    {item.text}
+                  </p>
+                </div>
+              ) : (
+                <div key={item.id} className="flex gap-3.5">
+                  <span className="flex h-[46px] w-[46px] shrink-0 items-center justify-center rounded-[13px] bg-gold font-mono text-[16px] font-semibold text-ink">
+                    {es.chat.assistantMark}
+                  </span>
+                  <p className="max-w-[760px] rounded-[20px] rounded-bl-[6px] border-2 border-ink/12 bg-sheet px-6 py-5 text-[18px] leading-relaxed text-ink md:text-[23px]">
+                    {item.text}
+                  </p>
+                </div>
+              )
+            ) : (
+              <div key={item.tool.id} className="flex gap-3.5 pl-[60px]">
+                <ResultCard
+                  status={item.tool.status}
+                  name={item.tool.name}
+                  result={item.tool.result}
+                />
               </div>
-            </div>
-          ) : (
-            <div key={item.tool.id} className="pl-10">
-              <ResultCard
-                status={item.tool.status}
-                name={item.tool.name}
-                result={item.tool.result}
-              />
-            </div>
-          ),
-        )}
-        <div ref={bottom} />
-      </div>
-      <div className="shrink-0 pt-2">
-        {items.length === 0 ? (
-          <div className="mb-3 flex flex-wrap gap-2">
-            {[es.chat.hintOverdue, es.chat.hintReschedule, es.chat.hintTeam, es.chat.hintCreate].map((hint) => (
+            ),
+          )}
+          <div ref={bottom} />
+        </div>
+        <div className="shrink-0 pb-7">
+          <div className="mb-4 flex flex-wrap gap-3">
+            {[es.chat.hintOverdue, es.chat.hintReschedule, es.chat.hintCreate].map((hint) => (
               <button
                 key={hint}
                 type="button"
                 onClick={() => setText(hint)}
-                className="rounded-full border border-ink/10 bg-sheet px-3.5 py-1.5 text-[12.5px] hover:border-gold hover:bg-sheet"
+                className="flex h-11 items-center rounded-full border-2 border-ink/18 bg-wash px-5 text-[16px] font-medium text-ink hover:border-ink hover:bg-white md:text-[18px]"
               >
                 {hint}
               </button>
             ))}
           </div>
-        ) : null}
-        <form
-          className="flex items-center gap-2.5 rounded-md border border-ink/15 bg-sheet px-3.5 py-3"
-          onSubmit={(e) => {
-            e.preventDefault();
-            void send();
-          }}
-        >
-          <input
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            placeholder={es.chat.placeholder}
-            className="h-7 flex-1 bg-transparent text-[13px] outline-none placeholder:text-ink/40"
-          />
-          <Button type="submit" disabled={busy} className="h-8 px-3.5 text-[12px]">
-            {es.chat.send}
-          </Button>
-        </form>
+          <form
+            className="flex items-center gap-3.5"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void send();
+            }}
+          >
+            <input
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              placeholder={es.chat.placeholder}
+              className="h-[56px] min-w-0 flex-1 rounded-2xl border-2 border-ink/16 bg-white px-[22px] text-[18px] outline-none placeholder:text-ink/55 md:h-[68px] md:text-[22px]"
+            />
+            <button
+              type="submit"
+              disabled={busy}
+              className="flex h-[56px] items-center rounded-2xl bg-ink px-8 text-[18px] font-semibold text-cream hover:bg-pine disabled:opacity-40 md:h-[68px] md:text-[22px]"
+            >
+              {es.chat.send}
+            </button>
+          </form>
+        </div>
       </div>
     </div>
   );

@@ -197,3 +197,34 @@ export async function draftReplyText(args: {
   });
   return response.content[0]?.type === "text" ? response.content[0].text.trim() : "";
 }
+
+export async function draftComposeText(args: {
+  to: string;
+  subject: string;
+  prompt: string;
+}): Promise<string> {
+  const key = process.env.ANTHROPIC_API_KEY;
+  if (!key) return "";
+  const anthropic = new Anthropic({ apiKey: key });
+  const model = process.env.ANTHROPIC_DIGEST_MODEL ?? "claude-haiku-4-5";
+  const response = await anthropic.messages.create({
+    model,
+    max_tokens: 700,
+    messages: [
+      {
+        role: "user",
+        content: [
+          "Redactá un correo breve en español latinoamericano neutro.",
+          "Tono profesional y cercano. Sin firma corporativa larga. No inventes hechos.",
+          "Devolvé solo el cuerpo del correo, sin asunto y sin saludos de sistema.",
+          args.to ? `Para: ${args.to}` : "",
+          args.subject ? `Asunto: ${args.subject}` : "",
+          `Pedido: ${args.prompt}`,
+        ]
+          .filter(Boolean)
+          .join("\n"),
+      },
+    ],
+  });
+  return response.content[0]?.type === "text" ? response.content[0].text.trim() : "";
+}

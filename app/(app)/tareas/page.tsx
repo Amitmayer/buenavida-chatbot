@@ -19,6 +19,7 @@ export default async function TareasPage({
     due?: string;
     todo?: string;
     q?: string;
+    historial?: string;
   }>;
 }) {
   const profile = await getSessionProfile();
@@ -32,15 +33,21 @@ export default async function TareasPage({
   const team = (teams ?? []).find((t) => t.slug === params.team);
   const today = todayYmd();
   const verTodo = profile.isOwner && params.todo === "1";
+  const history = params.historial === "1" || params.status === "done" || params.status === "cancelled";
+  const liveStatus =
+    params.status === "open" || params.status === "in_progress" ? params.status : undefined;
+  const closedStatus = params.status === "done" || params.status === "cancelled" ? params.status : undefined;
   const scope = new Set(profile.teams.map((t) => t.id));
   const tasks = (await listVisibleTasks({
     teamId: team?.id,
     area: params.area,
     assigneeId: params.assignee,
-    status: params.status,
+    status: history ? closedStatus : liveStatus,
     due: (params.due as "overdue" | "today" | "week" | "all" | undefined) ?? "all",
     today,
     weekEnd: addDaysYmd(today, 7),
+    openOnly: !history,
+    closedOnly: history && !closedStatus,
   })).filter((task) => verTodo || !profile.isOwner || scope.has(task.team_id));
   const q = (params.q ?? "").trim();
   const needle = fold(q);
@@ -96,7 +103,10 @@ export default async function TareasPage({
       ) : null}
       {filtered.length === 0 ? (
         <div className="px-4 py-6 md:px-7">
-          <EmptyState title={es.tasks.empty} hint={es.tasks.emptyHint} />
+          <EmptyState
+            title={history ? es.tasks.historyEmpty : es.tasks.empty}
+            hint={history ? es.tasks.historyHint : es.tasks.emptyHint}
+          />
         </div>
       ) : (
         <div className="px-4 pb-10 md:px-7">

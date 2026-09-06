@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { NavLinks } from "@/components/nav/nav-links";
@@ -60,11 +60,23 @@ export function AppShell({
     ...(showEquipo ? [{ href: "/equipo", label: es.nav.equipo }] : []),
   ];
 
+  const lastPath = useRef<string | null>(null);
+
   useEffect(() => {
     setOpen(window.localStorage.getItem(STORAGE) === "1");
     const frame = window.requestAnimationFrame(() => setAnimate(true));
     return () => window.cancelAnimationFrame(frame);
   }, []);
+
+  useEffect(() => {
+    if (lastPath.current === null) {
+      lastPath.current = path;
+      return;
+    }
+    if (lastPath.current === path) return;
+    lastPath.current = path;
+    persist(false);
+  }, [path]);
 
   function persist(next: boolean) {
     setOpen(next);

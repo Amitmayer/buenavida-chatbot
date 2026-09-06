@@ -112,6 +112,7 @@ export async function listVisibleTasks(opts: {
   weekEnd: string;
   ownerScopeTeamIds?: string[];
   openOnly?: boolean;
+  closedOnly?: boolean;
 }): Promise<TaskRow[]> {
   const supabase = await createClient();
   let query = supabase
@@ -122,6 +123,7 @@ export async function listVisibleTasks(opts: {
   if (opts.area) query = query.eq("area", opts.area);
   if (opts.assigneeId) query = query.eq("assignee_id", opts.assigneeId);
   if (opts.status) query = query.eq("status", opts.status as TaskStatus);
+  else if (opts.closedOnly) query = query.in("status", ["done", "cancelled"]);
   else if (opts.openOnly) query = query.in("status", ["open", "in_progress"]);
   if (opts.due === "overdue") query = query.lt("due_date", opts.today).in("status", ["open", "in_progress"]);
   if (opts.due === "today") query = query.eq("due_date", opts.today);
