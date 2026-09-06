@@ -38,7 +38,7 @@ export function MailList({
           folder === "sent" || folder === "drafts"
             ? row.to_addresses[0] ?? row.from_address
             : row.from_address;
-        const showUnread = folder !== "sent" && folder !== "drafts";
+        const unread = folder !== "sent" && folder !== "drafts" && row.unread;
         return (
           <li key={row.id}>
             <Link
@@ -48,7 +48,9 @@ export function MailList({
                 "block rounded-[14px] border px-3.5 py-3.5",
                 on
                   ? "border-pine bg-pine text-cream"
-                  : "border-ink/10 bg-sheet text-ink hover:border-ink/20",
+                  : unread
+                    ? "border-ink/15 bg-sheet text-ink shadow-[0_1px_0_rgba(23,48,31,0.04)] hover:border-ink/25"
+                    : "border-transparent bg-wash/70 text-ink/50 hover:border-ink/10",
               )}
             >
               <div className="flex items-baseline justify-between gap-2">
@@ -57,23 +59,38 @@ export function MailList({
                     "min-w-0 truncate text-[13px]",
                     on
                       ? "font-semibold text-cream"
-                      : showUnread && row.unread
+                      : unread
                         ? "font-semibold text-ink"
-                        : "font-medium text-ink",
+                        : "font-normal text-ink/45",
                   )}
                 >
                   {folder === "sent" || folder === "drafts"
                     ? es.correo.toLine.replace("{name}", displayName(who))
                     : displayName(who)}
                 </p>
-                <span className={cn("shrink-0 font-mono text-[10px]", on ? "text-cream/55" : "text-ink/40")}>
+                <span
+                  className={cn(
+                    "shrink-0 font-mono text-[10px]",
+                    on ? "text-cream/55" : unread ? "text-ink/50" : "text-ink/30",
+                  )}
+                >
                   {stamp(row.occurred_at, today)}
                 </span>
               </div>
-              <p className={cn("mt-1 truncate text-[12.5px]", on ? "text-cream" : "text-ink")}>
+              <p
+                className={cn(
+                  "mt-1 truncate text-[12.5px]",
+                  on ? "text-cream" : unread ? "font-medium text-ink" : "text-ink/40",
+                )}
+              >
                 {row.subject || "—"}
               </p>
-              <p className={cn("mt-0.5 line-clamp-1 text-[12px]", on ? "text-cream/60" : "text-ink/45")}>
+              <p
+                className={cn(
+                  "mt-0.5 line-clamp-1 text-[12px]",
+                  on ? "text-cream/60" : unread ? "text-ink/55" : "text-ink/30",
+                )}
+              >
                 {row.summary ?? row.snippet}
               </p>
               {row.task_id ? (

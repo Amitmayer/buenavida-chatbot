@@ -51,9 +51,12 @@ export function MailWorkspace({
   const emptyTitle = folder === "sent" ? es.correo.emptySent : es.correo.empty;
   const emptyHint = folder === "sent" ? es.correo.emptySentHint : es.correo.emptyHint;
   const folderCount =
-    folder === "inbox" ? counts.inbox : folder === "sent" ? counts.sent : folder === "drafts" ? counts.drafts : counts.archived;
+    folder === "inbox" ? counts.inbox : folder === "drafts" ? counts.drafts : folder === "archived" ? counts.archived : 0;
   const filters: { id: MailFilter; label: string }[] = [
-    { id: "all", label: es.correo.filterAllCount.replace("{n}", String(folderCount)) },
+    {
+      id: "all",
+      label: folder === "sent" ? es.correo.filterAll : es.correo.filterAllCount.replace("{n}", String(folderCount)),
+    },
     ...(folder === "sent" || folder === "drafts"
       ? []
       : [{ id: "unread" as const, label: es.correo.filterUnread }]),
@@ -163,11 +166,9 @@ export function MailWorkspace({
             />
           )}
         </div>
-        {connect ? null : (
+        {connect || folder === "sent" ? null : (
           <p className="px-4 py-2 text-[11px] text-ink/40">
-            {folder === "sent"
-              ? es.correo.countSent.replace("{n}", String(rows.length))
-              : es.correo.countLine.replace("{n}", String(rows.length)).replace("{u}", String(counts.unread))}
+            {es.correo.countLine.replace("{n}", String(rows.length)).replace("{u}", String(counts.unread))}
           </p>
         )}
       </section>

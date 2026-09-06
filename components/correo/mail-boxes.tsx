@@ -32,7 +32,7 @@ export function MailBoxes({
 }) {
   const badge: Record<MailFolder, number> = {
     inbox: counts.unread,
-    sent: counts.sent,
+    sent: 0,
     drafts: counts.drafts,
     archived: counts.archived,
   };
