@@ -108,22 +108,22 @@ export function ChatClient({
       <div className="flex min-h-0 w-full max-w-[1100px] flex-1 flex-col">
         <div className="flex min-h-0 flex-1 flex-col justify-end gap-5 overflow-y-auto pb-6">
           {items.length === 0 ? (
-            <p className="text-[18px] leading-relaxed text-ink/70 md:text-[22px]">{es.chat.empty}</p>
+            <p className="text-[15px] leading-relaxed text-ink/70 md:text-[17px]">{es.chat.empty}</p>
           ) : null}
           {items.map((item) =>
             item.type === "text" ? (
               item.role === "user" ? (
                 <div key={item.id} className="flex justify-end">
-                  <p className="max-w-[720px] rounded-[20px] rounded-br-[6px] bg-ink px-6 py-[18px] text-[18px] leading-relaxed text-cream md:text-[23px]">
+                  <p className="max-w-[640px] rounded-[16px] rounded-br-[6px] bg-ink px-5 py-3.5 text-[15px] leading-relaxed text-cream md:text-[17px]">
                     {item.text}
                   </p>
                 </div>
               ) : (
                 <div key={item.id} className="flex gap-3.5">
-                  <span className="flex h-[46px] w-[46px] shrink-0 items-center justify-center rounded-[13px] bg-gold font-mono text-[16px] font-semibold text-ink">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-gold font-mono text-[13px] font-semibold text-ink">
                     {es.chat.assistantMark}
                   </span>
-                  <p className="max-w-[760px] rounded-[20px] rounded-bl-[6px] border-2 border-ink/12 bg-sheet px-6 py-5 text-[18px] leading-relaxed text-ink md:text-[23px]">
+                  <p className="max-w-[680px] rounded-[16px] rounded-bl-[6px] border-2 border-ink/12 bg-sheet px-5 py-3.5 text-[15px] leading-relaxed text-ink md:text-[17px]">
                     {item.text}
                   </p>
                 </div>
@@ -147,7 +147,7 @@ export function ChatClient({
                 key={hint}
                 type="button"
                 onClick={() => setText(hint)}
-                className="flex h-11 items-center rounded-full border-2 border-ink/18 bg-wash px-5 text-[16px] font-medium text-ink hover:border-ink hover:bg-white md:text-[18px]"
+                className="flex h-9 items-center rounded-full border-2 border-ink/18 bg-wash px-4 text-[13px] font-medium text-ink hover:border-ink hover:bg-white md:text-[14px]"
               >
                 {hint}
               </button>
@@ -164,12 +164,12 @@ export function ChatClient({
               value={text}
               onChange={(e) => setText(e.target.value)}
               placeholder={es.chat.placeholder}
-              className="h-[56px] min-w-0 flex-1 rounded-2xl border-2 border-ink/16 bg-white px-[22px] text-[18px] outline-none placeholder:text-ink/55 md:h-[68px] md:text-[22px]"
+              className="h-[46px] min-w-0 flex-1 rounded-xl border-2 border-ink/16 bg-white px-4 text-[15px] outline-none placeholder:text-ink/55 md:h-[52px] md:text-[16px]"
             />
             <button
               type="submit"
               disabled={busy}
-              className="flex h-[56px] items-center rounded-2xl bg-ink px-8 text-[18px] font-semibold text-cream hover:bg-pine disabled:opacity-40 md:h-[68px] md:text-[22px]"
+              className="flex h-[46px] items-center rounded-xl bg-ink px-5 text-[15px] font-semibold text-cream hover:bg-pine disabled:opacity-40 md:h-[52px] md:text-[16px]"
             >
               {es.chat.send}
             </button>

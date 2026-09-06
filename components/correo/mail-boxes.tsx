@@ -49,7 +49,7 @@ export function MailBoxes({
 
   return (
     <div>
-      <p className="px-6 font-mono text-[13px] font-medium tracking-[0.18em] text-gold">
+      <p className="px-5 font-mono text-[11px] font-medium tracking-[0.18em] text-gold">
         {es.correo.boxes.toUpperCase()}
       </p>
       <ul className="mt-3.5 flex flex-col gap-1.5 px-4">
@@ -60,12 +60,12 @@ export function MailBoxes({
               <Link
                 href={correoHref({ folder: id, filter: id === "sent" || id === "drafts" ? "all" : filter, query })}
                 className={cn(
-                  "flex h-[52px] items-center gap-3.5 rounded-[13px] px-3.5",
+                  "flex h-[44px] items-center gap-3 rounded-[11px] px-3",
                   on ? "bg-cream text-pine" : "text-cream/90 hover:bg-cream/[0.09]",
                 )}
               >
                 <span className={cn("h-[11px] w-[11px] shrink-0 rounded-full", DOT[id])} />
-                <span className={cn("min-w-0 flex-1 truncate text-[18px]", on ? "font-semibold" : "font-normal")}>
+                <span className={cn("min-w-0 flex-1 truncate text-[15px]", on ? "font-semibold" : "font-normal")}>
                   {FOLDER_LABEL[id]}
                 </span>
                 {id === "inbox" && badge.inbox > 0 ? (
@@ -84,7 +84,7 @@ export function MailBoxes({
       </ul>
       {teams.length > 0 ? (
         <>
-          <p className="mt-[34px] px-6 font-mono text-[13px] font-medium tracking-[0.18em] text-gold">
+          <p className="mt-7 px-5 font-mono text-[11px] font-medium tracking-[0.18em] text-gold">
             {es.nav.areas.toUpperCase()}
           </p>
           <ul className="mt-3.5 flex flex-col gap-1 px-4">
@@ -98,7 +98,7 @@ export function MailBoxes({
                     className="h-[9px] w-[9px] shrink-0 rounded-full"
                     style={{ background: teamEdge(team.slug) }}
                   />
-                  <span className="min-w-0 flex-1 truncate text-[17px]">{team.name}</span>
+                  <span className="min-w-0 flex-1 truncate text-[14px]">{team.name}</span>
                 </Link>
               </li>
             ))}

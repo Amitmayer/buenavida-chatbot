@@ -200,7 +200,7 @@ export function ThreadView({
                 )}
                 <div className={area && mine ? "flex flex-col items-end" : ""}>
                   <div className={`mb-1 flex items-baseline gap-2 ${mine ? "flex-row-reverse" : ""}`}>
-                    <span className={area ? "font-mono text-[16px] text-ink/70" : "text-[12px] font-medium text-ink"}>
+                    <span className={area ? "font-mono text-[13px] text-ink/70" : "text-[12px] font-medium text-ink"}>
                       {mine && area ? es.mensajes.you : who}
                       {area ? ` · ${crTimeLabel(message.created_at)}` : ""}
                     </span>
@@ -214,8 +214,8 @@ export function ThreadView({
                     className={
                       area
                         ? mine
-                          ? "whitespace-pre-wrap rounded-[16px] rounded-br-[4px] bg-ink px-[18px] py-3.5 text-[18px] leading-relaxed text-cream md:text-[20px]"
-                          : "inline-block whitespace-pre-wrap rounded-[16px] rounded-bl-[4px] border-2 border-ink/12 bg-white px-[18px] py-3.5 text-[18px] leading-relaxed text-ink md:text-[20px]"
+                          ? "whitespace-pre-wrap rounded-[14px] rounded-br-[4px] bg-ink px-4 py-3 text-[15px] leading-relaxed text-cream md:text-[16px]"
+                          : "inline-block whitespace-pre-wrap rounded-[14px] rounded-bl-[4px] border-2 border-ink/12 bg-white px-4 py-3 text-[15px] leading-relaxed text-ink md:text-[16px]"
                         : mine
                           ? "whitespace-pre-wrap rounded-md rounded-tr-sm bg-pine px-3.5 py-2.5 text-[13px] leading-relaxed text-cream"
                           : "whitespace-pre-wrap rounded-md rounded-tl-sm border border-ink/10 bg-sheet px-3.5 py-2.5 text-[13px] leading-relaxed text-ink"
@@ -251,14 +251,14 @@ export function ThreadView({
             maxLength={4000}
             className={
               area
-                ? "h-14 min-w-0 flex-1 rounded-[14px] border-2 border-ink/16 bg-white px-[18px] text-[18px] outline-none placeholder:text-ink/55 md:text-[20px]"
+                ? "h-11 min-w-0 flex-1 rounded-[12px] border-2 border-ink/16 bg-white px-4 text-[15px] outline-none placeholder:text-ink/55"
                 : "h-7 flex-1 bg-transparent text-[13px] outline-none placeholder:text-ink/40"
             }
           />
           <Button
             type="submit"
             disabled={pending}
-            className={area ? "h-14 rounded-[14px] px-6 text-[18px] md:text-[20px]" : "h-8 px-3.5 text-[12px]"}
+            className={area ? "h-11 rounded-[12px] px-4 text-[15px]" : "h-8 px-3.5 text-[12px]"}
           >
             {es.mensajes.send}
           </Button>

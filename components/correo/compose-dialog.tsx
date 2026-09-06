@@ -47,7 +47,7 @@ export function ComposeDialog({ onClose }: { onClose: () => void }) {
             placeholder={es.correo.composeAiPlaceholder}
             maxLength={2000}
             rows={3}
-            className="mt-3 min-h-[88px] border-2 bg-white text-[16px]"
+            className="mt-3 min-h-[72px] border-2 bg-white text-[14px]"
           />
           <button
             type="button"
@@ -67,7 +67,7 @@ export function ComposeDialog({ onClose }: { onClose: () => void }) {
                 toast.error(es.correo.draftError);
               });
             }}
-            className="mt-3 flex h-12 items-center rounded-[13px] border-2 border-ink/20 bg-sheet px-5 text-[16px] font-semibold text-ink hover:border-ink disabled:opacity-40"
+            className="mt-3 flex h-10 items-center rounded-[11px] border-2 border-ink/20 bg-sheet px-4 text-[14px] font-semibold text-ink hover:border-ink disabled:opacity-40"
           >
             {es.correo.composeAi}
           </button>
@@ -81,7 +81,7 @@ export function ComposeDialog({ onClose }: { onClose: () => void }) {
             value={to}
             onChange={(event) => setTo(event.target.value)}
             placeholder={es.correo.toPlaceholder}
-            className="h-12 border-2 text-[16px]"
+            className="h-10 border-2 text-[14px]"
           />
         </label>
         <label className="block">
@@ -91,7 +91,7 @@ export function ComposeDialog({ onClose }: { onClose: () => void }) {
             maxLength={200}
             value={subject}
             onChange={(event) => setSubject(event.target.value)}
-            className="h-12 border-2 text-[16px]"
+            className="h-10 border-2 text-[14px]"
           />
         </label>
         <label className="block">
@@ -100,21 +100,21 @@ export function ComposeDialog({ onClose }: { onClose: () => void }) {
             name="body"
             required
             maxLength={8000}
-            rows={14}
+            rows={12}
             value={body}
             onChange={(event) => setBody(event.target.value)}
-            className="min-h-[280px] border-2 text-[16px] leading-relaxed"
+            className="min-h-[220px] border-2 text-[14px] leading-relaxed"
           />
         </label>
         <div className="flex flex-wrap gap-3">
-          <Button type="submit" disabled={pending} className="h-12 flex-1 rounded-[13px] text-[17px]">
+          <Button type="submit" disabled={pending} className="h-10 flex-1 rounded-[11px] text-[15px]">
             {es.correo.send}
           </Button>
           <Button
             type="button"
             variant="secondary"
             disabled={pending}
-            className="h-12 rounded-[13px] text-[17px]"
+            className="h-10 rounded-[11px] text-[15px]"
             onClick={() => {
               const form = new FormData();
               form.set("to", to);

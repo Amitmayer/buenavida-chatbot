@@ -53,13 +53,13 @@ export function ResultCard({
         <p className="font-mono text-[14px] font-medium uppercase tracking-[0.18em]">
           {task?.title ? es.resultCard.created : es.resultCard.guardado}
         </p>
-        <p className="mt-1.5 text-[20px] font-semibold leading-snug md:text-[24px]">
+        <p className="mt-1.5 text-[16px] font-semibold leading-snug md:text-[18px]">
           {task?.title ?? name}
         </p>
-        {meta ? <p className="mt-1 font-mono text-[15px] md:text-[17px]">{meta}</p> : null}
+        {meta ? <p className="mt-1 font-mono text-[13px] md:text-[14px]">{meta}</p> : null}
       </div>
       {task?.id ? (
-        <span className="flex h-11 items-center rounded-xl bg-white px-5 text-[16px] font-semibold text-ink md:text-[18px]">
+        <span className="flex h-9 items-center rounded-xl bg-white px-4 text-[14px] font-semibold text-ink">
           {es.resultCard.open}
         </span>
       ) : null}

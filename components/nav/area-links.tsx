@@ -30,11 +30,11 @@ export function AreaLinks({ teams }: { teams: Pick<Team, "id" | "slug" | "name">
               setCurrent(team.slug);
               hide();
             }}
-            className="flex h-[38px] items-center gap-3 rounded-[11px] px-3.5"
+            className="flex h-[34px] items-center gap-2.5 rounded-[10px] px-3"
             style={on ? { background: "rgba(246,243,234,0.14)", boxShadow: `inset 0 0 0 2px ${color}` } : undefined}
           >
             <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: color }} />
-            <span className={`min-w-0 flex-1 truncate text-[16px] text-cream ${on ? "font-semibold" : "font-medium"}`}>
+            <span className={`min-w-0 flex-1 truncate text-[14px] text-cream ${on ? "font-semibold" : "font-medium"}`}>
               {team.name}
             </span>
           </Link>

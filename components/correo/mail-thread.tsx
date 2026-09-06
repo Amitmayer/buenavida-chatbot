@@ -63,7 +63,7 @@ export function MailThread({
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-paper">
-      <div className="flex h-[64px] shrink-0 flex-wrap items-center gap-3 border-b-2 border-ink/15 px-4 md:h-[92px] md:gap-3.5 md:px-9">
+      <div className="flex h-[56px] shrink-0 flex-wrap items-center gap-2.5 border-b-2 border-ink/15 px-4 md:h-[72px] md:gap-3 md:px-7">
         <Link href={listHref} className="text-[13px] font-medium text-ink/60 md:hidden">
           {es.correo.back}
         </Link>
@@ -82,7 +82,7 @@ export function MailThread({
               }
             });
           }}
-          className="h-[42px] rounded-[13px] border-2 border-ink/20 px-5 text-[16px] font-semibold text-ink hover:border-ink hover:bg-white disabled:opacity-40 md:h-[50px] md:text-[20px]"
+          className="h-[36px] rounded-[11px] border-2 border-ink/20 px-4 text-[14px] font-semibold text-ink hover:border-ink hover:bg-white disabled:opacity-40 md:h-[42px] md:text-[15px]"
         >
           {mail.archived ? es.correo.unarchive : es.correo.archive}
         </button>
@@ -100,7 +100,7 @@ export function MailThread({
               } else toast.error(es.tasks.loadError);
             });
           }}
-          className="flex h-[42px] items-center gap-2 rounded-[13px] bg-overdue px-5 text-[16px] font-semibold text-white hover:bg-[#A8501F] md:h-[50px] md:text-[20px]"
+          className="flex h-[36px] items-center gap-1.5 rounded-[11px] bg-overdue px-4 text-[14px] font-semibold text-white hover:bg-[#A8501F] md:h-[42px] md:text-[15px]"
         >
           <span className="text-[20px] leading-none">+</span>
           {es.correo.createTask}
@@ -109,16 +109,16 @@ export function MailThread({
 
       <div className="flex min-h-0 flex-1 flex-col px-4 pt-5 md:px-9">
         <div className="min-h-0 flex-1 overflow-auto rounded-[22px] border-2 border-ink/10 bg-sheet px-5 py-6 md:px-9 md:py-8">
-          <h1 className="max-w-[28ch] text-[26px] font-bold leading-[1.12] tracking-tight text-ink md:text-[40px]">
+          <h1 className="max-w-[28ch] text-[22px] font-bold leading-[1.15] tracking-tight text-ink md:text-[28px]">
             {mail.subject || "—"}
           </h1>
           <div className="mt-5 flex items-center gap-4 border-b-2 border-ink/10 pb-6">
-            <span className="flex h-[54px] w-[54px] shrink-0 items-center justify-center rounded-[15px] bg-sage font-mono text-[19px] font-semibold text-white">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px] bg-sage font-mono text-[15px] font-semibold text-white">
               {initials(who)}
             </span>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-[18px] font-semibold text-ink md:text-[23px]">{who}</p>
-              <p className="mt-1 truncate font-mono text-[14px] text-ink/70 md:text-[18px]">
+              <p className="truncate text-[15px] font-semibold text-ink md:text-[17px]">{who}</p>
+              <p className="mt-0.5 truncate font-mono text-[12px] text-ink/70 md:text-[14px]">
                 {displayAddress(mail.from_address)} → {es.correo.you} · {crDateLabel(crInstantYmd(mail.occurred_at))}{" "}
                 {crTimeLabel(mail.occurred_at)}
               </p>
@@ -136,7 +136,7 @@ export function MailThread({
                     } else toast.error(es.correo.summarizeError);
                   });
                 }}
-                className="hidden h-11 shrink-0 rounded-xl bg-ink px-5 text-[16px] font-semibold text-cream hover:bg-pine sm:flex sm:items-center md:h-11 md:text-[18px]"
+                className="hidden h-9 shrink-0 rounded-xl bg-ink px-4 text-[14px] font-semibold text-cream hover:bg-pine sm:flex sm:items-center"
               >
                 {es.correo.summarize}
               </button>
@@ -148,13 +148,13 @@ export function MailThread({
               <p className="font-mono text-[13px] font-medium tracking-[0.18em] text-gold">
                 {es.correo.summary.toUpperCase()}
               </p>
-              <p className="mt-2.5 text-[16px] leading-relaxed md:text-[22px]">
+              <p className="mt-2 text-[14px] leading-relaxed md:text-[16px]">
                 {summary || es.correo.noSummary}
               </p>
             </div>
           )}
 
-          <div className="mt-6 max-w-[820px] text-[16px] leading-[1.62] text-ink md:text-[23px]">
+          <div className="mt-5 max-w-[820px] text-[14px] leading-[1.6] text-ink md:text-[16px]">
             {html ? (
               <MailHtmlFrame html={html} />
             ) : (
@@ -172,7 +172,7 @@ export function MailThread({
             </div>
             <Link
               href={`/tareas/${mail.task_id}`}
-              className="flex h-[46px] items-center rounded-xl bg-white px-5 text-[17px] font-semibold text-ink"
+              className="flex h-9 items-center rounded-xl bg-white px-4 text-[14px] font-semibold text-ink"
             >
               {es.correo.openTask}
             </Link>
@@ -206,7 +206,7 @@ export function MailThread({
               value={body}
               onChange={(event) => setBody(event.target.value)}
               placeholder={draft ? es.correo.composeBody : es.correo.replyTo.replace("{name}", who)}
-              className="h-[56px] min-w-0 flex-1 resize-none rounded-2xl border-2 border-ink/15 bg-white px-5 py-4 text-[16px] outline-none placeholder:text-ink/55 focus:border-ink md:h-[66px] md:text-[22px]"
+              className="h-[48px] min-w-0 flex-1 resize-none rounded-xl border-2 border-ink/15 bg-white px-4 py-3 text-[14px] outline-none placeholder:text-ink/55 focus:border-ink md:h-[52px] md:text-[15px]"
             />
             {draft ? null : (
               <button
@@ -221,7 +221,7 @@ export function MailThread({
                     } else toast.error(es.correo.draftError);
                   });
                 }}
-                className="hidden h-[56px] shrink-0 rounded-2xl border-2 border-ink/20 px-6 text-[16px] font-semibold text-ink hover:border-ink hover:bg-white md:flex md:h-[66px] md:items-center md:text-[20px]"
+                className="hidden h-[48px] shrink-0 rounded-xl border-2 border-ink/20 px-4 text-[14px] font-semibold text-ink hover:border-ink hover:bg-white md:flex md:h-[52px] md:items-center md:text-[15px]"
               >
                 {es.correo.replyAi}
               </button>
@@ -229,7 +229,7 @@ export function MailThread({
             <button
               type="submit"
               disabled={pending || !body.trim()}
-              className="flex h-[56px] shrink-0 items-center rounded-2xl bg-ink px-7 text-[18px] font-semibold text-cream hover:bg-pine disabled:opacity-40 md:h-[66px] md:text-[22px]"
+              className="flex h-[48px] shrink-0 items-center rounded-xl bg-ink px-5 text-[15px] font-semibold text-cream hover:bg-pine disabled:opacity-40 md:h-[52px] md:text-[16px]"
             >
               {es.correo.send}
             </button>

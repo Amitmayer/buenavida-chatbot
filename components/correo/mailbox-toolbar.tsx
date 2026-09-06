@@ -31,7 +31,7 @@ export function MailSearch({
           name="q"
           defaultValue={query}
           placeholder={es.correo.search}
-          className="h-[50px] w-full rounded-[13px] border-2 border-ink/15 bg-white pl-11 pr-4 text-[16px] outline-none placeholder:text-ink/55 focus:border-ink md:h-[54px] md:text-[20px]"
+          className="h-[42px] w-full rounded-[11px] border-2 border-ink/15 bg-white pl-10 pr-3 text-[14px] outline-none placeholder:text-ink/55 focus:border-ink md:h-[44px] md:text-[15px]"
         />
       </form>
       <button
@@ -45,7 +45,7 @@ export function MailSearch({
             else toast.error(es.correo.syncError);
           });
         }}
-        className="flex h-[50px] w-[50px] shrink-0 items-center justify-center rounded-[13px] border-2 border-ink/15 bg-white text-ink hover:border-ink hover:bg-ink hover:text-cream disabled:opacity-40 md:h-[54px] md:w-[54px]"
+        className="flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-[11px] border-2 border-ink/15 bg-white text-ink hover:border-ink hover:bg-ink hover:text-cream disabled:opacity-40 md:h-[44px] md:w-[44px]"
       >
         <RefreshCw className={`h-4 w-4 ${pending ? "animate-spin" : ""}`} strokeWidth={1.75} />
       </button>

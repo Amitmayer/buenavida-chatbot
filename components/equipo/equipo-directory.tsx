@@ -40,7 +40,7 @@ export function EquipoDirectory({
           <button
             type="button"
             onClick={() => setFilterOpen((open) => !open)}
-            className="flex h-[50px] items-center rounded-[13px] border-2 border-ink/20 bg-sheet px-5 text-[17px] font-semibold text-ink hover:border-ink hover:bg-white md:text-[19px]"
+            className="flex h-[42px] items-center rounded-[11px] border-2 border-ink/20 bg-sheet px-4 text-[14px] font-semibold text-ink hover:border-ink hover:bg-white md:text-[15px]"
           >
             {es.team.filterArea}
           </button>
@@ -82,7 +82,7 @@ export function EquipoDirectory({
         <button
           type="button"
           onClick={() => setInviteOpen(true)}
-          className="flex h-[50px] items-center gap-2 rounded-[13px] bg-overdue px-[22px] text-[18px] font-semibold text-white md:text-[20px]"
+          className="flex h-[42px] items-center gap-1.5 rounded-[11px] bg-overdue px-4 text-[15px] font-semibold text-white md:text-[16px]"
         >
           <span className="text-[22px] leading-none">+</span>
           {es.team.invite}
@@ -142,15 +142,15 @@ function PersonCard({
         <span
           className={
             guest
-              ? "flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-[14px] bg-overdue font-mono text-[18px] font-semibold text-cream"
-              : "flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-[14px] bg-ink font-mono text-[18px] font-semibold text-cream"
+              ? "flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px] bg-overdue font-mono text-[15px] font-semibold text-cream"
+              : "flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px] bg-ink font-mono text-[15px] font-semibold text-cream"
           }
         >
           {initials(person.full_name)}
         </span>
         <div className="min-w-0 flex-1">
           <div className="flex min-w-0 items-center gap-2.5">
-            <h2 className="truncate text-[20px] font-bold text-ink md:text-[23px]">{person.full_name}</h2>
+            <h2 className="truncate text-[17px] font-bold text-ink md:text-[18px]">{person.full_name}</h2>
             {tag ? (
               <span
                 className={
@@ -163,7 +163,7 @@ function PersonCard({
               </span>
             ) : null}
           </div>
-          <p className="mt-1 truncate text-[16px] text-ink/70 md:text-[18px]">
+          <p className="mt-1 truncate text-[14px] text-ink/70 md:text-[15px]">
             {guest ? es.team.guestNote : (person.title ?? es.roles[person.role])}
           </p>
         </div>
@@ -175,7 +175,7 @@ function PersonCard({
             return (
               <span
                 key={team.id}
-                className="rounded-[13px] px-3 py-1 text-[14px] font-medium text-ink md:text-[16px]"
+                className="rounded-[11px] px-2.5 py-0.5 text-[13px] font-medium text-ink md:text-[14px]"
                 style={{ background: `${color}33`, boxShadow: `inset 0 0 0 1.5px ${color}` }}
               >
                 {team.name}
@@ -190,10 +190,10 @@ function PersonCard({
       </div>
       <details className="mt-[18px] border-t-2 border-ink/10 pt-3.5">
         <summary className="flex cursor-pointer list-none items-center gap-2.5">
-          <span className="flex h-10 items-center rounded-[11px] bg-ink px-[18px] text-[17px] font-semibold text-cream">
+          <span className="flex h-9 items-center rounded-[10px] bg-ink px-3.5 text-[14px] font-semibold text-cream">
             {es.team.manage}
           </span>
-          <span className="font-mono text-[15px] text-ink/65 md:text-[17px]">
+          <span className="font-mono text-[13px] text-ink/65 md:text-[14px]">
             {personMeta(person, theirs.length, teams.length)}
           </span>
         </summary>

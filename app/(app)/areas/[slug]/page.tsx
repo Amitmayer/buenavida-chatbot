@@ -43,9 +43,9 @@ export default async function AreaPage({
       chat={
         thread ? (
           <>
-            <div className="hidden border-b-2 border-ink/12 px-6 py-6 md:block">
-              <p className="text-[22px] font-bold text-ink md:text-[26px]">{es.areas.chatTitle}</p>
-              <p className="mt-1 text-[16px] text-ink/70 md:text-[18px]">
+            <div className="hidden border-b-2 border-ink/12 px-5 py-4 md:block">
+              <p className="text-[18px] font-bold text-ink md:text-[20px]">{es.areas.chatTitle}</p>
+              <p className="mt-1 text-[13px] text-ink/70 md:text-[14px]">
                 {es.areas.chatHint.replace("{name}", team.name)}
               </p>
             </div>

@@ -18,7 +18,7 @@ export function MailDisconnect() {
           else toast.error(es.correo.disconnectError);
         });
       }}
-      className="mt-3.5 flex h-[42px] w-full items-center justify-center rounded-[11px] border-[1.5px] border-cream/35 text-[16px] font-medium text-cream/90 hover:border-overdue hover:bg-overdue/25 hover:text-white disabled:opacity-40"
+      className="mt-3 flex h-9 w-full items-center justify-center rounded-[10px] border-[1.5px] border-cream/35 text-[14px] font-medium text-cream/90 hover:border-overdue hover:bg-overdue/25 hover:text-white disabled:opacity-40"
     >
       {es.correo.disconnect}
     </button>

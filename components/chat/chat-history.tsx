@@ -34,7 +34,7 @@ export function ChatHistoryButton() {
       <button
         type="button"
         onClick={() => void toggle()}
-        className="flex h-[42px] items-center rounded-[13px] border-2 border-ink/20 bg-sheet px-4 text-[15px] font-semibold text-ink hover:border-ink hover:bg-white md:h-[50px] md:px-5 md:text-[19px]"
+        className="flex h-[36px] items-center rounded-[11px] border-2 border-ink/20 bg-sheet px-3.5 text-[13px] font-semibold text-ink hover:border-ink hover:bg-white md:h-[42px] md:px-4 md:text-[15px]"
       >
         {es.chat.history}
       </button>

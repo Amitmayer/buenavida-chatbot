@@ -68,10 +68,10 @@ export function MailWorkspace({
 
   return (
     <div className="flex min-h-0 flex-1 overflow-hidden bg-paper">
-      <aside className="hidden w-[300px] shrink-0 flex-col bg-forest text-cream md:flex">
-        <div className="flex items-center gap-2 px-5 pt-[26px]">
-          <SidebarToggle className="h-10 w-10 text-cream hover:bg-cream/10 hover:text-cream" />
-          <h1 className="text-[26px] font-semibold tracking-[0.01em]">{es.correo.title}</h1>
+      <aside className="hidden w-[264px] shrink-0 flex-col bg-forest text-cream md:flex">
+        <div className="flex items-center gap-1.5 px-4 pt-5">
+          <SidebarToggle className="h-9 w-9 text-cream hover:bg-cream/10 hover:text-cream" />
+          <h1 className="text-[22px] font-semibold tracking-[0.01em]">{es.correo.title}</h1>
         </div>
         <div className="min-h-0 flex-1 overflow-auto pt-[34px]">
           {connect ? null : (
@@ -90,11 +90,11 @@ export function MailWorkspace({
           <div className="px-4 pb-6">
             <div className="rounded-[14px] bg-cream/[0.08] p-4">
               <div className="flex items-center gap-3">
-                <span className="flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-[12px] bg-gold font-mono text-[17px] font-semibold text-pine">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-gold font-mono text-[14px] font-semibold text-pine">
                   {initials(name)}
                 </span>
                 <div className="min-w-0">
-                  <p className="truncate text-[18px] font-medium text-cream">{name}</p>
+                  <p className="truncate text-[15px] font-medium text-cream">{name}</p>
                   <p className="truncate font-mono text-[13px] text-cream/65">{address}</p>
                 </div>
               </div>
@@ -105,14 +105,14 @@ export function MailWorkspace({
       </aside>
 
       <section
-        className={`min-w-0 border-r-2 border-ink/15 bg-wash ${selected || connect ? "hidden md:flex md:w-[380px] md:shrink-0 md:flex-col xl:w-[520px]" : "flex flex-1 flex-col"}`}
+        className={`min-w-0 border-r-2 border-ink/15 bg-wash ${selected || connect ? "hidden md:flex md:w-[340px] md:shrink-0 md:flex-col xl:w-[440px]" : "flex flex-1 flex-col"}`}
       >
-        <div className="flex flex-col gap-3.5 px-5 pb-4 pt-6 md:px-[26px]">
+        <div className="flex flex-col gap-3 px-4 pb-3 pt-5 md:px-5">
           <div className="flex items-center justify-between md:hidden">
             <h1 className="text-[22px] font-semibold text-ink">{es.correo.title}</h1>
           </div>
           {connect ? null : (
-            <ComposeButton className="flex h-[50px] w-full items-center justify-center rounded-[13px] bg-ink text-[18px] font-semibold text-cream hover:bg-pine md:h-[58px] md:text-[21px]" />
+            <ComposeButton className="flex h-[44px] w-full items-center justify-center rounded-[11px] bg-ink text-[16px] font-semibold text-cream hover:bg-pine md:h-[48px] md:text-[17px]" />
           )}
           {connect ? null : <MailSearch folder={folder} filter={filter} query={query} />}
           <div className="flex gap-1 overflow-auto md:hidden">
@@ -136,7 +136,7 @@ export function MailWorkspace({
                   key={item.id}
                   href={correoHref({ folder, filter: item.id, query })}
                   className={cn(
-                    "flex h-[38px] items-center rounded-full px-5 text-[15px] md:h-[42px] md:text-[17px]",
+                    "flex h-[34px] items-center rounded-full px-4 text-[13px] md:h-[36px] md:text-[14px]",
                     filter === item.id
                       ? "bg-ink font-semibold text-cream"
                       : "border-2 border-ink/20 font-medium text-ink hover:border-ink",
@@ -174,7 +174,7 @@ export function MailWorkspace({
           )}
         </MailListScroll>
         {connect || folder === "sent" ? null : (
-          <p className="border-t-2 border-ink/10 px-[26px] py-5 font-mono text-[14px] font-medium text-ink/70 md:text-[16px]">
+          <p className="border-t-2 border-ink/10 px-5 py-3.5 font-mono text-[12px] font-medium text-ink/70 md:text-[13px]">
             {es.correo.countLine.replace("{n}", String(rows.length)).replace("{u}", String(counts.unread))}
           </p>
         )}

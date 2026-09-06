@@ -35,7 +35,7 @@ export function NavLinks({
                   else hide();
                 }}
                 className={cn(
-                  "flex h-11 items-center gap-3.5 rounded-[12px] px-3.5",
+                  "flex h-10 items-center gap-3 rounded-[10px] px-3",
                   on ? "bg-cream text-pine" : "text-cream/90 hover:bg-cream/[0.09]",
                 )}
               >
@@ -46,7 +46,7 @@ export function NavLinks({
                     on ? "border-pine" : "border-cream/60",
                   )}
                 />
-                <span className={cn("flex-1 text-[16px] md:text-[18px]", on ? "font-semibold" : "font-normal")}>
+                <span className={cn("flex-1 text-[14px] md:text-[15px]", on ? "font-semibold" : "font-normal")}>
                   {item.label}
                 </span>
                 {badge > 0 ? (

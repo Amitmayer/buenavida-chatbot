@@ -23,7 +23,7 @@ const ITEMS = [
   { href: "/archivos", label: es.nav.archivos },
 ] as const;
 
-const SIDE = 300;
+const SIDE = 264;
 
 export function AppShell({
   children,
@@ -94,21 +94,21 @@ export function AppShell({
           className={cn(
             "hidden h-full min-w-0 shrink-0 overflow-hidden bg-pine text-cream md:flex",
             animate ? "transition-[width] duration-300 ease-in-out" : "",
-            home || open ? "w-[300px]" : "w-0",
+            home || open ? "w-[264px]" : "w-0",
           )}
         >
           <div
-            className="flex h-full min-w-[300px] flex-col overflow-y-auto pb-[22px] pt-[26px]"
+            className="flex h-full min-w-[264px] flex-col overflow-y-auto pb-5 pt-5"
             style={{ width: SIDE }}
           >
             <div className="flex items-start justify-between px-6">
               <Link href="/hoy" onClick={() => persist(true)} className="flex items-start gap-2 text-cream">
                 <span>
-                  <span className="block text-[28px] font-light leading-[0.94] tracking-[0.02em]">
+                  <span className="block text-[22px] font-light leading-[0.94] tracking-[0.02em]">
                     {es.auth.buena.toUpperCase()}
                   </span>
                   <span className="flex items-end gap-1.5">
-                    <span className="text-[28px] font-light leading-[0.94] tracking-[0.02em]">
+                    <span className="text-[22px] font-light leading-[0.94] tracking-[0.02em]">
                       {es.auth.vida.toUpperCase()}
                     </span>
                     <span className="pb-[3px] text-[9px] font-normal leading-[1.15] tracking-[0.04em]">
@@ -125,7 +125,7 @@ export function AppShell({
               <SidebarToggle edge className="mt-1" />
             </div>
 
-            <p className="mt-10 px-6 font-mono text-[13px] font-medium tracking-[0.18em] text-[#E5B978]">
+            <p className="mt-8 px-5 font-mono text-[11px] font-medium tracking-[0.18em] text-[#E5B978]">
               {es.nav.work.toUpperCase()}
             </p>
             <div className="mt-3 px-4">
@@ -137,7 +137,7 @@ export function AppShell({
             </div>
             {teams.length > 0 ? (
               <>
-                <p className="mt-[34px] px-6 font-mono text-[13px] font-medium tracking-[0.18em] text-[#E5B978]">
+                <p className="mt-7 px-5 font-mono text-[11px] font-medium tracking-[0.18em] text-[#E5B978]">
                   {es.nav.areas.toUpperCase()}
                 </p>
                 <div className="mt-2.5 min-h-0 flex-1 overflow-auto px-4">

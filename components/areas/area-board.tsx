@@ -53,7 +53,7 @@ export function AreaBoard({
               type="button"
               onClick={() => toggle(chip.id)}
               className={cn(
-                "flex h-11 items-center gap-2 rounded-full px-5 text-[17px] md:text-[19px]",
+                "flex h-9 items-center gap-1.5 rounded-full px-4 text-[14px] md:text-[15px]",
                 active
                   ? "bg-ink font-semibold text-cream"
                   : "border-2 border-ink/20 font-medium text-ink hover:border-ink hover:bg-white",
@@ -74,22 +74,22 @@ export function AreaBoard({
               <span className="h-[30px] w-[30px] rounded-[8px] border-[3px] border-ink" />
             </span>
             <div className="min-w-0">
-              <p className="text-[24px] font-bold text-ink md:text-[32px]">{es.areas.emptyFilters}</p>
-              <p className="mt-2 text-[16px] leading-relaxed text-ink/75 md:text-[22px]">
+              <p className="text-[20px] font-bold text-ink md:text-[24px]">{es.areas.emptyFilters}</p>
+              <p className="mt-2 text-[14px] leading-relaxed text-ink/75 md:text-[16px]">
                 {es.areas.emptyFiltersHint}
               </p>
               <div className="mt-5 flex flex-wrap gap-3">
                 <button
                   type="button"
                   onClick={() => setOn([])}
-                  className="flex h-12 items-center rounded-[13px] bg-ink px-[22px] text-[17px] font-semibold text-cream md:text-[19px]"
+                  className="flex h-10 items-center rounded-[11px] bg-ink px-4 text-[14px] font-semibold text-cream md:text-[15px]"
                 >
                   {es.areas.clearFilters}
                 </button>
                 <button
                   type="button"
                   onClick={() => setOn([])}
-                  className="flex h-12 items-center rounded-[13px] border-2 border-ink/22 px-[22px] text-[17px] font-semibold text-ink hover:border-ink hover:bg-wash md:text-[19px]"
+                  className="flex h-10 items-center rounded-[11px] border-2 border-ink/22 px-4 text-[14px] font-semibold text-ink hover:border-ink hover:bg-wash md:text-[15px]"
                 >
                   {es.areas.seeAll}
                 </button>
@@ -134,10 +134,10 @@ function Stat({
       <p className="font-mono text-[12px] font-medium uppercase tracking-[0.18em] text-ink/70 md:text-[14px]">
         {label}
       </p>
-      <p className={cn("mt-2 font-mono text-[32px] font-bold md:text-[38px]", alert ? "text-[#A8501F]" : "text-ink")}>
+      <p className={cn("mt-1.5 font-mono text-[26px] font-bold md:text-[30px]", alert ? "text-[#A8501F]" : "text-ink")}>
         {value}
       </p>
-      <p className="mt-1 text-[16px] text-ink/75 md:text-[19px]">{hint}</p>
+      <p className="mt-1 text-[14px] text-ink/75 md:text-[15px]">{hint}</p>
     </div>
   );
 }

@@ -23,15 +23,15 @@ export function ProfileMenu({ name, roleLabel }: { name: string; roleLabel: stri
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}
-        className="flex w-full items-center gap-3 rounded-[14px] bg-cream/[0.08] px-3.5 py-3.5 text-left hover:bg-cream/[0.12]"
+        className="flex w-full items-center gap-2.5 rounded-[12px] bg-cream/[0.08] px-3 py-2.5 text-left hover:bg-cream/[0.12]"
         aria-expanded={open}
         aria-haspopup="menu"
       >
-        <span className="flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-[12px] bg-gold font-mono text-[17px] font-semibold text-pine">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-gold font-mono text-[14px] font-semibold text-pine">
           {initials(name)}
         </span>
         <div className="min-w-0 leading-tight">
-          <div className="truncate text-[16px] font-medium text-cream">{shortFirst(name)}</div>
+          <div className="truncate text-[14px] font-medium text-cream">{shortFirst(name)}</div>
           <div className="truncate font-mono text-[13px] text-cream/70">{roleLabel}</div>
         </div>
       </button>

@@ -31,7 +31,7 @@ export function MailList({
 }) {
   const today = todayYmd();
   return (
-    <ul className="flex flex-col gap-2.5 px-[18px] py-1">
+    <ul className="flex flex-col gap-2 px-4 py-1">
       {rows.map((row) => {
         const href = correoHref({ id: row.id, folder, filter, query });
         const on = selectedId === row.id;
@@ -48,7 +48,7 @@ export function MailList({
               scroll={false}
               prefetch={false}
               className={cn(
-                "flex gap-3.5 rounded-2xl px-5 py-[18px]",
+                "flex gap-3 rounded-xl px-4 py-3.5",
                 on
                   ? "bg-ink text-cream"
                   : unread
@@ -61,7 +61,7 @@ export function MailList({
                 <div className="flex items-baseline justify-between gap-3">
                   <p
                     className={cn(
-                      "min-w-0 truncate text-[16px] md:text-[18px]",
+                      "min-w-0 truncate text-[14px] md:text-[15px]",
                       on || unread ? "font-semibold" : "font-medium",
                     )}
                   >
@@ -80,7 +80,7 @@ export function MailList({
                 </div>
                 <p
                   className={cn(
-                    "mt-1.5 truncate text-[15px] md:text-[17px]",
+                    "mt-1 truncate text-[13px] md:text-[14px]",
                     on ? "font-medium text-cream" : unread ? "font-medium text-ink" : "font-normal text-ink",
                   )}
                 >
@@ -88,7 +88,7 @@ export function MailList({
                 </p>
                 <p
                   className={cn(
-                    "mt-1.5 truncate text-[14px] md:text-[16px]",
+                    "mt-1 truncate text-[12px] md:text-[13px]",
                     on ? "text-cream/75" : "text-ink/70",
                   )}
                 >

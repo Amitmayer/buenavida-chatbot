@@ -71,7 +71,7 @@ export function Modal({
         className={cn(
           "relative w-full overflow-auto rounded-lg border border-line bg-sheet shadow-lg",
           size === "xl"
-            ? "max-h-[92dvh] max-w-[920px] p-7 md:p-8"
+            ? "max-h-[92dvh] max-w-[800px] p-6 md:p-7"
             : "max-h-[90dvh] max-w-md p-5",
         )}
       >
@@ -79,7 +79,7 @@ export function Modal({
           <h2
             className={cn(
               "min-w-0 font-semibold text-ink",
-              size === "xl" ? "text-[22px] md:text-[26px]" : "text-[15px]",
+              size === "xl" ? "text-[18px] md:text-[22px]" : "text-[15px]",
             )}
           >
             {title}

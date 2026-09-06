@@ -36,13 +36,13 @@ export function PageHeader({
   const subtitle = area ? "" : fallbackSub;
 
   return (
-    <header className="flex h-[64px] shrink-0 items-center gap-3 border-b-2 border-ink/15 bg-wash px-4 md:h-[92px] md:gap-4 md:px-9">
+    <header className="flex h-[56px] shrink-0 items-center gap-2.5 border-b-2 border-ink/15 bg-wash px-4 md:h-[72px] md:gap-3 md:px-7">
       <SidebarToggle className="-ml-1" />
       <div className="min-w-0 flex-1">
-        <div className="flex min-w-0 items-baseline gap-3">
-          <div className="truncate text-[22px] font-bold tracking-tight text-ink md:text-[34px]">{title}</div>
+        <div className="flex min-w-0 items-baseline gap-2.5">
+          <div className="truncate text-[20px] font-bold tracking-tight text-ink md:text-[26px]">{title}</div>
           {blurb ? (
-            <p className="hidden min-w-0 truncate text-[16px] font-normal text-ink/70 md:block">{blurb}</p>
+            <p className="hidden min-w-0 truncate text-[14px] font-normal text-ink/70 md:block">{blurb}</p>
           ) : null}
         </div>
       </div>
