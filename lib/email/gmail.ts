@@ -1,4 +1,5 @@
 import { captureError } from "@/lib/sentry";
+import { sanitizeEmailHtml, stripHtml } from "@/lib/email/html";
 
 const AUTH = "https://accounts.google.com/o/oauth2/v2/auth";
 const TOKEN = "https://oauth2.googleapis.com/token";
@@ -27,6 +28,8 @@ export type ParsedMessage = {
   subject: string;
   snippet: string;
   body: string;
+  html: string;
+  inlineImages: InlineImage[];
   occurredAt: string;
   unread: boolean;
   inbound: boolean;
@@ -119,9 +122,17 @@ export async function gmailUserEmail(accessToken: string): Promise<string> {
 type GmailHeader = { name: string; value: string };
 type GmailPart = {
   mimeType?: string;
-  body?: { data?: string };
+  filename?: string;
+  body?: { data?: string; attachmentId?: string; size?: number };
   parts?: GmailPart[];
   headers?: GmailHeader[];
+};
+
+export type InlineImage = {
+  cid: string;
+  mime: string;
+  data?: string;
+  attachmentId?: string;
 };
 
 function header(headers: GmailHeader[] | undefined, name: string) {
@@ -132,37 +143,86 @@ function decodeB64Url(data: string) {
   return Buffer.from(data.replace(/-/g, "+").replace(/_/g, "/"), "base64").toString("utf8");
 }
 
-function stripHtml(html: string) {
-  return html
-    .replace(/<style[\s\S]*?<\/style>/gi, " ")
-    .replace(/<script[\s\S]*?<\/script>/gi, " ")
-    .replace(/<[^>]+>/g, " ")
-    .replace(/&nbsp;/g, " ")
-    .replace(/&amp;/g, "&")
-    .replace(/\s+/g, " ")
-    .trim();
+const IMAGE_MIME = /^(image\/jpeg|image\/jpg|image\/png|image\/gif|image\/webp)$/i;
+
+function contentId(headers: GmailHeader[] | undefined) {
+  const raw = header(headers, "Content-ID") || header(headers, "X-Attachment-Id");
+  return raw.replace(/^<|>$/g, "").trim().toLowerCase();
 }
 
-function extractText(part: GmailPart | undefined): string {
-  if (!part) return "";
-  if (part.mimeType === "text/plain" && part.body?.data) {
-    return decodeB64Url(part.body.data);
+function walkParts(
+  part: GmailPart | undefined,
+  acc: { text: string; html: string; htmlAttachmentId?: string; images: InlineImage[] },
+) {
+  if (!part) return;
+  const mime = (part.mimeType ?? "").toLowerCase();
+  const cid = contentId(part.headers);
+  const isBodyPart = !part.filename;
+
+  if (IMAGE_MIME.test(mime) && cid) {
+    acc.images.push({
+      cid,
+      mime,
+      data: part.body?.data,
+      attachmentId: part.body?.attachmentId,
+    });
   }
-  if (part.parts) {
-    for (const child of part.parts) {
-      if (child.mimeType === "text/plain" && child.body?.data) {
-        return decodeB64Url(child.body.data);
-      }
+
+  if (mime === "text/plain" && part.body?.data && isBodyPart && !acc.text) {
+    acc.text = decodeB64Url(part.body.data);
+  }
+  if (mime === "text/html" && isBodyPart) {
+    if (part.body?.data) {
+      const html = decodeB64Url(part.body.data);
+      if (html.length > acc.html.length) acc.html = html;
+    } else if (part.body?.attachmentId && !acc.htmlAttachmentId) {
+      acc.htmlAttachmentId = part.body.attachmentId;
     }
-    for (const child of part.parts) {
-      const nested = extractText(child);
-      if (nested) return nested;
-    }
   }
-  if (part.mimeType === "text/html" && part.body?.data) {
-    return stripHtml(decodeB64Url(part.body.data));
+
+  for (const child of part.parts ?? []) walkParts(child, acc);
+}
+
+export async function getAttachment(
+  accessToken: string,
+  messageId: string,
+  attachmentId: string,
+): Promise<string | null> {
+  const res = await fetch(`${GMAIL}/messages/${messageId}/attachments/${encodeURIComponent(attachmentId)}`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok) {
+    captureError(new Error(`gmail attachment ${res.status}`), { where: "gmail.attachment" });
+    return null;
   }
-  return "";
+  const data = (await res.json()) as { data?: string };
+  return data.data ?? null;
+}
+
+function toDataUrl(mime: string, base64url: string) {
+  const bytes = Buffer.from(base64url.replace(/-/g, "+").replace(/_/g, "/"), "base64");
+  return `data:${mime};base64,${bytes.toString("base64")}`;
+}
+
+export async function resolveInlineImages(
+  accessToken: string,
+  messageId: string,
+  images: InlineImage[],
+): Promise<Map<string, string>> {
+  const resolved = new Map<string, string>();
+  let total = 0;
+  for (const image of images.slice(0, 12)) {
+    const raw = image.data ?? (image.attachmentId ? await getAttachment(accessToken, messageId, image.attachmentId) : null);
+    if (!raw) continue;
+    const url = toDataUrl(image.mime, raw);
+    if (url.length > 1_800_000) continue;
+    total += url.length;
+    if (total > 5_000_000) break;
+    resolved.set(image.cid, url);
+    const short = image.cid.split("@")[0];
+    if (short && short !== image.cid) resolved.set(short, url);
+  }
+  return resolved;
 }
 
 function parseAddresses(raw: string) {
@@ -217,7 +277,24 @@ export async function getMessage(accessToken: string, id: string): Promise<Parse
     : dateHeader
       ? new Date(dateHeader).toISOString()
       : new Date().toISOString();
-  const body = extractText(data.payload).slice(0, 20000);
+  const extracted: {
+    text: string;
+    html: string;
+    htmlAttachmentId?: string;
+    images: InlineImage[];
+  } = { text: "", html: "", images: [] };
+  walkParts(data.payload, extracted);
+  if (extracted.htmlAttachmentId) {
+    const raw = await getAttachment(accessToken, data.id, extracted.htmlAttachmentId);
+    if (raw) extracted.html = decodeB64Url(raw);
+  }
+  const html = extracted.html ? sanitizeEmailHtml(extracted.html).slice(0, 400_000) : "";
+  const text =
+    extracted.text.trim().length >= 80
+      ? extracted.text
+      : html
+        ? stripHtml(html)
+        : extracted.text;
   const labels = data.labelIds ?? [];
   return {
     gmailId: data.id,
@@ -227,7 +304,9 @@ export async function getMessage(accessToken: string, id: string): Promise<Parse
     to,
     subject,
     snippet: (data.snippet ?? "").slice(0, 400),
-    body,
+    body: text.slice(0, 20000),
+    html,
+    inlineImages: extracted.images,
     occurredAt: occurred,
     unread: labels.includes("UNREAD"),
     inbound: !labels.includes("SENT") && !labels.includes("DRAFT"),
