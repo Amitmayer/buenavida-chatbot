@@ -11,6 +11,7 @@ const config: Config = {
       colors: {
         ink: "var(--ink)",
         pine: "var(--pine)",
+        forest: "var(--forest)",
         gold: "var(--gold)",
         sage: "var(--sage)",
         overdue: "var(--overdue)",

@@ -67,7 +67,7 @@ export function MailWorkspace({
 
   return (
     <div className="flex min-h-0 flex-1 overflow-hidden bg-paper">
-      <aside className="hidden w-[300px] shrink-0 flex-col bg-[#245C45] text-cream md:flex">
+      <aside className="hidden w-[300px] shrink-0 flex-col bg-forest text-cream md:flex">
         <div className="flex items-center justify-between px-6 pt-[26px]">
           <h1 className="text-[26px] font-semibold tracking-[0.01em]">{es.correo.title}</h1>
           <SidebarToggle className="h-10 w-10" />
