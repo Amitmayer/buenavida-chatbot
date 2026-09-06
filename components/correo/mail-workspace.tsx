@@ -33,6 +33,7 @@ export function MailWorkspace({
   filter,
   query,
   connect,
+  html,
 }: {
   address: string;
   rows: Email[];
@@ -42,6 +43,7 @@ export function MailWorkspace({
   filter: MailFilter;
   query: string;
   connect?: ReactNode;
+  html?: string;
 }) {
   return (
     <div className="flex min-h-0 flex-1 overflow-hidden">
@@ -119,7 +121,7 @@ export function MailWorkspace({
       </section>
 
       {selected ? (
-        <MailThread mail={selected} folder={folder} filter={filter} query={query} />
+        <MailThread mail={selected} html={html ?? ""} folder={folder} filter={filter} query={query} />
       ) : connect ? (
         <div className="min-w-0 flex-1 overflow-auto bg-sheet">{connect}</div>
       ) : (

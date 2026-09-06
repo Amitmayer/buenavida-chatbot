@@ -171,7 +171,7 @@ function walkParts(
   if (mime === "text/plain" && part.body?.data && isBodyPart && !acc.text) {
     acc.text = decodeB64Url(part.body.data);
   }
-  if (mime === "text/html" && isBodyPart) {
+  if (mime === "text/html" && (isBodyPart || !acc.html)) {
     if (part.body?.data) {
       const html = decodeB64Url(part.body.data);
       if (html.length > acc.html.length) acc.html = html;

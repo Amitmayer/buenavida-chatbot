@@ -1,7 +1,9 @@
 import { notFound, redirect } from "next/navigation";
 import { getSessionProfile } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
-import { publicAccount } from "@/lib/email/accounts";
+import { accessTokenFor, publicAccount } from "@/lib/email/accounts";
+import { hydrateMailHtml } from "@/lib/email/hydrate";
+import { wrapMailDocument } from "@/lib/email/html";
 import { MailWorkspace } from "@/components/correo/mail-workspace";
 import { countFolders, filterMails, parseFilter, parseFolder } from "@/lib/email/mailbox";
 import type { Email } from "@/lib/db/types";
@@ -41,6 +43,12 @@ export default async function CorreoThreadPage({
 
   const all = (emails ?? []) as Email[];
   const selectedMail = selected as Email;
+  const ready = await accessTokenFor(supabase, profile.id);
+  const html = ready
+    ? await hydrateMailHtml(supabase, { accessToken: ready.accessToken, mail: selectedMail })
+    : selectedMail.body_html
+      ? wrapMailDocument(selectedMail.body_html)
+      : "";
 
   return (
     <MailWorkspace
@@ -51,6 +59,7 @@ export default async function CorreoThreadPage({
       folder={folder}
       filter={filter}
       query={query}
+      html={html}
     />
   );
 }

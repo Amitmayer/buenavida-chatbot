@@ -15,6 +15,7 @@ function mail(patch: Partial<Email>): Email {
     subject: "Orden",
     snippet: "60 kg",
     body_text: "Confirmar tueste",
+    body_html: null,
     occurred_at: "2026-09-04T14:04:00.000Z",
     unread: true,
     inbound: true,

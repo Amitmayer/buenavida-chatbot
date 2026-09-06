@@ -53,7 +53,8 @@ function safeStyle(value: string) {
 }
 
 function safeUrl(name: string, value: string) {
-  const trimmed = value.trim();
+  let trimmed = value.trim();
+  if (trimmed.startsWith("//")) trimmed = `https:${trimmed}`;
   if (name === "href") return SAFE_HREF.test(trimmed) ? trimmed : "";
   if (name === "src" || name === "background") return SAFE_IMAGE.test(trimmed) ? trimmed : "";
   if (name === "srcset") {

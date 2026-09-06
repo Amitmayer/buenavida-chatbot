@@ -348,6 +348,7 @@ export const es = {
     replyPlaceholder: "Responder…",
     replyTo: "Responder a {name}…",
     noSummary: "Todavía no hay resumen.",
+    body: "Cuerpo del correo",
     send: "Enviar",
     sentOk: "Enviado",
     sendError: "No se pudo enviar.",

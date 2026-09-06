@@ -15,10 +15,23 @@ export async function syncInbox(
   if (ids.length === 0) return { inserted: 0 };
   const { data: existing } = await supabase
     .from("emails")
-    .select("gmail_id")
+    .select("gmail_id, body_html")
     .eq("account_id", args.accountId)
     .in("gmail_id", ids);
   const have = new Set((existing ?? []).map((row) => row.gmail_id));
+  const stale = (existing ?? []).filter((row) => !row.body_html).slice(0, 10);
+  for (const row of stale) {
+    try {
+      const parsed = await getMessage(args.accessToken, row.gmail_id);
+      await supabase
+        .from("emails")
+        .update({ body_html: parsed.html || null, body_text: parsed.body })
+        .eq("account_id", args.accountId)
+        .eq("gmail_id", row.gmail_id);
+    } catch (error) {
+      captureError(error, { where: "email.sync.backfill" });
+    }
+  }
   const missing = listed.filter((row) => !have.has(row.id)).slice(0, 15);
   let inserted = 0;
   for (const item of missing) {
@@ -34,6 +47,7 @@ export async function syncInbox(
       subject: parsed.subject,
       snippet: parsed.snippet,
       body_text: parsed.body,
+      body_html: parsed.html || null,
       occurred_at: parsed.occurredAt,
       unread: parsed.unread,
       inbound: parsed.inbound,

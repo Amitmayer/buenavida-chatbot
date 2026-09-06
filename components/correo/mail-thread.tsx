@@ -26,16 +26,19 @@ import {
   type MailFilter,
   type MailFolder,
 } from "@/lib/email/mailbox";
+import { MailHtmlFrame } from "@/components/correo/mail-html-frame";
 import { initials } from "@/lib/utils";
 import type { Email } from "@/lib/db/types";
 
 export function MailThread({
   mail,
+  html,
   folder,
   filter,
   query,
 }: {
   mail: Email;
+  html: string;
   folder: MailFolder;
   filter: MailFilter;
   query: string;
@@ -154,9 +157,13 @@ export function MailThread({
         )}
 
         <div className="px-4 py-5 md:px-7">
-          <p className="whitespace-pre-wrap text-[14px] leading-relaxed text-ink">
-            {mail.body_text || mail.snippet}
-          </p>
+          {html ? (
+            <MailHtmlFrame html={html} />
+          ) : (
+            <p className="whitespace-pre-wrap text-[14px] leading-relaxed text-ink">
+              {mail.body_text || mail.snippet}
+            </p>
+          )}
         </div>
 
         {mail.task_id ? (

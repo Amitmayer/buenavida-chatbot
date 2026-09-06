@@ -63,6 +63,7 @@ export type Email = {
   subject: string;
   snippet: string;
   body_text: string;
+  body_html: string | null;
   occurred_at: string;
   unread: boolean;
   inbound: boolean;
@@ -435,6 +436,7 @@ export type Database = {
           | "rfc_message_id"
           | "archived"
           | "is_draft"
+          | "body_html"
         > & {
           id?: string;
           created_at?: string;
@@ -444,6 +446,7 @@ export type Database = {
           rfc_message_id?: string | null;
           archived?: boolean;
           is_draft?: boolean;
+          body_html?: string | null;
         };
         Update: Partial<Email>;
         Relationships: [
