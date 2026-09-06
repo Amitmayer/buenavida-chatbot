@@ -2,9 +2,9 @@ import Link from "next/link";
 import type { InboxRow } from "@/lib/mensajes";
 import { es } from "@/lib/i18n/es";
 import { crTimeLabel, crInstantYmd, todayYmd, crRelativeStamp } from "@/lib/agent/dates";
-import { initials } from "@/lib/utils";
+import { cn, initials } from "@/lib/utils";
 
-export function InboxList({ rows }: { rows: InboxRow[] }) {
+export function InboxList({ rows, activeId }: { rows: InboxRow[]; activeId?: string }) {
   const today = todayYmd();
   const sections = [
     {
@@ -34,13 +34,12 @@ export function InboxList({ rows }: { rows: InboxRow[] }) {
               return (
                 <li key={row.chat.id} className="border-b border-line last:border-0">
                   <Link
-                    href={
-                      row.kind === "channel" && row.chat.slug
-                        ? `/canales/${row.chat.slug}`
-                        : `/mensajes/${row.chat.id}`
-                    }
+                    href={`/mensajes/${row.chat.id}`}
                     prefetch={false}
-                    className="flex items-center gap-3 px-3.5 py-3 hover:bg-hover"
+                    className={cn(
+                      "flex items-center gap-3 px-3.5 py-3 hover:bg-hover",
+                      activeId === row.chat.id ? "bg-wash" : "",
+                    )}
                   >
                     <span
                       className={
