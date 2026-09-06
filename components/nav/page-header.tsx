@@ -5,6 +5,7 @@ import { es, teamBlurb } from "@/lib/i18n/es";
 import { crStampLabel, todayYmd } from "@/lib/agent/dates";
 import { CaptureBox } from "@/components/hoy/capture-box";
 import { GlobalSearch } from "@/components/nav/global-search";
+import { SidebarToggle } from "@/components/nav/sidebar-ui";
 import type { Team } from "@/lib/db/types";
 
 const HEADS: Record<string, () => [string, string]> = {
@@ -35,6 +36,7 @@ export function PageHeader({
 
   return (
     <header className="flex h-[62px] shrink-0 items-center gap-2 border-b border-line bg-paper/90 px-4 backdrop-blur-[6px] md:gap-4 md:px-7">
+      <SidebarToggle className="-ml-1" />
       <div className="min-w-0 flex-1">
         <div className="flex min-w-0 items-baseline gap-2">
           <div className="truncate text-title text-ink">{title}</div>

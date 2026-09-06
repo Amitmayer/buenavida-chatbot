@@ -66,7 +66,9 @@ export function MailList({
                       row.unread ? "font-semibold text-ink" : "font-medium text-ink",
                     )}
                   >
-                    {displayName(who)}
+                    {folder === "sent" || folder === "drafts"
+                      ? es.correo.toLine.replace("{name}", displayName(who))
+                      : displayName(who)}
                   </p>
                   <span className="shrink-0 font-mono text-[10px] text-ink/40">
                     {stamp(row.occurred_at, today)}

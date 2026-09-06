@@ -11,7 +11,7 @@ import type { Email } from "@/lib/db/types";
 export default async function CorreoPage({
   searchParams,
 }: {
-  searchParams: Promise<{ buzon?: string; filtro?: string; q?: string; error?: string }>;
+  searchParams: Promise<{ buzon?: string; filtro?: string; q?: string; error?: string; ok?: string }>;
 }) {
   const profile = await getSessionProfile();
   if (!profile) return null;
@@ -43,6 +43,7 @@ export default async function CorreoPage({
       folder={folder}
       filter={filter}
       query={query}
+      autoSync={Boolean(account && params.ok === "1")}
       connect={
         account ? undefined : (
           <ConnectPanel configured={gmailConfigured()} error={params.error} />

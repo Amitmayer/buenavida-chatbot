@@ -240,13 +240,14 @@ function parseAddresses(raw: string) {
 export async function listMessageIds(
   accessToken: string,
   max = 100,
+  query = "in:inbox OR in:sent OR in:drafts",
 ): Promise<{ id: string; threadId: string }[]> {
   const out: { id: string; threadId: string }[] = [];
   let pageToken: string | undefined;
   while (out.length < max) {
     const url = new URL(`${GMAIL}/messages`);
     url.searchParams.set("maxResults", String(Math.min(100, max - out.length)));
-    url.searchParams.set("q", "in:inbox OR in:sent OR in:drafts");
+    url.searchParams.set("q", query);
     if (pageToken) url.searchParams.set("pageToken", pageToken);
     const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
     if (!res.ok) {

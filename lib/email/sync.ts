@@ -8,9 +8,21 @@ type Client = SupabaseClient<Database>;
 
 export async function syncInbox(
   supabase: Client,
-  args: { userId: string; accountId: string; accessToken: string },
+  args: { userId: string; accountId: string; accessToken: string; first?: boolean },
 ): Promise<{ inserted: number }> {
-  const listed = await listMessageIds(args.accessToken, 100);
+  const inboxMax = args.first ? 24 : 80;
+  const sentMax = args.first ? 16 : 40;
+  const insertMax = args.first ? 16 : 40;
+  const [inboxDrafts, sent] = await Promise.all([
+    listMessageIds(args.accessToken, inboxMax, "in:inbox OR in:drafts"),
+    listMessageIds(args.accessToken, sentMax, "in:sent"),
+  ]);
+  const seen = new Set<string>();
+  const listed = [...inboxDrafts, ...sent].filter((row) => {
+    if (seen.has(row.id)) return false;
+    seen.add(row.id);
+    return true;
+  });
   const ids = listed.map((row) => row.id);
   if (ids.length === 0) return { inserted: 0 };
   const { data: existing } = await supabase
@@ -55,7 +67,7 @@ export async function syncInbox(
       }),
     );
   }
-  const missing = listed.filter((row) => !have.has(row.id)).slice(0, 40);
+  const missing = listed.filter((row) => !have.has(row.id)).slice(0, insertMax);
   let inserted = 0;
   for (const item of missing) {
     const parsed = await getMessage(args.accessToken, item.id);
@@ -83,7 +95,7 @@ export async function syncInbox(
     }
     inserted += 1;
   }
-  await summarizeNew(supabase, args.userId);
+  if (!args.first) await summarizeNew(supabase, args.userId);
   return { inserted };
 }
 

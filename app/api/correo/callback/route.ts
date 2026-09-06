@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { encryptSecret } from "@/lib/email/crypto";
 import { loadAccount } from "@/lib/email/accounts";
 import { exchangeCode, gmailUserEmail } from "@/lib/email/gmail";
+import { syncInbox } from "@/lib/email/sync";
 import { captureError } from "@/lib/sentry";
 
 function site() {
@@ -55,6 +56,19 @@ export async function GET(request: Request) {
     if (error) {
       captureError(error, { where: "correo.callback.upsert" });
       return NextResponse.redirect(new URL("/correo?error=save", site()));
+    }
+    const account = await loadAccount(supabase, profile.id);
+    if (account) {
+      try {
+        await syncInbox(supabase, {
+          userId: profile.id,
+          accountId: account.id,
+          accessToken: tokens.access_token,
+          first: true,
+        });
+      } catch (error) {
+        captureError(error, { where: "correo.callback.sync" });
+      }
     }
   } catch (error) {
     captureError(error, { where: "correo.callback" });

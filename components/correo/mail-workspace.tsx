@@ -1,3 +1,4 @@
+import { Suspense, type ReactNode } from "react";
 import Link from "next/link";
 import { es } from "@/lib/i18n/es";
 import { crStampLabel, todayYmd } from "@/lib/agent/dates";
@@ -14,9 +15,11 @@ import { MailList } from "@/components/correo/mail-list";
 import { MailThread } from "@/components/correo/mail-thread";
 import { MailboxToolbar } from "@/components/correo/mailbox-toolbar";
 import { ComposeButton } from "@/components/correo/compose-dialog";
+import { MailBoxes } from "@/components/correo/mail-boxes";
+import { AutoSync } from "@/components/correo/auto-sync";
+import { SidebarToggle } from "@/components/nav/sidebar-ui";
 import { EmptyState } from "@/components/empty-state";
 import type { Email } from "@/lib/db/types";
-import type { ReactNode } from "react";
 
 const FILTERS: { id: MailFilter; label: string }[] = [
   { id: "all", label: es.correo.filterAll },
@@ -35,6 +38,7 @@ export function MailWorkspace({
   connect,
   html,
   canModify = false,
+  autoSync = false,
 }: {
   address: string;
   rows: Email[];
@@ -46,17 +50,37 @@ export function MailWorkspace({
   connect?: ReactNode;
   html?: string;
   canModify?: boolean;
+  autoSync?: boolean;
 }) {
+  const emptyTitle = folder === "sent" ? es.correo.emptySent : es.correo.empty;
+  const emptyHint = folder === "sent" ? es.correo.emptySentHint : es.correo.emptyHint;
+
   return (
     <div className="flex min-h-0 flex-1 overflow-hidden">
+      {connect ? null : (
+        <aside className="hidden w-[168px] shrink-0 flex-col border-r border-ink/10 bg-sheet md:flex">
+          <Suspense fallback={null}>
+            <MailBoxes
+              counts={counts}
+              folder={folder}
+              filter={filter}
+              query={query}
+              variant="paper"
+            />
+          </Suspense>
+        </aside>
+      )}
       <section
         className={`min-w-0 border-r border-ink/10 bg-paper ${selected || connect ? "hidden md:flex md:w-[340px] md:shrink-0 md:flex-col" : "flex flex-1 flex-col"}`}
       >
         <div className="border-b border-ink/[0.06] px-4 pb-3 pt-4 md:px-5">
           <div className="flex items-start justify-between gap-3">
-            <div>
-              <h1 className="text-[22px] font-semibold tracking-tight text-ink">{es.correo.title}</h1>
-              <p className="mt-0.5 font-mono text-[10.5px] text-ink/40">{crStampLabel(todayYmd())}</p>
+            <div className="flex min-w-0 items-start gap-2">
+              <SidebarToggle className="-ml-1 mt-0.5" />
+              <div>
+                <h1 className="text-[22px] font-semibold tracking-tight text-ink">{es.correo.title}</h1>
+                <p className="mt-0.5 font-mono text-[10.5px] text-ink/40">{crStampLabel(todayYmd())}</p>
+              </div>
             </div>
             {connect ? null : <ComposeButton />}
           </div>
@@ -81,6 +105,9 @@ export function MailWorkspace({
                 )}
               >
                 {FOLDER_LABEL[id]}
+                {id === "sent" && counts.sent > 0 ? (
+                  <span className="ml-1 font-mono text-[10px]">{counts.sent}</span>
+                ) : null}
               </Link>
             ))}
           </div>
@@ -102,10 +129,13 @@ export function MailWorkspace({
           </div>
         </div>
         {connect ? null : <MailboxToolbar address={address} canModify={canModify} />}
+        <Suspense fallback={null}>
+          <AutoSync run={autoSync} />
+        </Suspense>
         <div className="min-h-0 flex-1 overflow-auto">
           {rows.length === 0 ? (
             <div className="px-4">
-              <EmptyState title={es.correo.empty} hint={es.correo.emptyHint} />
+              <EmptyState title={emptyTitle} hint={emptyHint} />
             </div>
           ) : (
             <MailList
