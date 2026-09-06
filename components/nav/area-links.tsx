@@ -3,11 +3,13 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import { useSidebarUi } from "@/components/nav/sidebar-ui";
 import { teamEdge } from "@/components/tasks/team-colors";
 import type { Team } from "@/lib/db/types";
 
 export function AreaLinks({ teams }: { teams: Pick<Team, "id" | "slug" | "name">[] }) {
   const path = usePathname();
+  const { hide } = useSidebarUi();
   const [current, setCurrent] = useState<string | null>(null);
 
   useEffect(() => {
@@ -24,7 +26,10 @@ export function AreaLinks({ teams }: { teams: Pick<Team, "id" | "slug" | "name">
           <Link
             key={team.id}
             href={`/areas/${team.slug}`}
-            onClick={() => setCurrent(team.slug)}
+            onClick={() => {
+              setCurrent(team.slug);
+              hide();
+            }}
             className="flex h-[38px] items-center gap-3 rounded-[11px] px-3.5"
             style={on ? { background: "rgba(246,243,234,0.14)", boxShadow: `inset 0 0 0 2px ${color}` } : undefined}
           >

@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { NavLinks } from "@/components/nav/nav-links";
@@ -60,21 +60,12 @@ export function AppShell({
     ...(showEquipo ? [{ href: "/equipo", label: es.nav.equipo }] : []),
   ];
 
-  const lastPath = useRef<string | null>(null);
-
   useEffect(() => {
-    setOpen(window.localStorage.getItem(STORAGE) === "1");
     const frame = window.requestAnimationFrame(() => setAnimate(true));
     return () => window.cancelAnimationFrame(frame);
   }, []);
 
   useEffect(() => {
-    if (lastPath.current === null) {
-      lastPath.current = path;
-      return;
-    }
-    if (lastPath.current === path) return;
-    lastPath.current = path;
     persist(false);
   }, [path]);
 
@@ -107,7 +98,7 @@ export function AppShell({
             style={{ width: SIDE }}
           >
             <div className="flex items-start justify-between px-6">
-              <Link href="/hoy" className="flex items-start gap-2 text-cream">
+              <Link href="/hoy" onClick={() => persist(false)} className="flex items-start gap-2 text-cream">
                 <span>
                   <span className="block text-[28px] font-light leading-[0.94] tracking-[0.02em]">
                     {es.auth.buena.toUpperCase()}

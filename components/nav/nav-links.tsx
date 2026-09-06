@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useSidebarUi } from "@/components/nav/sidebar-ui";
 import { cn } from "@/lib/utils";
 
 export function NavLinks({
@@ -14,6 +15,7 @@ export function NavLinks({
   badges?: Record<string, number>;
 }) {
   const path = usePathname();
+  const { hide } = useSidebarUi();
   function active(href: string) {
     return path === href || path.startsWith(`${href}/`);
   }
@@ -28,6 +30,7 @@ export function NavLinks({
             <li key={item.href}>
               <Link
                 href={item.href}
+                onClick={() => hide()}
                 className={cn(
                   "flex h-11 items-center gap-3.5 rounded-[12px] px-3.5",
                   on ? "bg-cream text-pine" : "text-cream/90 hover:bg-cream/[0.09]",
