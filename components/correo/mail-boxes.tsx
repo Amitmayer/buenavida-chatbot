@@ -1,37 +1,35 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
 import { es } from "@/lib/i18n/es";
 import { cn } from "@/lib/utils";
 import {
   correoHref,
   FOLDER_LABEL,
   MAIL_FOLDERS,
-  parseFolder,
   type MailCounts,
   type MailFilter,
   type MailFolder,
 } from "@/lib/email/mailbox";
 
+const DOT: Record<MailFolder, string> = {
+  inbox: "bg-overdue",
+  sent: "bg-sage",
+  drafts: "bg-[#5B8FA8]",
+  archived: "bg-gold",
+};
+
 export function MailBoxes({
   counts,
-  folder: folderProp,
+  folder,
   filter = "all",
   query = "",
-  variant = "pine",
 }: {
   counts: MailCounts;
-  folder?: MailFolder;
+  folder: MailFolder;
   filter?: MailFilter;
   query?: string;
-  variant?: "pine" | "paper";
 }) {
-  const path = usePathname();
-  const params = useSearchParams();
-  if (variant === "pine" && !path.startsWith("/correo")) return null;
-
-  const folder = folderProp ?? parseFolder(params.get("buzon") ?? undefined);
   const badge: Record<MailFolder, number> = {
     inbox: counts.unread,
     sent: counts.sent,
@@ -40,44 +38,29 @@ export function MailBoxes({
   };
 
   return (
-    <div className={variant === "paper" ? "px-2 pb-3 pt-4" : undefined}>
-      <p
-        className={cn(
-          "px-2 pb-2 font-mono text-[9.5px] tracking-[0.16em]",
-          variant === "pine" ? "pt-[22px] text-cream/40" : "text-ink/40",
-        )}
-      >
+    <div className="px-3">
+      <p className="px-2 pb-2 font-mono text-[9.5px] tracking-[0.16em] text-cream/45">
         {es.correo.boxes.toUpperCase()}
       </p>
-      <ul className="flex flex-col gap-0.5">
+      <ul className="flex flex-col gap-1">
         {MAIL_FOLDERS.map((id) => {
           const on = folder === id;
           return (
             <li key={id}>
               <Link
-                href={correoHref({ folder: id, filter: variant === "paper" ? filter : "all", query })}
+                href={correoHref({ folder: id, filter: id === "sent" || id === "drafts" ? "all" : filter, query })}
                 className={cn(
-                  "relative flex items-center justify-between rounded-[9px] px-2.5 py-[8px] text-[13px]",
-                  variant === "pine"
-                    ? on
-                      ? "text-cream"
-                      : "text-cream/78 hover:bg-cream/[0.07] hover:text-cream"
-                    : on
-                      ? "bg-pine text-cream"
-                      : "text-ink/70 hover:bg-wash hover:text-ink",
+                  "flex items-center gap-2 rounded-full px-2.5 py-[9px] text-[13px]",
+                  on ? "bg-cream text-pine" : "text-cream/85 hover:bg-cream/[0.08] hover:text-cream",
                 )}
               >
-                {variant === "pine" && on ? (
-                  <span className="absolute inset-0 rounded-[9px] bg-cream/[0.11] shadow-[inset_2px_0_0_#C79350]" />
-                ) : null}
-                <span className="relative">{FOLDER_LABEL[id]}</span>
+                <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", DOT[id])} />
+                <span className="min-w-0 flex-1 truncate">{FOLDER_LABEL[id]}</span>
                 {badge[id] > 0 ? (
                   <span
                     className={cn(
-                      "relative rounded-full px-1.5 font-mono text-[10px]",
-                      variant === "pine" || on
-                        ? "bg-overdue text-paper"
-                        : "bg-ink/10 text-ink/70",
+                      "rounded-full px-1.5 font-mono text-[10px]",
+                      on ? "bg-overdue text-paper" : "bg-overdue/90 text-paper",
                     )}
                   >
                     {badge[id]}

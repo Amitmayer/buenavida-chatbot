@@ -1,30 +1,37 @@
 "use client";
 
 import { useTransition } from "react";
+import { RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { es } from "@/lib/i18n/es";
-import { disconnectMailAction, syncMailAction } from "@/app/(app)/correo/actions";
+import { syncMailAction } from "@/app/(app)/correo/actions";
+import type { MailFilter, MailFolder } from "@/lib/email/mailbox";
 
-export function MailboxToolbar({
-  address,
-  canModify,
+export function MailSearch({
+  folder,
+  filter,
+  query,
 }: {
-  address: string;
-  canModify: boolean;
+  folder: MailFolder;
+  filter: MailFilter;
+  query: string;
 }) {
   const [pending, start] = useTransition();
 
   return (
-    <div className="flex items-center gap-3 border-b border-ink/[0.06] px-4 py-2">
-      <p className="min-w-0 flex-1 truncate text-[11px] text-ink/45">{address}</p>
-      {canModify ? null : (
-        <a href="/api/correo/connect" className="text-[11px] font-medium text-overdue hover:text-ink">
-          {es.correo.reconnect}
-        </a>
-      )}
+    <form className="relative" action="/correo">
+      <input type="hidden" name="buzon" value={folder} />
+      <input type="hidden" name="filtro" value={filter} />
+      <input
+        name="q"
+        defaultValue={query}
+        placeholder={es.correo.search}
+        className="h-11 w-full rounded-[12px] border border-ink/10 bg-sheet px-3.5 pr-11 text-[13px] outline-none placeholder:text-ink/40 focus:border-pine"
+      />
       <button
         type="button"
         disabled={pending}
+        aria-label={es.correo.sync}
         onClick={() => {
           start(async () => {
             const result = await syncMailAction();
@@ -32,24 +39,10 @@ export function MailboxToolbar({
             else toast.error(es.correo.syncError);
           });
         }}
-        className="text-[11px] font-medium text-ink/60 hover:text-ink disabled:opacity-40"
+        className="absolute right-1.5 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-ink/45 hover:bg-wash hover:text-ink disabled:opacity-40"
       >
-        {es.correo.sync}
+        <RefreshCw className={`h-4 w-4 ${pending ? "animate-spin" : ""}`} strokeWidth={1.75} />
       </button>
-      <button
-        type="button"
-        disabled={pending}
-        onClick={() => {
-          start(async () => {
-            const result = await disconnectMailAction();
-            if (result.ok) toast.success(es.correo.disconnected);
-            else toast.error(es.correo.disconnectError);
-          });
-        }}
-        className="text-[11px] font-medium text-ink/45 hover:text-ink disabled:opacity-40"
-      >
-        {es.correo.disconnect}
-      </button>
-    </div>
+    </form>
   );
 }

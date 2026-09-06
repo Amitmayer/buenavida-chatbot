@@ -1,8 +1,7 @@
 import { Suspense, type ReactNode } from "react";
 import Link from "next/link";
 import { es } from "@/lib/i18n/es";
-import { crStampLabel, todayYmd } from "@/lib/agent/dates";
-import { cn } from "@/lib/utils";
+import { cn, initials } from "@/lib/utils";
 import {
   correoHref,
   FOLDER_LABEL,
@@ -13,21 +12,17 @@ import {
 } from "@/lib/email/mailbox";
 import { MailList } from "@/components/correo/mail-list";
 import { MailThread } from "@/components/correo/mail-thread";
-import { MailboxToolbar } from "@/components/correo/mailbox-toolbar";
+import { MailSearch } from "@/components/correo/mailbox-toolbar";
 import { ComposeButton } from "@/components/correo/compose-dialog";
 import { MailBoxes } from "@/components/correo/mail-boxes";
 import { AutoSync } from "@/components/correo/auto-sync";
 import { SidebarToggle } from "@/components/nav/sidebar-ui";
+import { MailDisconnect } from "@/components/correo/mail-disconnect";
 import { EmptyState } from "@/components/empty-state";
 import type { Email } from "@/lib/db/types";
 
-const FILTERS: { id: MailFilter; label: string }[] = [
-  { id: "all", label: es.correo.filterAll },
-  { id: "unread", label: es.correo.filterUnread },
-  { id: "task", label: es.correo.filterTask },
-];
-
 export function MailWorkspace({
+  name,
   address,
   rows,
   selected,
@@ -40,6 +35,7 @@ export function MailWorkspace({
   canModify = false,
   autoSync = false,
 }: {
+  name: string;
   address: string;
   rows: Email[];
   selected: Email | null;
@@ -54,46 +50,63 @@ export function MailWorkspace({
 }) {
   const emptyTitle = folder === "sent" ? es.correo.emptySent : es.correo.empty;
   const emptyHint = folder === "sent" ? es.correo.emptySentHint : es.correo.emptyHint;
+  const folderCount =
+    folder === "inbox" ? counts.inbox : folder === "sent" ? counts.sent : folder === "drafts" ? counts.drafts : counts.archived;
+  const filters: { id: MailFilter; label: string }[] = [
+    { id: "all", label: es.correo.filterAllCount.replace("{n}", String(folderCount)) },
+    ...(folder === "sent" || folder === "drafts"
+      ? []
+      : [{ id: "unread" as const, label: es.correo.filterUnread }]),
+    { id: "task", label: es.correo.filterTask },
+  ];
 
   return (
-    <div className="flex min-h-0 flex-1 overflow-hidden">
-      <div className="hidden shrink-0 flex-col items-center pt-3.5 md:flex">
+    <div className="flex min-h-0 flex-1 overflow-hidden bg-cream">
+      <div className="hidden shrink-0 flex-col items-center bg-cream pt-4 md:flex">
         <SidebarToggle className="mx-1.5" />
       </div>
-      {connect ? null : (
-        <aside className="hidden w-[168px] shrink-0 flex-col border-r border-ink/10 bg-sheet md:flex">
-          <Suspense fallback={null}>
-            <MailBoxes
-              counts={counts}
-              folder={folder}
-              filter={filter}
-              query={query}
-              variant="paper"
-            />
-          </Suspense>
-        </aside>
-      )}
-      <section
-        className={`min-w-0 border-r border-ink/10 bg-paper ${selected || connect ? "hidden md:flex md:w-[340px] md:shrink-0 md:flex-col" : "flex flex-1 flex-col"}`}
-      >
-        <div className="border-b border-ink/[0.06] px-4 pb-3 pt-4 md:px-5">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <h1 className="text-[22px] font-semibold tracking-tight text-ink">{es.correo.title}</h1>
-              <p className="mt-0.5 font-mono text-[10.5px] text-ink/40">{crStampLabel(todayYmd())}</p>
+      <aside className="hidden w-[220px] shrink-0 flex-col bg-pine text-cream md:flex">
+        <div className="flex items-center justify-between px-5 pb-2 pt-5">
+          <h1 className="text-[20px] font-semibold tracking-tight">{es.correo.title}</h1>
+        </div>
+        <div className="min-h-0 flex-1 overflow-auto pt-3">
+          {connect ? null : (
+            <Suspense fallback={null}>
+              <MailBoxes counts={counts} folder={folder} filter={filter} query={query} />
+            </Suspense>
+          )}
+        </div>
+        {connect ? null : (
+          <div className="mt-auto border-t border-cream/10 px-4 py-4">
+            <div className="flex items-center gap-2.5">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gold text-[11px] font-semibold text-pine">
+                {initials(name)}
+              </span>
+              <div className="min-w-0">
+                <p className="truncate text-[12.5px] font-medium text-cream">{name}</p>
+                <p className="truncate font-mono text-[10px] text-cream/50">{address}</p>
+              </div>
             </div>
-            {connect ? null : <ComposeButton />}
+            <MailDisconnect />
           </div>
-          <form className="mt-3" action="/correo">
-            <input type="hidden" name="buzon" value={folder} />
-            <input type="hidden" name="filtro" value={filter} />
-            <input
-              name="q"
-              defaultValue={query}
-              placeholder={es.correo.search}
-              className="h-10 w-full rounded-full border border-ink/10 bg-sheet px-3.5 text-[13px] outline-none focus:border-ink"
-            />
-          </form>
+        )}
+      </aside>
+
+      <section
+        className={`min-w-0 border-r border-ink/10 bg-cream ${selected || connect ? "hidden md:flex md:w-[340px] md:shrink-0 md:flex-col" : "flex flex-1 flex-col"}`}
+      >
+        <div className="px-4 pb-3 pt-4 md:px-4">
+          <div className="mb-3 flex items-center justify-between md:hidden">
+            <h1 className="text-[20px] font-semibold text-ink">{es.correo.title}</h1>
+          </div>
+          {connect ? null : (
+            <ComposeButton className="h-11 w-full rounded-[12px] bg-pine text-[13.5px] font-medium text-cream hover:bg-[#1B3A28]" />
+          )}
+          {connect ? null : (
+            <div className="mt-3">
+              <MailSearch folder={folder} filter={filter} query={query} />
+            </div>
+          )}
           <div className="mt-3 flex gap-1 overflow-auto md:hidden">
             {MAIL_FOLDERS.map((id) => (
               <Link
@@ -105,37 +118,38 @@ export function MailWorkspace({
                 )}
               >
                 {FOLDER_LABEL[id]}
-                {id === "sent" && counts.sent > 0 ? (
-                  <span className="ml-1 font-mono text-[10px]">{counts.sent}</span>
-                ) : null}
               </Link>
             ))}
           </div>
-          <div className="mt-3 flex gap-4">
-            {FILTERS.filter((item) => folder !== "sent" && folder !== "drafts" ? true : item.id !== "unread").map(
-              (item) => (
+          {connect ? null : (
+            <div className="mt-3 flex gap-1.5">
+              {filters.map((item) => (
                 <Link
                   key={item.id}
                   href={correoHref({ folder, filter: item.id, query })}
                   className={cn(
-                    "pb-1 text-[12.5px]",
-                    filter === item.id
-                      ? "border-b-2 border-pine font-semibold text-ink"
-                      : "text-ink/45 hover:text-ink",
+                    "rounded-full px-3 py-1.5 text-[12px]",
+                    filter === item.id ? "bg-pine font-medium text-cream" : "bg-wash text-ink/60 hover:text-ink",
                   )}
                 >
                   {item.label}
                 </Link>
-              ),
-            )}
-          </div>
+              ))}
+            </div>
+          )}
+          {canModify ? null : connect ? null : (
+            <a href="/api/correo/connect" className="mt-2 block text-[11px] font-medium text-overdue">
+              {es.correo.reconnect}
+            </a>
+          )}
         </div>
-        {connect ? null : <MailboxToolbar address={address} canModify={canModify} />}
         <Suspense fallback={null}>
           <AutoSync run={autoSync} live={!connect} />
         </Suspense>
         <div className="min-h-0 flex-1 overflow-auto">
-          {rows.length === 0 ? (
+          {connect ? (
+            <div className="px-4">{connect}</div>
+          ) : rows.length === 0 ? (
             <div className="px-4">
               <EmptyState title={emptyTitle} hint={emptyHint} />
             </div>
@@ -149,19 +163,19 @@ export function MailWorkspace({
             />
           )}
         </div>
-        <p className="border-t border-ink/[0.06] px-4 py-2 text-[11px] text-ink/40">
-          {folder === "sent"
-            ? es.correo.countSent.replace("{n}", String(rows.length))
-            : es.correo.countLine.replace("{n}", String(rows.length)).replace("{u}", String(counts.unread))}
-        </p>
+        {connect ? null : (
+          <p className="px-4 py-2 text-[11px] text-ink/40">
+            {folder === "sent"
+              ? es.correo.countSent.replace("{n}", String(rows.length))
+              : es.correo.countLine.replace("{n}", String(rows.length)).replace("{u}", String(counts.unread))}
+          </p>
+        )}
       </section>
 
       {selected ? (
         <MailThread mail={selected} html={html ?? ""} folder={folder} filter={filter} query={query} />
-      ) : connect ? (
-        <div className="min-w-0 flex-1 overflow-auto bg-sheet">{connect}</div>
-      ) : (
-        <div className="hidden min-w-0 flex-1 items-center justify-center bg-sheet md:flex">
+      ) : connect ? null : (
+        <div className="hidden min-w-0 flex-1 items-center justify-center bg-cream md:flex">
           <p className="text-[13px] text-ink/40">{es.correo.pick}</p>
         </div>
       )}

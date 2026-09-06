@@ -67,14 +67,17 @@ export function ComposeDialog({ onClose }: { onClose: () => void }) {
   );
 }
 
-export function ComposeButton() {
+export function ComposeButton({ className }: { className?: string }) {
   const [open, setOpen] = useState(false);
   return (
     <>
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="rounded-[9px] bg-ink px-3 py-2 text-[12.5px] font-medium text-cream hover:bg-pine"
+        className={
+          className ??
+          "rounded-[9px] bg-pine px-3 py-2 text-[12.5px] font-medium text-cream hover:bg-[#1B3A28]"
+        }
       >
         + {es.correo.compose}
       </button>

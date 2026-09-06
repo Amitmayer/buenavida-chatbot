@@ -63,6 +63,7 @@ export default async function CorreoThreadPage({
 
   return (
     <MailWorkspace
+      name={profile.full_name}
       address={account.email}
       canModify={account.canModify}
       rows={filterMails(all, { folder, filter, query })}

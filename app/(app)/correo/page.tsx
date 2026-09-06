@@ -35,6 +35,7 @@ export default async function CorreoPage({
 
   return (
     <MailWorkspace
+      name={profile.full_name}
       address={account?.email ?? ""}
       canModify={account?.canModify ?? false}
       rows={account ? filterMails(all, { folder, filter, query }) : []}

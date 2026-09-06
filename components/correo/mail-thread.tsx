@@ -63,11 +63,14 @@ export function MailThread({
   }, [mail.id, mail.draft_reply, mail.summary, mail.body_text, draft]);
 
   return (
-    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-sheet">
-      <div className="flex flex-wrap items-center gap-2 border-b border-ink/[0.06] px-4 py-3 md:px-6">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-cream">
+      <div className="flex flex-wrap items-center gap-2 px-4 py-3 md:px-6">
         <Link href={listHref} className="text-[11px] font-medium text-ink/50 md:hidden">
           {es.correo.back}
         </Link>
+        <p className="min-w-0 flex-1 font-mono text-[10px] tracking-[0.14em] text-ink/45">
+          {FOLDER_LABEL[box].toUpperCase()}
+        </p>
         <button
           type="button"
           disabled={pending || draft}
@@ -80,7 +83,7 @@ export function MailThread({
               }
             });
           }}
-          className="rounded-[9px] border border-ink/10 px-3 py-2 text-[12.5px] text-ink hover:bg-hover disabled:opacity-40"
+          className="rounded-full border border-ink/15 bg-sheet px-3.5 py-1.5 text-[12.5px] text-ink hover:bg-wash disabled:opacity-40"
         >
           {mail.archived ? es.correo.unarchive : es.correo.archive}
         </button>
@@ -98,92 +101,90 @@ export function MailThread({
               } else toast.error(es.tasks.loadError);
             });
           }}
-          className="rounded-[9px] bg-ink px-3 py-2 text-[12.5px] font-medium text-cream hover:bg-pine"
+          className="rounded-full bg-overdue px-3.5 py-1.5 text-[12.5px] font-medium text-paper hover:bg-[#A94824]"
         >
           + {es.correo.createTask}
         </button>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-auto">
-        <div className="px-4 pt-5 md:px-7">
-          <p className="font-mono text-[10px] tracking-[0.14em] text-ink/40">
-            {FOLDER_LABEL[box].toUpperCase()}
-          </p>
-          <h1 className="mt-2 max-w-[36ch] text-[22px] font-semibold leading-snug tracking-tight text-ink">
+      <div className="min-h-0 flex-1 overflow-auto px-4 pb-4 md:px-6">
+        <div className="rounded-[16px] bg-sheet px-5 py-5 shadow-[0_1px_0_rgba(23,48,31,0.06)] md:px-7 md:py-6">
+          <h1 className="max-w-[36ch] text-[24px] font-semibold leading-snug tracking-tight text-ink">
             {mail.subject || "—"}
           </h1>
           <div className="mt-4 flex items-start gap-3">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#DDD8C6] text-[11px] font-semibold text-[#3C5540]">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-pine text-[11px] font-semibold text-cream">
               {initials(who)}
             </span>
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <p className="text-[13.5px] font-semibold text-ink">{who}</p>
-              <p className="text-[12px] text-ink/50">{displayAddress(mail.from_address)}</p>
-              <p className="mt-0.5 font-mono text-[10.5px] text-ink/40">
+              <p className="text-[12px] text-ink/50">
+                {displayAddress(mail.from_address)}
+                <span className="mx-1.5 text-ink/25">·</span>
+                {es.correo.you}
+                <span className="mx-1.5 text-ink/25">·</span>
                 {crDateLabel(crInstantYmd(mail.occurred_at))} · {crTimeLabel(mail.occurred_at)}
               </p>
             </div>
+            {draft ? null : (
+              <button
+                type="button"
+                disabled={pending}
+                onClick={() => {
+                  start(async () => {
+                    const result = await summarizeMailAction(mail.id);
+                    if (result.ok && result.summary) {
+                      setSummary(result.summary);
+                      toast.success(es.correo.summarized);
+                    } else toast.error(es.correo.summarizeError);
+                  });
+                }}
+                className="shrink-0 rounded-full bg-pine px-3 py-1.5 text-[11px] font-medium text-cream hover:bg-[#1B3A28]"
+              >
+                {es.correo.summarize}
+              </button>
+            )}
           </div>
-        </div>
 
-        {draft ? null : (
-          <div className="mt-5 px-4 md:px-7">
-            <div className="rounded-[12px] border border-ink/10 bg-wash px-4 py-3">
-              <div className="flex items-center justify-between gap-2">
-                <p className="font-mono text-[10px] tracking-[0.12em] text-ink/45">
-                  {es.correo.summary.toUpperCase()}
-                </p>
-                <button
-                  type="button"
-                  disabled={pending}
-                  onClick={() => {
-                    start(async () => {
-                      const result = await summarizeMailAction(mail.id);
-                      if (result.ok && result.summary) {
-                        setSummary(result.summary);
-                        toast.success(es.correo.summarized);
-                      } else toast.error(es.correo.summarizeError);
-                    });
-                  }}
-                  className="text-[11px] font-semibold text-pine"
-                >
-                  {es.correo.summarize}
-                </button>
-              </div>
-              <p className="mt-1.5 text-[13px] leading-relaxed text-ink">
+          {draft ? null : (
+            <div className="mt-5 rounded-[12px] bg-pine px-4 py-3 text-cream">
+              <p className="font-mono text-[10px] tracking-[0.14em] text-gold">{es.correo.summary.toUpperCase()}</p>
+              <p className="mt-1.5 text-[13px] leading-relaxed text-cream/90">
                 {summary || es.correo.noSummary}
               </p>
             </div>
-          </div>
-        )}
-
-        <div className="px-4 py-5 md:px-7">
-          {html ? (
-            <MailHtmlFrame html={html} />
-          ) : (
-            <p className="whitespace-pre-wrap text-[14px] leading-relaxed text-ink">
-              {mail.body_text || mail.snippet}
-            </p>
           )}
-        </div>
 
-        {mail.task_id ? (
-          <div className="mx-4 mb-5 rounded-[12px] bg-pine px-4 py-3 text-cream md:mx-7">
-            <p className="font-mono text-[10px] tracking-[0.12em] text-gold">
-              {es.correo.taskFromMail.toUpperCase()}
-            </p>
-            <Link
-              href={`/tareas/${mail.task_id}`}
-              className="mt-2 inline-block text-[13px] font-medium text-cream"
-            >
-              {es.correo.openTask}
-            </Link>
+          <div className="mt-5">
+            {html ? (
+              <MailHtmlFrame html={html} />
+            ) : (
+              <p className="whitespace-pre-wrap text-[14px] leading-relaxed text-ink">
+                {mail.body_text || mail.snippet}
+              </p>
+            )}
           </div>
-        ) : null}
+
+          {mail.task_id ? (
+            <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-[12px] bg-[#4A6D5E] px-4 py-3 text-cream">
+              <div>
+                <p className="font-mono text-[10px] tracking-[0.12em] text-cream/70">
+                  {es.correo.taskFromMail.toUpperCase()}
+                </p>
+              </div>
+              <Link
+                href={`/tareas/${mail.task_id}`}
+                className="rounded-full bg-sheet px-3 py-1.5 text-[12px] font-medium text-pine"
+              >
+                {es.correo.openTask}
+              </Link>
+            </div>
+          ) : null}
+        </div>
       </div>
 
       <form
-        className="shrink-0 border-t border-ink/[0.06] px-4 py-3 md:px-6"
+        className="shrink-0 px-4 pb-4 md:px-6"
         onSubmit={(event) => {
           event.preventDefault();
           const form = event.currentTarget;
@@ -200,7 +201,7 @@ export function MailThread({
         }}
       >
         <input type="hidden" name="email_id" value={mail.id} />
-        <div className="flex items-end gap-2 rounded-[12px] border border-ink/10 bg-paper px-3 py-2">
+        <div className="flex items-end gap-2 rounded-[14px] border border-ink/10 bg-sheet px-3 py-2">
           <textarea
             name="body"
             required
@@ -208,9 +209,7 @@ export function MailThread({
             rows={2}
             value={body}
             onChange={(event) => setBody(event.target.value)}
-            placeholder={
-              draft ? es.correo.composeBody : es.correo.replyTo.replace("{name}", who)
-            }
+            placeholder={draft ? es.correo.composeBody : es.correo.replyTo.replace("{name}", who)}
             className="min-h-[40px] flex-1 resize-none bg-transparent py-1.5 text-[13px] outline-none placeholder:text-ink/40"
           />
           {draft ? null : (
@@ -226,12 +225,12 @@ export function MailThread({
                   } else toast.error(es.correo.draftError);
                 });
               }}
-              className="shrink-0 rounded-[8px] px-2 py-1.5 text-[11px] font-semibold text-pine hover:bg-wash"
+              className="shrink-0 rounded-full border border-ink/10 px-3 py-1.5 text-[11px] font-medium text-ink hover:bg-wash"
             >
               {es.correo.replyAi}
             </button>
           )}
-          <Button type="submit" disabled={pending || !body.trim()} className="h-9 shrink-0 px-3 text-[12px]">
+          <Button type="submit" disabled={pending || !body.trim()} className="h-9 shrink-0 rounded-full px-4 text-[12px]">
             {es.correo.send}
           </Button>
         </div>
