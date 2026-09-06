@@ -58,7 +58,7 @@ export function Modal({
   if (!mounted) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[90] flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[90] flex items-center justify-center p-3 md:p-6">
       <div
         aria-hidden
         className="absolute inset-0 bg-pine/40 backdrop-blur-[8px]"
@@ -71,22 +71,22 @@ export function Modal({
         className={cn(
           "relative w-full overflow-auto rounded-lg border border-line bg-sheet shadow-lg",
           size === "xl"
-            ? "max-h-[92dvh] max-w-[800px] p-6 md:p-7"
+            ? "flex max-h-[96dvh] h-[92dvh] max-w-[1180px] flex-col p-6 md:p-8"
             : "max-h-[90dvh] max-w-md p-5",
         )}
       >
-        <div className="mb-4 flex items-center justify-between gap-3">
+        <div className="mb-4 flex shrink-0 items-center justify-between gap-3">
           <h2
             className={cn(
               "min-w-0 font-semibold text-ink",
-              size === "xl" ? "text-[18px] md:text-[22px]" : "text-[15px]",
+              size === "xl" ? "text-[20px] md:text-[24px]" : "text-[15px]",
             )}
           >
             {title}
           </h2>
           <ModalClose onClose={onClose} />
         </div>
-        {children}
+        <div className={size === "xl" ? "flex min-h-0 flex-1 flex-col" : undefined}>{children}</div>
       </div>
     </div>,
     document.body,
