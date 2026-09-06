@@ -10,7 +10,23 @@ export const dynamic = "force-dynamic";
 
 export default async function AppLayout({ children }: { children: ReactNode }) {
   const profile = await getSessionProfile();
-  if (!profile) redirect("/entrar");
+  if (!profile) {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (user) {
+      return (
+        <main className="flex min-h-dvh flex-col items-center justify-center gap-4 bg-paper px-6">
+          <p className="text-[16px] font-medium text-ink">{es.crash.title}</p>
+          <a href="/hoy" className="rounded-[13px] bg-ink px-5 py-3 text-[16px] font-semibold text-cream">
+            {es.crash.retry}
+          </a>
+        </main>
+      );
+    }
+    redirect("/entrar");
+  }
   const conversationId = await ensureConversation(profile.id, es.chat.title);
   const roleLabel =
     profile.teams.find((team) => team.id === profile.default_team)?.name ?? profile.title ?? "";

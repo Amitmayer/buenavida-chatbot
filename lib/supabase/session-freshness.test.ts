@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { accessTokenExpiresAt, shouldRefreshSession, hasAuthSessionCookie } from "./session-freshness";
+import {
+  accessTokenExpiresAt,
+  authCookieNames,
+  shouldRefreshSession,
+  hasAuthSessionCookie,
+} from "./session-freshness";
 
 function jwt(exp: number): string {
   const payload = Buffer.from(JSON.stringify({ exp }), "utf8").toString("base64url");
@@ -52,5 +57,15 @@ describe("shouldRefreshSession", () => {
     ];
     expect(shouldRefreshSession(cookies, 1_700_000_000)).toBe(true);
     expect(hasAuthSessionCookie(cookies)).toBe(false);
+    expect(authCookieNames(cookies)).toEqual([]);
+  });
+
+  it("lists only session token cookie names", () => {
+    const cookies = [
+      { name: "sb-abc123-auth-token.0" },
+      { name: "sb-abc123-auth-token-code-verifier" },
+      { name: "other" },
+    ];
+    expect(authCookieNames(cookies)).toEqual(["sb-abc123-auth-token.0"]);
   });
 });
