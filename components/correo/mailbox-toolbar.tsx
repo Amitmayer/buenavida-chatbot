@@ -1,7 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, Search } from "lucide-react";
 import { toast } from "sonner";
 import { es } from "@/lib/i18n/es";
 import { syncMailAction } from "@/app/(app)/correo/actions";
@@ -19,15 +19,21 @@ export function MailSearch({
   const [pending, start] = useTransition();
 
   return (
-    <form className="relative" action="/correo">
-      <input type="hidden" name="buzon" value={folder} />
-      <input type="hidden" name="filtro" value={filter} />
-      <input
-        name="q"
-        defaultValue={query}
-        placeholder={es.correo.search}
-        className="h-11 w-full rounded-[12px] border border-ink/10 bg-sheet px-3.5 pr-11 text-[13px] outline-none placeholder:text-ink/40 focus:border-pine"
-      />
+    <div className="flex items-center gap-2">
+      <form className="relative min-w-0 flex-1" action="/correo">
+        <input type="hidden" name="buzon" value={folder} />
+        <input type="hidden" name="filtro" value={filter} />
+        <Search
+          className="pointer-events-none absolute left-4 top-1/2 h-[15px] w-[15px] -translate-y-1/2 text-ink"
+          strokeWidth={2.5}
+        />
+        <input
+          name="q"
+          defaultValue={query}
+          placeholder={es.correo.search}
+          className="h-[50px] w-full rounded-[13px] border-2 border-ink/15 bg-white pl-11 pr-4 text-[16px] outline-none placeholder:text-ink/55 focus:border-ink md:h-[54px] md:text-[20px]"
+        />
+      </form>
       <button
         type="button"
         disabled={pending}
@@ -39,10 +45,10 @@ export function MailSearch({
             else toast.error(es.correo.syncError);
           });
         }}
-        className="absolute right-1.5 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-ink/45 hover:bg-wash hover:text-ink disabled:opacity-40"
+        className="flex h-[50px] w-[50px] shrink-0 items-center justify-center rounded-[13px] border-2 border-ink/15 bg-white text-ink hover:border-ink hover:bg-ink hover:text-cream disabled:opacity-40 md:h-[54px] md:w-[54px]"
       >
         <RefreshCw className={`h-4 w-4 ${pending ? "animate-spin" : ""}`} strokeWidth={1.75} />
       </button>
-    </form>
+    </div>
   );
 }

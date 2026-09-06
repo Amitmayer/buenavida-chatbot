@@ -3,6 +3,7 @@ import type { InboxRow } from "@/lib/mensajes";
 import { es } from "@/lib/i18n/es";
 import { crTimeLabel, crInstantYmd, todayYmd, crRelativeStamp } from "@/lib/agent/dates";
 import { initials } from "@/lib/utils";
+import { teamEdge } from "@/components/tasks/team-colors";
 
 export function InboxList({ rows }: { rows: InboxRow[] }) {
   const today = todayYmd();
@@ -19,20 +20,21 @@ export function InboxList({ rows }: { rows: InboxRow[] }) {
   return (
     <div>
       {sections.map((section) => (
-        <section key={section.title} className="border-b-2 border-line last:border-b-0">
-          <p className="bg-wash px-3.5 py-2 font-mono text-[10px] tracking-[0.12em] text-ink/60">
+        <section key={section.title} className="px-3.5 pb-4">
+          <p className="px-2 pb-2 font-mono text-[12px] font-medium tracking-[0.18em] text-ink/70">
             {section.title.toUpperCase()}
           </p>
-          <ul>
+          <ul className="flex flex-col gap-1.5">
             {section.items.map((row) => {
               const when = row.lastAt
                 ? crInstantYmd(row.lastAt) === today
                   ? crTimeLabel(row.lastAt)
                   : crRelativeStamp(crInstantYmd(row.lastAt), today)
                 : "";
-              const square = row.kind !== "dm";
+              const announce = row.kind === "channel" && row.chat.slug === "general";
+              const color = row.chat.slug ? teamEdge(row.chat.slug) : "#12281C";
               return (
-                <li key={row.chat.id} className="border-b border-line last:border-0">
+                <li key={row.chat.id}>
                   <Link
                     href={
                       row.kind === "channel" && row.chat.slug
@@ -40,28 +42,31 @@ export function InboxList({ rows }: { rows: InboxRow[] }) {
                         : `/mensajes/${row.chat.id}`
                     }
                     prefetch={false}
-                    className="flex items-center gap-3 px-3.5 py-3 hover:bg-hover"
+                    className={
+                      announce
+                        ? "flex items-center gap-3.5 rounded-[14px] bg-gold px-4 py-3.5 text-ink"
+                        : "flex items-center gap-3.5 rounded-[14px] border-2 border-ink/10 bg-white px-4 py-3.5 hover:border-ink"
+                    }
                   >
                     <span
-                      className={
-                        square
-                          ? "flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-[8px] bg-[#DDD8C6] text-[11.5px] font-semibold text-[#3C5540]"
-                          : "flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full bg-[#DDD8C6] text-[11.5px] font-semibold text-[#3C5540]"
-                      }
+                      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl font-mono text-[14px] font-semibold text-white"
+                      style={{ background: announce ? "#12281C" : color }}
                     >
                       {row.kind === "dm" ? initials(row.title) : row.title.slice(0, 2).toUpperCase()}
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="flex items-baseline justify-between gap-2">
-                        <span className="truncate text-[13px] font-medium text-ink">{row.title}</span>
-                        <span className="shrink-0 font-mono text-[10px] text-ink/40">{when}</span>
+                        <span className={`truncate text-[17px] ${announce ? "font-bold" : "font-semibold"}`}>
+                          {row.title}
+                        </span>
+                        <span className="shrink-0 font-mono text-[13px] text-ink/70">{when}</span>
                       </span>
-                      <span className="mt-0.5 block truncate text-[12px] text-ink/55">
+                      <span className={`mt-0.5 block truncate text-[15px] ${announce ? "text-ink/80" : "text-ink/65"}`}>
                         {row.lastMessage ?? KIND[row.kind]}
                       </span>
                     </span>
                     {row.unread > 0 ? (
-                      <span className="flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-full bg-overdue px-1 font-mono text-[10px] text-paper">
+                      <span className="flex h-[26px] min-w-[26px] shrink-0 items-center justify-center rounded-[8px] bg-overdue px-1.5 font-mono text-[13px] text-white">
                         {row.unread}
                       </span>
                     ) : null}
@@ -80,5 +85,5 @@ const KIND: Record<InboxRow["kind"], string> = {
   team: es.mensajes.teams,
   dm: es.mensajes.direct,
   group: es.mensajes.groups,
-  channel: es.nav.canales,
+  channel: es.canales.title,
 };

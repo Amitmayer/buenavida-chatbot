@@ -23,10 +23,8 @@ const ITEMS = [
   { href: "/archivos", label: es.nav.archivos },
 ] as const;
 
-const LOGO =
-  "https://buenavida.coffee/cdn/shop/files/Buena_Vida_Logo_4d308f3b-91f9-4cd8-8293-5ee218e7fa08.png?v=1785126762";
-
 const STORAGE = "bv-sidebar-open";
+const SIDE = 300;
 
 export function AppShell({
   children,
@@ -89,42 +87,60 @@ export function AppShell({
           className={cn(
             "hidden h-full min-w-0 shrink-0 overflow-hidden bg-pine text-cream md:flex",
             animate ? "transition-[width] duration-300 ease-in-out" : "",
-            open ? "w-[252px]" : "w-0",
+            open ? "w-[300px]" : "w-0",
           )}
         >
-          <div className="flex h-full w-[252px] min-w-[252px] flex-col overflow-y-auto px-3.5 pb-3.5 pt-2">
-            <div className="mb-1 flex justify-end">
-              <SidebarToggle edge />
+          <div
+            className="flex h-full min-w-[300px] flex-col overflow-y-auto pb-[22px] pt-[26px]"
+            style={{ width: SIDE }}
+          >
+            <div className="flex items-start justify-between px-6">
+              <Link href="/hoy" className="flex items-start gap-2 text-cream">
+                <span>
+                  <span className="block text-[28px] font-light leading-[0.94] tracking-[0.02em]">
+                    {es.auth.buena.toUpperCase()}
+                  </span>
+                  <span className="flex items-end gap-1.5">
+                    <span className="text-[28px] font-light leading-[0.94] tracking-[0.02em]">
+                      {es.auth.vida.toUpperCase()}
+                    </span>
+                    <span className="pb-[3px] text-[9px] font-normal leading-[1.15] tracking-[0.04em]">
+                      {es.auth.specialty.toUpperCase()}
+                      <br />
+                      {es.auth.coffee.toUpperCase()}
+                    </span>
+                  </span>
+                </span>
+                <span className="font-mono text-[12px] font-medium tracking-[0.18em] text-[#E0834A]">
+                  {es.auth.os}
+                </span>
+              </Link>
+              <SidebarToggle edge className="mt-1" />
             </div>
-            <Link href="/hoy" className="relative mb-5 block px-1">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={LOGO}
-                alt={es.appName}
-                className="h-[88px] w-full object-contain object-left opacity-90 brightness-0 invert"
-              />
-              <span className="absolute right-1 top-3 font-mono text-[13px] font-medium leading-none tracking-[0.16em] text-[#E07A3D]">
-                OS
-              </span>
-            </Link>
-            <div className="mx-1.5 mb-3.5 h-px bg-cream/30" />
-            <p className="px-2 pb-2 font-mono text-[9.5px] tracking-[0.16em] text-cream/40">
+
+            <p className="mt-10 px-6 font-mono text-[13px] font-medium tracking-[0.18em] text-[#E5B978]">
               {es.nav.work.toUpperCase()}
             </p>
-            <NavLinks
-              items={items}
-              variant="side"
-              badges={mailCounts && mailCounts.unread > 0 ? { "/correo": mailCounts.unread } : undefined}
-            />
+            <div className="mt-3 px-4">
+              <NavLinks
+                items={items}
+                variant="side"
+                badges={mailCounts && mailCounts.unread > 0 ? { "/correo": mailCounts.unread } : undefined}
+              />
+            </div>
             {teams.length > 0 ? (
               <>
-                <p className="px-2 pb-2 pt-[22px] font-mono text-[9.5px] tracking-[0.16em] text-cream/40">
+                <p className="mt-[34px] px-6 font-mono text-[13px] font-medium tracking-[0.18em] text-[#E5B978]">
                   {es.nav.areas.toUpperCase()}
                 </p>
-                <AreaLinks teams={teams} />
+                <div className="mt-2.5 min-h-0 flex-1 overflow-auto px-4">
+                  <AreaLinks teams={teams} />
+                </div>
               </>
-            ) : null}
-            <div className="mt-auto pt-4">
+            ) : (
+              <div className="flex-1" />
+            )}
+            <div className="mt-auto px-4 pt-4">
               <ProfileMenu name={name} roleLabel={roleLabel} />
             </div>
           </div>
@@ -132,7 +148,7 @@ export function AppShell({
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
           {hideHeader ? null : <PageHeader conversationId={conversationId} teams={teams} />}
           <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">{children}</main>
-          <nav className="z-20 shrink-0 border-t border-ink/10 bg-paper px-2 pb-[max(10px,env(safe-area-inset-bottom))] pt-0.5 md:hidden">
+          <nav className="z-20 shrink-0 border-t-2 border-ink/10 bg-paper px-2 pb-[max(10px,env(safe-area-inset-bottom))] pt-0.5 md:hidden">
             <NavLinks
               items={items}
               variant="tab"

@@ -116,7 +116,7 @@ export function GlobalSearch() {
         }
       >
         <form
-          className="flex h-[34px] w-full items-center gap-2 rounded-[9px] border border-line bg-sheet px-3 text-[12.5px] text-ink/45 md:w-[240px]"
+          className="flex h-10 w-full items-center gap-3 rounded-[13px] border-2 border-ink/15 bg-white px-4 text-[15px] text-ink/55 md:h-[50px] md:w-[380px] md:text-[19px]"
           onSubmit={(e) => {
             e.preventDefault();
             go();

@@ -19,7 +19,7 @@ import { AutoSync } from "@/components/correo/auto-sync";
 import { SidebarToggle } from "@/components/nav/sidebar-ui";
 import { MailDisconnect } from "@/components/correo/mail-disconnect";
 import { EmptyState } from "@/components/empty-state";
-import type { Email } from "@/lib/db/types";
+import type { Email, Team } from "@/lib/db/types";
 
 export function MailWorkspace({
   name,
@@ -34,6 +34,7 @@ export function MailWorkspace({
   html,
   canModify = false,
   autoSync = false,
+  teams = [],
 }: {
   name: string;
   address: string;
@@ -47,6 +48,7 @@ export function MailWorkspace({
   html?: string;
   canModify?: boolean;
   autoSync?: boolean;
+  teams?: Pick<Team, "id" | "slug" | "name">[];
 }) {
   const emptyTitle = folder === "sent" ? es.correo.emptySent : es.correo.empty;
   const emptyHint = folder === "sent" ? es.correo.emptySentHint : es.correo.emptyHint;
@@ -64,60 +66,66 @@ export function MailWorkspace({
   ];
 
   return (
-    <div className="flex min-h-0 flex-1 overflow-hidden bg-cream">
-      <div className="hidden shrink-0 flex-col items-center bg-cream pt-4 md:flex">
-        <SidebarToggle className="mx-1.5" />
-      </div>
-      <aside className="hidden w-[220px] shrink-0 flex-col bg-pine text-cream md:flex">
-        <div className="flex items-center justify-between px-5 pb-2 pt-5">
-          <h1 className="text-[20px] font-semibold tracking-tight">{es.correo.title}</h1>
+    <div className="flex min-h-0 flex-1 overflow-hidden bg-paper">
+      <aside className="hidden w-[300px] shrink-0 flex-col bg-pine text-cream md:flex">
+        <div className="flex items-center justify-between px-6 pt-[26px]">
+          <h1 className="text-[26px] font-semibold tracking-[0.01em]">{es.correo.title}</h1>
+          <SidebarToggle
+            edge={false}
+            mark="menu"
+            className="h-10 w-10 rounded-[11px] bg-cream/10 text-cream hover:bg-cream/20"
+          />
         </div>
-        <div className="min-h-0 flex-1 overflow-auto pt-3">
+        <div className="min-h-0 flex-1 overflow-auto pt-[34px]">
           {connect ? null : (
             <Suspense fallback={null}>
-              <MailBoxes counts={counts} folder={folder} filter={filter} query={query} />
+              <MailBoxes
+                counts={counts}
+                folder={folder}
+                filter={filter}
+                query={query}
+                teams={teams}
+              />
             </Suspense>
           )}
         </div>
         {connect ? null : (
-          <div className="mt-auto border-t border-cream/10 px-4 py-4">
-            <div className="flex items-center gap-2.5">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gold text-[11px] font-semibold text-pine">
-                {initials(name)}
-              </span>
-              <div className="min-w-0">
-                <p className="truncate text-[12.5px] font-medium text-cream">{name}</p>
-                <p className="truncate font-mono text-[10px] text-cream/50">{address}</p>
+          <div className="px-4 pb-6">
+            <div className="rounded-[14px] bg-cream/[0.08] p-4">
+              <div className="flex items-center gap-3">
+                <span className="flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-[12px] bg-gold font-mono text-[17px] font-semibold text-pine">
+                  {initials(name)}
+                </span>
+                <div className="min-w-0">
+                  <p className="truncate text-[18px] font-medium text-cream">{name}</p>
+                  <p className="truncate font-mono text-[13px] text-cream/65">{address}</p>
+                </div>
               </div>
+              <MailDisconnect />
             </div>
-            <MailDisconnect />
           </div>
         )}
       </aside>
 
       <section
-        className={`min-w-0 border-r border-ink/10 bg-cream ${selected || connect ? "hidden md:flex md:w-[340px] md:shrink-0 md:flex-col" : "flex flex-1 flex-col"}`}
+        className={`min-w-0 border-r-2 border-ink/15 bg-wash ${selected || connect ? "hidden md:flex md:w-[380px] md:shrink-0 md:flex-col xl:w-[520px]" : "flex flex-1 flex-col"}`}
       >
-        <div className="px-4 pb-3 pt-4 md:px-4">
-          <div className="mb-3 flex items-center justify-between md:hidden">
-            <h1 className="text-[20px] font-semibold text-ink">{es.correo.title}</h1>
+        <div className="flex flex-col gap-3.5 px-5 pb-4 pt-6 md:px-[26px]">
+          <div className="flex items-center justify-between md:hidden">
+            <h1 className="text-[22px] font-semibold text-ink">{es.correo.title}</h1>
           </div>
           {connect ? null : (
-            <ComposeButton className="h-11 w-full rounded-[12px] bg-pine text-[13.5px] font-medium text-cream hover:bg-[#1B3A28]" />
+            <ComposeButton className="flex h-[50px] w-full items-center justify-center rounded-[13px] bg-ink text-[18px] font-semibold text-cream hover:bg-pine md:h-[58px] md:text-[21px]" />
           )}
-          {connect ? null : (
-            <div className="mt-3">
-              <MailSearch folder={folder} filter={filter} query={query} />
-            </div>
-          )}
-          <div className="mt-3 flex gap-1 overflow-auto md:hidden">
+          {connect ? null : <MailSearch folder={folder} filter={filter} query={query} />}
+          <div className="flex gap-1 overflow-auto md:hidden">
             {MAIL_FOLDERS.map((id) => (
               <Link
                 key={id}
                 href={correoHref({ folder: id, filter: "all" })}
                 className={cn(
                   "shrink-0 rounded-full px-2.5 py-1 text-[11px]",
-                  folder === id ? "bg-pine text-cream" : "bg-wash text-ink/70",
+                  folder === id ? "bg-ink text-cream" : "border-2 border-ink/20 text-ink",
                 )}
               >
                 {FOLDER_LABEL[id]}
@@ -125,14 +133,16 @@ export function MailWorkspace({
             ))}
           </div>
           {connect ? null : (
-            <div className="mt-3 flex gap-1.5">
+            <div className="flex flex-wrap gap-2.5">
               {filters.map((item) => (
                 <Link
                   key={item.id}
                   href={correoHref({ folder, filter: item.id, query })}
                   className={cn(
-                    "rounded-full px-3 py-1.5 text-[12px]",
-                    filter === item.id ? "bg-pine font-medium text-cream" : "bg-wash text-ink/60 hover:text-ink",
+                    "flex h-[38px] items-center rounded-full px-5 text-[15px] md:h-[42px] md:text-[17px]",
+                    filter === item.id
+                      ? "bg-ink font-semibold text-cream"
+                      : "border-2 border-ink/20 font-medium text-ink hover:border-ink",
                   )}
                 >
                   {item.label}
@@ -141,7 +151,7 @@ export function MailWorkspace({
             </div>
           )}
           {canModify ? null : connect ? null : (
-            <a href="/api/correo/connect" className="mt-2 block text-[11px] font-medium text-overdue">
+            <a href="/api/correo/connect" className="text-[13px] font-medium text-overdue">
               {es.correo.reconnect}
             </a>
           )}
@@ -151,9 +161,9 @@ export function MailWorkspace({
         </Suspense>
         <div className="min-h-0 flex-1 overflow-auto">
           {connect ? (
-            <div className="px-4">{connect}</div>
+            <div className="px-5">{connect}</div>
           ) : rows.length === 0 ? (
-            <div className="px-4">
+            <div className="px-5">
               <EmptyState title={emptyTitle} hint={emptyHint} />
             </div>
           ) : (
@@ -167,7 +177,7 @@ export function MailWorkspace({
           )}
         </div>
         {connect || folder === "sent" ? null : (
-          <p className="px-4 py-2 text-[11px] text-ink/40">
+          <p className="border-t-2 border-ink/10 px-[26px] py-5 font-mono text-[14px] font-medium text-ink/70 md:text-[16px]">
             {es.correo.countLine.replace("{n}", String(rows.length)).replace("{u}", String(counts.unread))}
           </p>
         )}
@@ -176,8 +186,8 @@ export function MailWorkspace({
       {selected ? (
         <MailThread mail={selected} html={html ?? ""} folder={folder} filter={filter} query={query} />
       ) : connect ? null : (
-        <div className="hidden min-w-0 flex-1 items-center justify-center bg-cream md:flex">
-          <p className="text-[13px] text-ink/40">{es.correo.pick}</p>
+        <div className="hidden min-w-0 flex-1 items-center justify-center bg-paper md:flex">
+          <p className="text-[16px] text-ink/55">{es.correo.pick}</p>
         </div>
       )}
     </div>

@@ -38,6 +38,7 @@ export default async function CorreoPage({
       name={profile.full_name}
       address={account?.email ?? ""}
       canModify={account?.canModify ?? false}
+      teams={profile.accessibleTeams}
       rows={account ? filterMails(all, { folder, filter, query }) : []}
       selected={null}
       counts={account ? countFolders(all) : countFolders([])}

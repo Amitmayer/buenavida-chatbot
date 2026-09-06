@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="" />
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  html, body { margin: 0; padding: 0; background: #DCD5C2; }
+  a { color: #A8642A; }
+  a:hover { color: #12281C; }
+</style>
+</helmet>
+
+<div ref="{{ ref }}" style="padding: 40px; display: flex; flex-direction: column; gap: 40px; font-family: 'Outfit', system-ui, sans-serif; background: #DCD5C2;">
+
+  <div>
+    <div style="display: flex; align-items: baseline; gap: 14px; margin-bottom: 14px;">
+      <div style="font: 600 15px 'IBM Plex Mono', monospace; letter-spacing: 0.18em; text-transform: uppercase; color: #12281C;">Mensajes</div>
+      <div style="font: 400 15px 'IBM Plex Mono', monospace; color: rgba(18,40,28,0.6);">buenavidaos.com/mensajes</div>
+    </div>
+    <div style="{{ frame }}">
+      <div style="width: 1920px; height: 1080px; transform-origin: 0 0; transform: {{ fit }}; display: flex; background: #E8E2D2; color: #12281C;">
+        <dc-import name="OSSidebar" active="Mensajes" hint-size="300px,1080px"></dc-import>
+        <div style="flex: 1; min-width: 0; display: flex; flex-direction: column;">
+          <div style="height: 92px; flex: 0 0 92px; display: flex; align-items: center; gap: 16px; padding: 0 36px; border-bottom: 2px solid rgba(14,33,25,0.14); background: #F1ECDE;">
+            <div style="font: 700 34px 'Outfit', sans-serif;">Mensajes</div>
+            <div style="flex: 1;"></div>
+            <div style="width: 380px; height: 50px; border-radius: 13px; background: #FFFFFF; border: 2px solid rgba(14,33,25,0.16); display: flex; align-items: center; gap: 12px; padding: 0 18px;">
+              <div style="width: 14px; height: 14px; flex: 0 0 14px; border-radius: 9px; border: 2.5px solid #0E2119;"></div>
+              <div style="font: 400 19px 'Outfit', sans-serif; color: rgba(14,33,25,0.55);">Buscar tarea, archivo, persona</div>
+            </div>
+            <div style="height: 50px; border-radius: 13px; background: #12281C; color: #F6F3EA; padding: 0 22px; display: flex; align-items: center; gap: 9px; font: 600 20px 'Outfit', sans-serif;"><span style="font-size: 22px; line-height: 1;">+</span> Nueva tarea</div>
+          </div>
+          <div style="flex: 1; min-height: 0; display: flex;">
+            <div style="width: 470px; flex: 0 0 470px; background: #F1ECDE; border-right: 2px solid rgba(14,33,25,0.14); display: flex; flex-direction: column;">
+              <div style="padding: 22px 22px 18px; display: flex; gap: 10px;">
+                <div style="flex: 1; height: 48px; border-radius: 12px; background: #12281C; color: #F6F3EA; display: flex; align-items: center; justify-content: center; font: 600 19px 'Outfit', sans-serif;">Canales</div>
+                <div style="flex: 1; height: 48px; border-radius: 12px; border: 2px solid rgba(14,33,25,0.18); display: flex; align-items: center; justify-content: center; font: 500 19px 'Outfit', sans-serif;" style-hover="border-color: #12281C; background: #FFFFFF">Personas</div>
+              </div>
+              <div style="padding: 0 22px 8px; font: 500 14px 'IBM Plex Mono', monospace; letter-spacing: 0.18em; text-transform: uppercase; color: rgba(14,33,25,0.7);">Anuncios</div>
+              <div style="padding: 0 14px 16px;">
+                <div style="display: flex; align-items: center; gap: 14px; padding: 14px 16px; border-radius: 14px; background: #C79350; color: #12281C;">
+                  <div style="width: 44px; height: 44px; flex: 0 0 44px; border-radius: 12px; background: #12281C; color: #F6F3EA; display: flex; align-items: center; justify-content: center; font: 600 16px 'IBM Plex Mono', monospace;">AN</div>
+                  <div style="min-width: 0; flex: 1;">
+                    <div style="font: 700 21px 'Outfit', sans-serif;">Anuncios</div>
+                    <div style="font: 400 18px 'Outfit', sans-serif; margin-top: 2px;">Toda la empresa</div>
+                  </div>
+                  <div style="font: 500 15px 'IBM Plex Mono', monospace;">AYER</div>
+                </div>
+              </div>
+              <div style="padding: 0 22px 8px; font: 500 14px 'IBM Plex Mono', monospace; letter-spacing: 0.18em; text-transform: uppercase; color: rgba(14,33,25,0.7);">Áreas</div>
+              <div style="padding: 0 14px; display: flex; flex-direction: column; gap: 6px;">
+                <sc-for list="{{ channels }}" as="c" hint-placeholder-count="8">
+                  <div style="{{ c.rowStyle }}">
+                    <div style="{{ c.avStyle }}">{{ c.ini }}</div>
+                    <div style="min-width: 0; flex: 1;">
+                      <div style="{{ c.nameStyle }}">{{ c.name }}</div>
+                      <div style="{{ c.subStyle }}">{{ c.sub }}</div>
+                    </div>
+                    <sc-if value="{{ c.unread }}" hint-placeholder-val="{{ false }}">
+                      <div style="min-width: 26px; height: 26px; border-radius: 8px; background: #C4622D; color: #FFFFFF; display: flex; align-items: center; justify-content: center; padding: 0 7px; font: 500 14px 'IBM Plex Mono', monospace;">{{ c.unread }}</div>
+                    </sc-if>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+            <div style="flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center; padding: 40px; background: #E8E2D2;">
+              <div style="max-width: 620px; background: #FFFDF7; border: 2px solid rgba(14,33,25,0.12); border-radius: 22px; padding: 40px 44px; text-align: center;">
+                <div style="width: 64px; height: 64px; margin: 0 auto; border-radius: 18px; background: #12281C; display: flex; align-items: center; justify-content: center;">
+                  <div style="width: 26px; height: 20px; border: 2.5px solid #F6F3EA; border-radius: 5px;"></div>
+                </div>
+                <div style="font: 700 32px 'Outfit', sans-serif; margin-top: 22px;">Abrí una conversación</div>
+                <div style="font: 400 22px 'Outfit', sans-serif; color: rgba(14,33,25,0.72); margin-top: 12px; line-height: 1.5;">Cada área tiene su canal. Los anuncios los ve toda la empresa.</div>
+                <div style="display: flex; gap: 12px; justify-content: center; margin-top: 26px;">
+                  <div style="height: 50px; border-radius: 13px; background: #12281C; color: #F6F3EA; padding: 0 22px; display: flex; align-items: center; font: 600 19px 'Outfit', sans-serif;">Ir a Comercial</div>
+                  <div style="height: 50px; border-radius: 13px; border: 2px solid rgba(14,33,25,0.22); padding: 0 22px; display: flex; align-items: center; font: 600 19px 'Outfit', sans-serif;" style-hover="border-color: #12281C; background: #F1ECDE">Nuevo anuncio</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <div style="display: flex; align-items: baseline; gap: 14px; margin-bottom: 14px;">
+      <div style="font: 600 15px 'IBM Plex Mono', monospace; letter-spacing: 0.18em; text-transform: uppercase; color: #12281C;">Equipo</div>
+      <div style="font: 400 15px 'IBM Plex Mono', monospace; color: rgba(18,40,28,0.6);">buenavidaos.com/equipo</div>
+    </div>
+    <div style="{{ frame }}">
+      <div style="width: 1920px; height: 1080px; transform-origin: 0 0; transform: {{ fit }}; display: flex; background: #E8E2D2; color: #12281C;">
+        <dc-import name="OSSidebar" active="Equipo" hint-size="300px,1080px"></dc-import>
+        <div style="flex: 1; min-width: 0; display: flex; flex-direction: column;">
+          <div style="height: 92px; flex: 0 0 92px; display: flex; align-items: center; gap: 16px; padding: 0 36px; border-bottom: 2px solid rgba(14,33,25,0.14); background: #F1ECDE;">
+            <div style="font: 700 34px 'Outfit', sans-serif;">Equipo</div>
+            <div style="font: 500 18px 'IBM Plex Mono', monospace; color: rgba(14,33,25,0.7);">12 cuentas · 8 equipos</div>
+            <div style="flex: 1;"></div>
+            <div style="height: 50px; border-radius: 13px; border: 2px solid rgba(14,33,25,0.2); padding: 0 20px; display: flex; align-items: center; font: 600 19px 'Outfit', sans-serif;" style-hover="border-color: #12281C; background: #FFFFFF">Filtrar por área</div>
+            <div style="height: 50px; border-radius: 13px; background: #C4622D; color: #FFFFFF; padding: 0 22px; display: flex; align-items: center; gap: 9px; font: 600 20px 'Outfit', sans-serif;"><span style="font-size: 22px; line-height: 1;">+</span> Invitar</div>
+          </div>
+          <div style="flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; padding: 28px 36px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-auto-rows: min-content; gap: 20px; align-content: start;">
+            <sc-for list="{{ people }}" as="p" hint-placeholder-count="9">
+              <div style="{{ p.cardStyle }}">
+                <div style="display: flex; align-items: center; gap: 14px;">
+                  <div style="{{ p.avStyle }}">{{ p.ini }}</div>
+                  <div style="min-width: 0; flex: 1;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                      <div style="font: 700 23px 'Outfit', sans-serif; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ p.name }}</div>
+                      <sc-if value="{{ p.tag }}" hint-placeholder-val="{{ false }}">
+                        <div style="{{ p.tagStyle }}">{{ p.tag }}</div>
+                      </sc-if>
+                    </div>
+                    <div style="font: 400 18px 'Outfit', sans-serif; color: rgba(14,33,25,0.72); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ p.role }}</div>
+                  </div>
+                </div>
+                <div style="display: flex; flex-wrap: wrap; gap: 7px; margin-top: 16px;">
+                  <sc-for list="{{ p.chips }}" as="ch" hint-placeholder-count="3">
+                    <div style="{{ ch.style }}">{{ ch.label }}</div>
+                  </sc-for>
+                </div>
+                <div style="display: flex; align-items: center; gap: 10px; margin-top: 18px; padding-top: 14px; border-top: 2px solid rgba(14,33,25,0.1);">
+                  <div style="height: 40px; border-radius: 11px; background: #12281C; color: #F6F3EA; padding: 0 18px; display: flex; align-items: center; font: 600 17px 'Outfit', sans-serif;">Administrar</div>
+                  <div style="font: 400 17px 'IBM Plex Mono', monospace; color: rgba(14,33,25,0.65);">{{ p.meta }}</div>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <div style="display: flex; align-items: baseline; gap: 14px; margin-bottom: 14px;">
+      <div style="font: 600 15px 'IBM Plex Mono', monospace; letter-spacing: 0.18em; text-transform: uppercase; color: #12281C;">Área · Comercial</div>
+      <div style="font: 400 15px 'IBM Plex Mono', monospace; color: rgba(18,40,28,0.6);">buenavidaos.com/areas/comercial</div>
+    </div>
+    <div style="{{ frame }}">
+      <div style="width: 1920px; height: 1080px; transform-origin: 0 0; transform: {{ fit }}; display: flex; background: #E8E2D2; color: #12281C;">
+        <dc-import name="OSSidebar" active="" area="Comercial" hint-size="300px,1080px"></dc-import>
+        <div style="flex: 1; min-width: 0; display: flex; flex-direction: column;">
+          <div style="height: 92px; flex: 0 0 92px; display: flex; align-items: center; gap: 16px; padding: 0 36px; border-bottom: 2px solid rgba(14,33,25,0.14); background: #F1ECDE;">
+            <div style="width: 14px; height: 14px; border-radius: 8px; background: #5B8C6A;"></div>
+            <div style="font: 700 34px 'Outfit', sans-serif;">Comercial</div>
+            <div style="font: 400 20px 'Outfit', sans-serif; color: rgba(14,33,25,0.72);">B2B, ruta, cotizaciones</div>
+            <div style="flex: 1;"></div>
+            <div style="height: 50px; border-radius: 13px; background: #12281C; color: #F6F3EA; padding: 0 22px; display: flex; align-items: center; gap: 9px; font: 600 20px 'Outfit', sans-serif;"><span style="font-size: 22px; line-height: 1;">+</span> Nueva tarea</div>
+          </div>
+          <div style="flex: 1; min-height: 0; display: flex;">
+            <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; padding: 26px 36px;">
+              <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                <div style="height: 44px; border-radius: 22px; background: #12281C; color: #F6F3EA; padding: 0 20px; display: flex; align-items: center; gap: 10px; font: 600 19px 'Outfit', sans-serif;">Para hoy <span style="opacity: 0.7;">×</span></div>
+                <div style="height: 44px; border-radius: 22px; background: #12281C; color: #F6F3EA; padding: 0 20px; display: flex; align-items: center; gap: 10px; font: 600 19px 'Outfit', sans-serif;">Alta prioridad <span style="opacity: 0.7;">×</span></div>
+                <div style="height: 44px; border-radius: 22px; border: 2px solid rgba(14,33,25,0.2); padding: 0 20px; display: flex; align-items: center; font: 500 19px 'Outfit', sans-serif;" style-hover="border-color: #12281C; background: #FFFFFF">Atrasadas</div>
+                <div style="height: 44px; border-radius: 22px; border: 2px solid rgba(14,33,25,0.2); padding: 0 20px; display: flex; align-items: center; font: 500 19px 'Outfit', sans-serif;" style-hover="border-color: #12281C; background: #FFFFFF">Sin fecha</div>
+              </div>
+              <div style="margin-top: 26px; background: #FFFDF7; border: 2px solid rgba(14,33,25,0.12); border-radius: 22px; padding: 46px 48px; display: flex; align-items: center; gap: 32px;">
+                <div style="width: 72px; height: 72px; flex: 0 0 72px; border-radius: 20px; background: #C79350; display: flex; align-items: center; justify-content: center;">
+                  <div style="width: 30px; height: 30px; border: 3px solid #12281C; border-radius: 8px;"></div>
+                </div>
+                <div style="min-width: 0;">
+                  <div style="font: 700 32px 'Outfit', sans-serif;">Ningún resultado con estos filtros</div>
+                  <div style="font: 400 22px 'Outfit', sans-serif; color: rgba(14,33,25,0.75); margin-top: 10px; line-height: 1.5;">Las tareas del área siguen ahí. Quitá un filtro para verlas.</div>
+                  <div style="display: flex; gap: 12px; margin-top: 22px;">
+                    <div style="height: 48px; border-radius: 13px; background: #12281C; color: #F6F3EA; padding: 0 22px; display: flex; align-items: center; font: 600 19px 'Outfit', sans-serif;">Quitar filtros</div>
+                    <div style="height: 48px; border-radius: 13px; border: 2px solid rgba(14,33,25,0.22); padding: 0 22px; display: flex; align-items: center; font: 600 19px 'Outfit', sans-serif;" style-hover="border-color: #12281C; background: #F1ECDE">Ver todo el área</div>
+                  </div>
+                </div>
+              </div>
+              <div style="flex: 1;"></div>
+              <div style="display: flex; gap: 20px;">
+                <div style="flex: 1; background: #F1ECDE; border: 2px solid rgba(14,33,25,0.12); border-radius: 18px; padding: 22px 24px;">
+                  <div style="font: 500 14px 'IBM Plex Mono', monospace; letter-spacing: 0.18em; text-transform: uppercase; color: rgba(14,33,25,0.7);">En el área</div>
+                  <div style="font: 700 38px 'IBM Plex Mono', monospace; margin-top: 8px;">14</div>
+                  <div style="font: 400 19px 'Outfit', sans-serif; color: rgba(14,33,25,0.75);">tareas abiertas</div>
+                </div>
+                <div style="flex: 1; background: #F1ECDE; border: 2px solid rgba(14,33,25,0.12); border-radius: 18px; padding: 22px 24px;">
+                  <div style="font: 500 14px 'IBM Plex Mono', monospace; letter-spacing: 0.18em; text-transform: uppercase; color: rgba(14,33,25,0.7);">Atrasadas</div>
+                  <div style="font: 700 38px 'IBM Plex Mono', monospace; margin-top: 8px; color: #A8501F;">2</div>
+                  <div style="font: 400 19px 'Outfit', sans-serif; color: rgba(14,33,25,0.75);">necesitan fecha nueva</div>
+                </div>
+                <div style="flex: 1; background: #F1ECDE; border: 2px solid rgba(14,33,25,0.12); border-radius: 18px; padding: 22px 24px;">
+                  <div style="font: 500 14px 'IBM Plex Mono', monospace; letter-spacing: 0.18em; text-transform: uppercase; color: rgba(14,33,25,0.7);">Personas</div>
+                  <div style="font: 700 38px 'IBM Plex Mono', monospace; margin-top: 8px;">5</div>
+                  <div style="font: 400 19px 'Outfit', sans-serif; color: rgba(14,33,25,0.75);">con acceso al área</div>
+                </div>
+              </div>
+            </div>
+            <div style="width: 480px; flex: 0 0 480px; background: #F1ECDE; border-left: 2px solid rgba(14,33,25,0.14); display: flex; flex-direction: column;">
+              <div style="padding: 24px 26px; border-bottom: 2px solid rgba(14,33,25,0.12);">
+                <div style="font: 700 26px 'Outfit', sans-serif;">Chat del área</div>
+                <div style="font: 400 18px 'Outfit', sans-serif; color: rgba(14,33,25,0.72); margin-top: 5px;">Solo Comercial. No se mezcla con los grupos.</div>
+              </div>
+              <div style="flex: 1; min-height: 0; padding: 22px 26px; display: flex; flex-direction: column; gap: 18px; justify-content: flex-end;">
+                <div>
+                  <div style="font: 400 16px 'IBM Plex Mono', monospace; color: rgba(14,33,25,0.7); margin-bottom: 6px;">Ana R. · 8:12</div>
+                  <div style="display: inline-block; background: #FFFFFF; border: 2px solid rgba(14,33,25,0.12); border-radius: 16px 16px 16px 4px; padding: 14px 18px; font: 400 20px 'Outfit', sans-serif;">Llegó el lote de Tarrazú.</div>
+                </div>
+                <div style="display: flex; flex-direction: column; align-items: flex-end;">
+                  <div style="font: 400 16px 'IBM Plex Mono', monospace; color: rgba(14,33,25,0.7); margin-bottom: 6px;">Vos · 8:15</div>
+                  <div style="background: #12281C; color: #F6F3EA; border-radius: 16px 16px 4px 16px; padding: 14px 18px; font: 400 20px 'Outfit', sans-serif;">Lo confirmo hoy.</div>
+                </div>
+              </div>
+              <div style="padding: 20px 26px; border-top: 2px solid rgba(14,33,25,0.12); display: flex; gap: 12px;">
+                <div style="flex: 1; min-width: 0; height: 56px; border-radius: 14px; background: #FFFFFF; border: 2px solid rgba(14,33,25,0.16); display: flex; align-items: center; padding: 0 18px; font: 400 20px 'Outfit', sans-serif; color: rgba(14,33,25,0.55);">Escribí un mensaje…</div>
+                <div style="height: 56px; border-radius: 14px; background: #12281C; color: #F6F3EA; padding: 0 24px; display: flex; align-items: center; font: 600 20px 'Outfit', sans-serif;">Enviar</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <div style="display: flex; align-items: baseline; gap: 14px; margin-bottom: 14px;">
+      <div style="font: 600 15px 'IBM Plex Mono', monospace; letter-spacing: 0.18em; text-transform: uppercase; color: #12281C;">Asistente</div>
+      <div style="font: 400 15px 'IBM Plex Mono', monospace; color: rgba(18,40,28,0.6);">buenavidaos.com/chat</div>
+    </div>
+    <div style="{{ frame }}">
+      <div style="width: 1920px; height: 1080px; transform-origin: 0 0; transform: {{ fit }}; display: flex; background: #E8E2D2; color: #12281C;">
+        <dc-import name="OSSidebar" active="Asistente" hint-size="300px,1080px"></dc-import>
+        <div style="flex: 1; min-width: 0; display: flex; flex-direction: column;">
+          <div style="height: 92px; flex: 0 0 92px; display: flex; align-items: center; gap: 16px; padding: 0 36px; border-bottom: 2px solid rgba(14,33,25,0.14); background: #F1ECDE;">
+            <div style="font: 700 34px 'Outfit', sans-serif;">Asistente</div>
+            <div style="font: 500 18px 'IBM Plex Mono', monospace; color: rgba(14,33,25,0.7);">dom 6 sep</div>
+            <div style="flex: 1;"></div>
+            <div style="height: 50px; border-radius: 13px; border: 2px solid rgba(14,33,25,0.2); padding: 0 20px; display: flex; align-items: center; font: 600 19px 'Outfit', sans-serif;" style-hover="border-color: #12281C; background: #FFFFFF">Historial</div>
+          </div>
+          <div style="flex: 1; min-height: 0; display: flex; flex-direction: column; align-items: center; padding: 28px 36px 0;">
+            <div style="width: 100%; max-width: 1100px; flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 20px; justify-content: flex-end; padding-bottom: 24px;">
+              <div style="display: flex; justify-content: flex-end;">
+                <div style="background: #12281C; color: #F6F3EA; border-radius: 20px 20px 6px 20px; padding: 18px 24px; font: 400 23px 'Outfit', sans-serif; max-width: 720px;">crear tarea: confirmar tueste del viernes, equipo Comercial</div>
+              </div>
+              <div style="display: flex; gap: 14px;">
+                <div style="width: 46px; height: 46px; flex: 0 0 46px; border-radius: 13px; background: #C79350; color: #12281C; display: flex; align-items: center; justify-content: center; font: 600 16px 'IBM Plex Mono', monospace;">AS</div>
+                <div style="min-width: 0;">
+                  <div style="background: #FFFDF7; border: 2px solid rgba(14,33,25,0.12); border-radius: 20px 20px 20px 6px; padding: 20px 24px; font: 400 23px 'Outfit', sans-serif; line-height: 1.45; max-width: 760px;">Listo. La creé en Comercial para hoy y te la asigné.</div>
+                  <div style="margin-top: 12px; display: inline-flex; align-items: center; gap: 18px; background: #5B8C6A; color: #FFFFFF; border-radius: 16px; padding: 16px 22px;">
+                    <div>
+                      <div style="font: 500 14px 'IBM Plex Mono', monospace; letter-spacing: 0.18em; text-transform: uppercase;">Tarea creada</div>
+                      <div style="font: 600 24px 'Outfit', sans-serif; margin-top: 6px;">Confirmar tueste del viernes</div>
+                      <div style="font: 400 17px 'IBM Plex Mono', monospace; margin-top: 4px;">comercial · hoy · Amit M.</div>
+                    </div>
+                    <div style="height: 44px; border-radius: 12px; background: #FFFFFF; color: #12281C; padding: 0 20px; display: flex; align-items: center; font: 600 18px 'Outfit', sans-serif;">Abrir</div>
+                  </div>
+                </div>
+              </div>
+              <div style="display: flex; justify-content: flex-end;">
+                <div style="background: #12281C; color: #F6F3EA; border-radius: 20px 20px 6px 20px; padding: 18px 24px; font: 400 23px 'Outfit', sans-serif;">¿qué queda atrasado en Operaciones?</div>
+              </div>
+              <div style="display: flex; gap: 14px;">
+                <div style="width: 46px; height: 46px; flex: 0 0 46px; border-radius: 13px; background: #C79350; color: #12281C; display: flex; align-items: center; justify-content: center; font: 600 16px 'IBM Plex Mono', monospace;">AS</div>
+                <div style="background: #FFFDF7; border: 2px solid rgba(14,33,25,0.12); border-radius: 20px 20px 20px 6px; padding: 20px 24px; font: 400 23px 'Outfit', sans-serif; line-height: 1.45; max-width: 760px;">Dos: <strong style="font-weight: 600;">Pedido de bolsas 250 g</strong> y <strong style="font-weight: 600;">Mantenimiento del tostador</strong>. Las dos son de Angie.</div>
+              </div>
+            </div>
+            <div style="width: 100%; max-width: 1100px; display: flex; gap: 12px; padding-bottom: 16px;">
+              <div style="height: 44px; border-radius: 22px; background: #F1ECDE; border: 2px solid rgba(14,33,25,0.18); padding: 0 20px; display: flex; align-items: center; font: 500 18px 'Outfit', sans-serif;" style-hover="border-color: #12281C; background: #FFFFFF">¿Qué tengo hoy?</div>
+              <div style="height: 44px; border-radius: 22px; background: #F1ECDE; border: 2px solid rgba(14,33,25,0.18); padding: 0 20px; display: flex; align-items: center; font: 500 18px 'Outfit', sans-serif;" style-hover="border-color: #12281C; background: #FFFFFF">Tareas atrasadas del equipo</div>
+              <div style="height: 44px; border-radius: 22px; background: #F1ECDE; border: 2px solid rgba(14,33,25,0.18); padding: 0 20px; display: flex; align-items: center; font: 500 18px 'Outfit', sans-serif;" style-hover="border-color: #12281C; background: #FFFFFF">Crear tarea de mayoreo</div>
+            </div>
+            <div style="width: 100%; max-width: 1100px; display: flex; gap: 14px; padding-bottom: 30px;">
+              <div style="flex: 1; min-width: 0; height: 68px; border-radius: 16px; background: #FFFFFF; border: 2px solid rgba(14,33,25,0.16); display: flex; align-items: center; padding: 0 22px; font: 400 22px 'Outfit', sans-serif; color: rgba(14,33,25,0.55);">Preguntá o pedí algo…</div>
+              <div style="height: 68px; border-radius: 16px; background: #12281C; color: #F6F3EA; padding: 0 34px; display: flex; align-items: center; font: 600 22px 'Outfit', sans-serif;">Enviar</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+var CH = [
+  ['Comercial', 'Ana R. · Llegó el lote de Tarrazú', '#5B8C6A', 3, true],
+  ['Operaciones', 'Angie V. · Falta el pedido de bolsas', '#4F7FA8', 1, false],
+  ['USA', 'Roy M. · Portland confirmó el sample', '#7A6FC0', 0, false],
+  ['Academia', 'Fernanda G. · Taller del sábado lleno', '#B06FA8', 0, false],
+  ['Marketing', 'Jenny M. · Etiquetas nuevas listas', '#C4718A', 0, false],
+  ['Administración', 'Susana C. · Cierre de agosto', '#C79350', 0, false],
+  ['Regenerativo', 'Amanda F. · Visita a la finca', '#8FA85B', 0, false],
+  ['Dirección', 'Gally M. · Agenda de la semana', '#9AA85B', 0, false]
+];
+var AREA_COLOR = {
+  'Comercial': '#5B8C6A', 'Operaciones': '#4F7FA8', 'USA': '#7A6FC0', 'Academia': '#B06FA8',
+  'Marketing': '#C4718A', 'Administración': '#C79350', 'Regenerativo': '#8FA85B', 'Dirección': '#9AA85B'
+};
+var PEOPLE = [
+  ['Amit Mayer', 'Dirección y producto', 'Admin', ['Dirección', 'Comercial', 'Marketing', 'USA'], 'admin · todas las áreas'],
+  ['Gally Mayer', 'CEO, fundadora', null, ['Dirección'], 'acceso completo'],
+  ['Deybid Sandi', 'Director comercial y RevOps', null, ['Comercial', 'Operaciones', 'USA', 'Dirección'], '4 áreas'],
+  ['Angie Vargas', 'Tueste y control de calidad', null, ['Operaciones'], '1 área'],
+  ['Roy Marin', 'Head barista, operaciones y ventas USA', null, ['Comercial', 'Operaciones', 'USA'], '3 áreas'],
+  ['Nathan Ramirez', 'Ejecutivo comercial B2B', null, ['Comercial', 'Operaciones'], '2 áreas'],
+  ['Fernanda Gamboa', 'Academia y eventos', null, ['Academia', 'Marketing'], '2 áreas'],
+  ['Jenny Mejia', 'Diseño gráfico y marketing', null, ['Academia', 'Marketing'], '2 áreas'],
+  ['Amanda Fernandez', 'Impacto regenerativo', null, ['Regenerativo'], '1 área'],
+  ['Natalia Salas', 'Asistente de dirección', null, ['Dirección', 'Administración', 'Comercial'], '3 áreas'],
+  ['Susana Cascante', 'Administración y finanzas', null, ['Administración'], '1 área'],
+  ['David Mayer', 'Solo ve lo que se le asigna', 'Externo', [], 'acceso limitado']
+];
+function ini(name) { return name.split(' ').map(function (w) { return w[0]; }).join('').slice(0, 2).toUpperCase(); }
+
+class Component extends DCLogic {
+  state = { w: 1400 };
+  componentDidMount() {
+    this.measure = () => {
+      const n = this.el && this.el.parentNode;
+      const w = (n ? n.clientWidth : 0) || window.innerWidth;
+      if (w && w !== this.state.w) this.setState({ w: w });
+    };
+    this.measure();
+    window.addEventListener('resize', this.measure);
+    this.iv = setInterval(this.measure, 500);
+  }
+  componentWillUnmount() {
+    window.removeEventListener('resize', this.measure);
+    clearInterval(this.iv);
+  }
+  renderVals() {
+    const k = Math.min(1, Math.max(320, this.state.w - 80) / 1920);
+    return {
+      ref: (n) => { this.el = n; },
+      frame: 'width: 100%; height: ' + (1080 * k).toFixed(0) + 'px; overflow: hidden; border-radius: 10px; box-shadow: 0 10px 40px rgba(14,33,25,0.18); background: #E8E2D2;',
+      fit: 'scale(' + k.toFixed(5) + ')',
+      channels: CH.map(function (c, i) {
+        var on = i === 0;
+        return {
+          name: c[0], sub: c[1], ini: ini(c[0]), unread: c[3] || null,
+          rowStyle: 'display: flex; align-items: center; gap: 14px; padding: 13px 16px; border-radius: 14px; '
+            + (on ? 'background: #12281C; color: #F6F3EA;' : 'background: #FFFFFF; border: 2px solid rgba(14,33,25,0.1);'),
+          avStyle: 'width: 44px; height: 44px; flex: 0 0 44px; border-radius: 12px; background: ' + c[2]
+            + '; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font: 600 16px \'IBM Plex Mono\', monospace;',
+          nameStyle: 'font: ' + (on ? '700' : '600') + ' 21px \'Outfit\', sans-serif; white-space: nowrap;',
+          subStyle: 'font: 400 17px \'Outfit\', sans-serif; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: '
+            + (on ? 'rgba(246,243,234,0.78)' : 'rgba(14,33,25,0.66)') + ';'
+        };
+      }),
+      people: PEOPLE.map(function (p) {
+        var ext = p[2] === 'Externo';
+        return {
+          name: p[0], role: p[1], tag: p[2], meta: p[4], ini: ini(p[0]),
+          cardStyle: 'background: ' + (ext ? '#F1ECDE' : '#FFFDF7') + '; border: 2px solid '
+            + (ext ? '#C4622D' : 'rgba(14,33,25,0.12)') + '; border-radius: 18px; padding: 22px 24px;',
+          avStyle: 'width: 52px; height: 52px; flex: 0 0 52px; border-radius: 14px; background: '
+            + (ext ? '#C4622D' : '#12281C') + '; color: #F6F3EA; display: flex; align-items: center; justify-content: center; font: 600 18px \'IBM Plex Mono\', monospace;',
+          tagStyle: 'flex: 0 0 auto; border-radius: 14px; padding: 4px 11px; font: 600 15px \'Outfit\', sans-serif; background: '
+            + (ext ? '#C4622D' : '#12281C') + '; color: #FFFFFF;',
+          chips: p[3].length ? p[3].map(function (a) {
+            return {
+              label: a,
+              style: 'display: flex; align-items: center; gap: 7px; border-radius: 13px; padding: 5px 12px; font: 500 16px \'Outfit\', sans-serif; color: #12281C; background: '
+                + AREA_COLOR[a] + '33; box-shadow: inset 0 0 0 1.5px ' + AREA_COLOR[a] + ';'
+            };
+          }) : [{ label: 'Sin áreas', style: 'border-radius: 13px; padding: 5px 12px; font: 500 16px \'Outfit\', sans-serif; color: rgba(14,33,25,0.7); box-shadow: inset 0 0 0 1.5px rgba(14,33,25,0.2);' }]
+        };
+      })
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,6 +1,7 @@
-# Design tokens — Buena Vida app redesign
+# Design tokens — UI Design.zip
 
-Source: `design/redesign/Buena Vida OS.dc.html` (zip drop). Cream paper, pine sidebar, gold accent.
+Source: the `UI Design` folder (`Correo.dc.html`, `OSSidebar.dc.html`, `Pantallas.dc.html`).
+Outfit + IBM Plex Mono. Cream paper, pine sidebar, terracotta actions.
 
 Spec wins on architecture, access, and product copy. This drop wins on layout, color, type, and density.
 
@@ -8,31 +9,27 @@ Spec wins on architecture, access, and product copy. This drop wins on layout, c
 
 | Token | Hex | Use |
 |---|---|---|
-| `paper` | `#F6F3EA` | app canvas |
-| `sheet` | `#FFFDF7` | cards, fields, inbox |
-| `ink` | `#17301F` | text |
-| `pine` | `#12281C` | sidebar, primary buttons |
-| `gold` | `#C79350` | accent, active inset, hero rings |
-| `sage` | `#7C9A6B` | avatars, week bars |
-| `overdue` | `#C0562F` | overdue, unread, failure |
-| `wash` | `#EDEBDF` | table header, pills |
-| `hover` | `#F1EEE3` | row hover |
-| `cream` | `#E8E4D6` | sidebar text |
+| `paper` | `#E8E2D2` | app canvas |
+| `wash` | `#F1ECDE` | list pane, page header |
+| `sheet` | `#FFFDF7` | cards, message sheet |
+| `cream` | `#F6F3EA` | sidebar text, selected nav |
+| `ink` | `#12281C` | text, primary buttons |
+| `pine` | `#0E2119` | sidebar |
+| `gold` | `#C79350` | labels, selected mail bar |
+| `sage` | `#5B8C6A` | task banners |
+| `overdue` | `#C4622D` | unread badges, Crear tarea |
 
 Mapped in `app/globals.css`.
 
 ## Type
 
-- **Jost** 400 / 500 / 600. Page title 19/600. Body 13–14.
-- **JetBrains Mono** 400 / 500 for figures only: dates, counts, section labels. Never prose.
+- **Outfit** 300 / 400 / 500 / 600 / 700. Page title 34/700. Body 18–22 on desktop.
+- **IBM Plex Mono** 400 / 500 for figures, dates, section labels. Never prose.
 
 ## Radius
 
-8–9 chips and fields · 12 cards · 14 file cards and tables · 16 hero.
+11–13 chips and fields · 14–16 cards · 18–22 message sheets.
 
 ## Layout
 
-Dark sidebar 252px. Top header 62px with title, search, Nueva tarea. Content on paper.
-
-Áreas in the sidebar are real teams from the database, not fictional labs from the prototype.
-Keep Canales in Trabajo. Do not add roast widgets or invented clock times on `due_date`.
+Dark sidebar 300px. Top header 92px. Correo: 300 + 520 + remainder.

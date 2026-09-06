@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="" />
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  html, body { margin: 0; padding: 0; background: #E8E2D2; }
+  a { color: #A8642A; }
+  a:hover { color: #12281C; }
+</style>
+</helmet>
+<div ref="{{ ref }}" style="{{ frame }}">
+<div style="width: 1920px; height: 1080px; transform-origin: 0 0; transform: {{ fit }}; display: flex; background: #E8E2D2; font-family: 'Outfit', system-ui, sans-serif; color: #12281C;">
+
+  <div style="width: 300px; flex: 0 0 300px; background: #0E2119; color: #F6F3EA; display: flex; flex-direction: column; padding: 26px 0 24px;">
+    <div style="padding: 0 24px; display: flex; align-items: center; justify-content: space-between;">
+      <div style="font: 600 26px 'Outfit', sans-serif; letter-spacing: 0.01em;">Correo</div>
+      <div style="width: 40px; height: 40px; border-radius: 11px; background: rgba(246,243,234,0.1); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px;" style-hover="background: rgba(246,243,234,0.2)">
+        <div style="width: 18px; height: 2px; background: #F6F3EA;"></div>
+        <div style="width: 18px; height: 2px; background: #F6F3EA;"></div>
+        <div style="width: 18px; height: 2px; background: #F6F3EA;"></div>
+      </div>
+    </div>
+
+    <div style="padding: 0 24px; margin-top: 34px; font: 500 15px 'IBM Plex Mono', monospace; letter-spacing: 0.18em; text-transform: uppercase; color: #C79350;">Buzones</div>
+    <div style="margin-top: 14px; display: flex; flex-direction: column; gap: 6px; padding: 0 16px;">
+      <div style="display: flex; align-items: center; gap: 14px; height: 52px; border-radius: 13px; padding: 0 14px; background: #F6F3EA; color: #0E2119;">
+        <div style="width: 11px; height: 11px; border-radius: 6px; background: #C4622D;"></div>
+        <div style="flex: 1; font: 600 23px 'Outfit', sans-serif;">Entrada</div>
+        <div style="min-width: 30px; height: 30px; border-radius: 9px; background: #C4622D; color: #FFF; display: flex; align-items: center; justify-content: center; padding: 0 9px; font: 500 16px 'IBM Plex Mono', monospace;">8</div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 14px; height: 52px; border-radius: 13px; padding: 0 14px; color: rgba(246,243,234,0.88);" style-hover="background: rgba(246,243,234,0.09)">
+        <div style="width: 11px; height: 11px; border-radius: 6px; background: #5B8C6A;"></div>
+        <div style="flex: 1; font: 400 23px 'Outfit', sans-serif;">Enviados</div>
+        <div style="font: 400 18px 'IBM Plex Mono', monospace; color: rgba(246,243,234,0.6);">8</div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 14px; height: 52px; border-radius: 13px; padding: 0 14px; color: rgba(246,243,234,0.88);" style-hover="background: rgba(246,243,234,0.09)">
+        <div style="width: 11px; height: 11px; border-radius: 6px; background: #C79350;"></div>
+        <div style="flex: 1; font: 400 23px 'Outfit', sans-serif;">Borradores</div>
+        <div style="font: 400 18px 'IBM Plex Mono', monospace; color: rgba(246,243,234,0.6);">2</div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 14px; height: 52px; border-radius: 13px; padding: 0 14px; color: rgba(246,243,234,0.88);" style-hover="background: rgba(246,243,234,0.09)">
+        <div style="width: 11px; height: 11px; border-radius: 6px; background: #4F7FA8;"></div>
+        <div style="flex: 1; font: 400 23px 'Outfit', sans-serif;">Archivados</div>
+      </div>
+    </div>
+
+    <div style="padding: 0 24px; margin-top: 34px; font: 500 15px 'IBM Plex Mono', monospace; letter-spacing: 0.18em; text-transform: uppercase; color: #C79350;">Áreas</div>
+    <div style="margin-top: 14px; display: flex; flex-direction: column; gap: 4px; padding: 0 16px;">
+      <div style="display: flex; align-items: center; gap: 14px; height: 44px; border-radius: 11px; padding: 0 14px; color: rgba(246,243,234,0.88);" style-hover="background: rgba(246,243,234,0.09)">
+        <div style="width: 9px; height: 9px; border-radius: 5px; background: #5B8C6A;"></div>
+        <div style="flex: 1; font: 400 21px 'Outfit', sans-serif;">Comercial</div>
+        <div style="font: 400 17px 'IBM Plex Mono', monospace; color: rgba(246,243,234,0.6);">3</div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 14px; height: 44px; border-radius: 11px; padding: 0 14px; color: rgba(246,243,234,0.88);" style-hover="background: rgba(246,243,234,0.09)">
+        <div style="width: 9px; height: 9px; border-radius: 5px; background: #4F7FA8;"></div>
+        <div style="flex: 1; font: 400 21px 'Outfit', sans-serif;">Operaciones</div>
+        <div style="font: 400 17px 'IBM Plex Mono', monospace; color: rgba(246,243,234,0.6);">1</div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 14px; height: 44px; border-radius: 11px; padding: 0 14px; color: rgba(246,243,234,0.88);" style-hover="background: rgba(246,243,234,0.09)">
+        <div style="width: 9px; height: 9px; border-radius: 5px; background: #7A6FC0;"></div>
+        <div style="flex: 1; font: 400 21px 'Outfit', sans-serif;">USA</div>
+      </div>
+    </div>
+
+    <div style="flex: 1; min-height: 24px;"></div>
+    <div style="margin: 0 16px; padding: 16px; border-radius: 14px; background: rgba(246,243,234,0.08);">
+      <div style="display: flex; align-items: center; gap: 13px;">
+        <div style="width: 42px; height: 42px; border-radius: 12px; background: #C79350; color: #0E2119; display: flex; align-items: center; justify-content: center; font: 600 17px 'IBM Plex Mono', monospace;">AM</div>
+        <div style="min-width: 0; flex: 1;">
+          <div style="font: 500 20px 'Outfit', sans-serif;">Amit Mayer</div>
+          <div style="font: 400 15px 'IBM Plex Mono', monospace; color: rgba(246,243,234,0.65); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">amitjmayer@gmail.com</div>
+        </div>
+      </div>
+      <div style="margin-top: 14px; height: 42px; border-radius: 11px; border: 1.5px solid rgba(246,243,234,0.35); display: flex; align-items: center; justify-content: center; font: 500 18px 'Outfit', sans-serif; color: rgba(246,243,234,0.9);" style-hover="border-color: #C4622D; color: #FFFFFF; background: rgba(196,98,45,0.25)">Desconectar</div>
+    </div>
+  </div>
+
+  <div style="width: 520px; flex: 0 0 520px; background: #F1ECDE; border-right: 2px solid rgba(14,33,25,0.14); display: flex; flex-direction: column;">
+    <div style="padding: 26px 26px 18px; display: flex; flex-direction: column; gap: 14px;">
+      <div style="height: 58px; border-radius: 13px; background: #12281C; color: #F6F3EA; display: flex; align-items: center; justify-content: center; gap: 10px; font: 600 21px 'Outfit', sans-serif;" style-hover="background: #0E2119"><span style="font-size: 23px; line-height: 1;">+</span> Redactar</div>
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <div style="flex: 1; min-width: 0; height: 54px; border-radius: 13px; background: #FFFFFF; border: 2px solid rgba(14,33,25,0.16); display: flex; align-items: center; gap: 12px; padding: 0 18px;">
+          <div style="width: 15px; height: 15px; border-radius: 9px; border: 2.5px solid #0E2119; flex: 0 0 15px;"></div>
+          <div style="min-width: 0; font: 400 20px 'Outfit', sans-serif; color: rgba(14,33,25,0.55); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Buscar correo o remitente</div>
+        </div>
+        <div title="Actualizar" style="width: 54px; height: 54px; flex: 0 0 54px; border-radius: 13px; background: #FFFFFF; border: 2px solid rgba(14,33,25,0.16); display: flex; align-items: center; justify-content: center;" style-hover="border-color: #0E2119; background: #0E2119; color: #F6F3EA">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display: block;">
+            <path d="M20.5 12a8.5 8.5 0 1 1-2.9-6.4"></path>
+            <path d="M20.5 4.2v4.6h-4.6"></path>
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    <div style="display: flex; gap: 10px; padding: 0 26px 20px;">
+      <div style="height: 42px; border-radius: 21px; background: #12281C; color: #F6F3EA; padding: 0 20px; display: flex; align-items: center; font: 600 19px 'Outfit', sans-serif;">Todos · 8</div>
+      <div style="height: 42px; border-radius: 21px; background: transparent; border: 2px solid rgba(14,33,25,0.18); color: #12281C; padding: 0 20px; display: flex; align-items: center; font: 500 19px 'Outfit', sans-serif;" style-hover="border-color: #12281C">Sin leer</div>
+      <div style="height: 42px; border-radius: 21px; background: transparent; border: 2px solid rgba(14,33,25,0.18); color: #12281C; padding: 0 20px; display: flex; align-items: center; font: 500 19px 'Outfit', sans-serif;" style-hover="border-color: #12281C">Con tarea</div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 10px; padding: 0 18px;">
+      <div style="display: flex; gap: 14px; padding: 18px 20px; border-radius: 16px; background: #12281C; color: #F6F3EA;">
+        <div style="width: 4px; border-radius: 3px; background: #C79350; flex: 0 0 4px;"></div>
+        <div style="min-width: 0; flex: 1;">
+          <div style="display: flex; justify-content: space-between; gap: 12px; align-items: baseline;">
+            <div style="font: 600 22px 'Outfit', sans-serif;">Café Cielo · Marcela</div>
+            <div style="font: 400 17px 'IBM Plex Mono', monospace; color: rgba(246,243,234,0.75); white-space: nowrap;">8:04</div>
+          </div>
+          <div style="font: 500 21px 'Outfit', sans-serif; margin-top: 6px;">Orden de mayoreo — 60 kg Tarrazú</div>
+          <div style="font: 400 19px 'Outfit', sans-serif; color: rgba(246,243,234,0.75); margin-top: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Buenos días Amit, queremos confirmar el tueste…</div>
+          <div style="display: flex; gap: 8px; margin-top: 12px;">
+            <div style="border-radius: 16px; background: rgba(246,243,234,0.16); padding: 5px 13px; font: 500 16px 'Outfit', sans-serif;">2 adjuntos</div>
+            <div style="border-radius: 16px; background: #C79350; color: #12281C; padding: 5px 13px; font: 600 16px 'Outfit', sans-serif;">tarea creada</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 14px; padding: 18px 20px; border-radius: 16px; background: #FFFFFF; border: 2px solid rgba(14,33,25,0.1);" style-hover="border-color: #12281C">
+        <div style="width: 4px; border-radius: 3px; background: #4F7FA8; flex: 0 0 4px;"></div>
+        <div style="min-width: 0; flex: 1;">
+          <div style="display: flex; justify-content: space-between; gap: 12px; align-items: baseline;">
+            <div style="font: 600 22px 'Outfit', sans-serif;">Empaques del Valle</div>
+            <div style="font: 400 17px 'IBM Plex Mono', monospace; color: rgba(14,33,25,0.7); white-space: nowrap;">ayer</div>
+          </div>
+          <div style="font: 500 21px 'Outfit', sans-serif; margin-top: 6px;">Cotización bolsas 250 g válvula</div>
+          <div style="font: 400 19px 'Outfit', sans-serif; color: rgba(14,33,25,0.68); margin-top: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Adjunto la cotización actualizada por millar…</div>
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 14px; padding: 18px 20px; border-radius: 16px; background: #FFFFFF; border: 2px solid rgba(14,33,25,0.1);" style-hover="border-color: #12281C">
+        <div style="width: 4px; border-radius: 3px; background: #7A6FC0; flex: 0 0 4px;"></div>
+        <div style="min-width: 0; flex: 1;">
+          <div style="display: flex; justify-content: space-between; gap: 12px; align-items: baseline;">
+            <div style="font: 600 22px 'Outfit', sans-serif;">Portland Roasters</div>
+            <div style="font: 400 17px 'IBM Plex Mono', monospace; color: rgba(14,33,25,0.7); white-space: nowrap;">3 sep</div>
+          </div>
+          <div style="font: 500 21px 'Outfit', sans-serif; margin-top: 6px;">Samples for the fall menu</div>
+          <div style="font: 400 19px 'Outfit', sans-serif; color: rgba(14,33,25,0.68); margin-top: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Hi Amit, we cupped the two lots you sent…</div>
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 14px; padding: 18px 20px; border-radius: 16px; background: rgba(255,255,255,0.5); border: 2px solid rgba(14,33,25,0.08);" style-hover="background: #FFFFFF; border-color: #12281C">
+        <div style="width: 4px; border-radius: 3px; background: rgba(14,33,25,0.2); flex: 0 0 4px;"></div>
+        <div style="min-width: 0; flex: 1;">
+          <div style="display: flex; justify-content: space-between; gap: 12px; align-items: baseline;">
+            <div style="font: 500 22px 'Outfit', sans-serif;">Ana Rodríguez</div>
+            <div style="font: 400 17px 'IBM Plex Mono', monospace; color: rgba(14,33,25,0.7); white-space: nowrap;">2 sep</div>
+          </div>
+          <div style="font: 400 21px 'Outfit', sans-serif; margin-top: 6px;">Reporte de tueste — semana 35</div>
+          <div style="font: 400 19px 'Outfit', sans-serif; color: rgba(14,33,25,0.68); margin-top: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Van los perfiles de la semana pasada.</div>
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 14px; padding: 18px 20px; border-radius: 16px; background: rgba(255,255,255,0.5); border: 2px solid rgba(14,33,25,0.08);" style-hover="background: #FFFFFF; border-color: #12281C">
+        <div style="width: 4px; border-radius: 3px; background: rgba(14,33,25,0.2); flex: 0 0 4px;"></div>
+        <div style="min-width: 0; flex: 1;">
+          <div style="display: flex; justify-content: space-between; gap: 12px; align-items: baseline;">
+            <div style="font: 500 22px 'Outfit', sans-serif;">Contabilidad BV</div>
+            <div style="font: 400 17px 'IBM Plex Mono', monospace; color: rgba(14,33,25,0.7); white-space: nowrap;">1 sep</div>
+          </div>
+          <div style="font: 400 21px 'Outfit', sans-serif; margin-top: 6px;">Cierre de agosto listo para revisión</div>
+          <div style="font: 400 19px 'Outfit', sans-serif; color: rgba(14,33,25,0.68); margin-top: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Pendiente tu firma en dos facturas.</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="flex: 1; min-height: 20px;"></div>
+    <div style="padding: 20px 26px; border-top: 2px solid rgba(14,33,25,0.12); font: 500 18px 'IBM Plex Mono', monospace; color: rgba(14,33,25,0.7);">8 correos · 4 sin leer</div>
+  </div>
+
+  <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; background: #E8E2D2;">
+    <div style="height: 92px; flex: 0 0 92px; display: flex; align-items: center; gap: 14px; padding: 0 36px; border-bottom: 2px solid rgba(14,33,25,0.14);">
+      <div style="font: 500 15px 'IBM Plex Mono', monospace; letter-spacing: 0.18em; text-transform: uppercase; color: rgba(14,33,25,0.7);">Entrada · Comercial</div>
+      <div style="flex: 1;"></div>
+      <div style="height: 50px; border-radius: 13px; border: 2px solid rgba(14,33,25,0.2); padding: 0 22px; display: flex; align-items: center; font: 600 20px 'Outfit', sans-serif;" style-hover="border-color: #12281C; background: #FFFFFF">Archivar</div>
+      <div style="height: 50px; border-radius: 13px; background: #C4622D; color: #FFFFFF; padding: 0 22px; display: flex; align-items: center; gap: 9px; font: 600 20px 'Outfit', sans-serif;" style-hover="background: #A8501F"><span style="font-size: 22px; line-height: 1;">+</span> Crear tarea</div>
+    </div>
+
+    <div style="flex: 1; min-height: 0; padding: 26px 36px 0; display: flex; flex-direction: column;">
+      <div style="flex: 1; min-height: 0; overflow: auto; background: #FFFDF7; border: 2px solid rgba(14,33,25,0.12); border-radius: 22px; padding: 30px 36px;">
+        <div style="font: 700 40px 'Outfit', sans-serif; line-height: 1.12; text-wrap: pretty;">Orden de mayoreo — 60 kg Tarrazú</div>
+        <div style="display: flex; align-items: center; gap: 16px; margin-top: 22px; padding-bottom: 24px; border-bottom: 2px solid rgba(14,33,25,0.12);">
+          <div style="width: 54px; height: 54px; border-radius: 15px; background: #5B8C6A; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font: 600 19px 'IBM Plex Mono', monospace;">MC</div>
+          <div style="min-width: 0;">
+            <div style="font: 600 23px 'Outfit', sans-serif;">Marcela Cordero · Café Cielo</div>
+            <div style="font: 400 18px 'IBM Plex Mono', monospace; color: rgba(14,33,25,0.7); margin-top: 4px;">marcela@cafecielo.cr → vos · 4 sep 8:04</div>
+          </div>
+          <div style="flex: 1;"></div>
+          <div style="height: 44px; border-radius: 12px; background: #12281C; color: #F6F3EA; padding: 0 20px; display: flex; align-items: center; font: 600 18px 'Outfit', sans-serif;" style-hover="background: #0E2119">Resumen IA</div>
+        </div>
+
+        <div style="margin-top: 24px; background: #12281C; color: #F6F3EA; border-radius: 16px; padding: 22px 26px;">
+          <div style="font: 500 15px 'IBM Plex Mono', monospace; letter-spacing: 0.18em; text-transform: uppercase; color: #C79350;">Resumen</div>
+          <div style="font: 400 22px 'Outfit', sans-serif; margin-top: 10px; line-height: 1.45;">Pide 60 kg de Tarrazú molido para espresso, entrega el viernes antes de mediodía en Escazú. Adjunta la orden firmada y el anticipo.</div>
+        </div>
+
+        <div style="margin-top: 26px; font: 400 23px 'Outfit', sans-serif; line-height: 1.62; max-width: 820px; color: #12281C; text-wrap: pretty;">
+          <p style="margin: 0 0 18px;">Buenos días Amit,</p>
+          <p style="margin: 0 0 18px;">Queremos confirmar el tueste de esta semana: 60 kg de Tarrazú, molido para espresso, en bolsas de 1 kg con válvula.</p>
+          <p style="margin: 0 0 18px;">La entrega la necesitamos el viernes antes de mediodía en la sucursal de Escazú. Adjunto la orden firmada y el comprobante del anticipo.</p>
+          <p style="margin: 0;">Gracias,<br />Marcela</p>
+        </div>
+
+        <div style="display: flex; gap: 14px; margin-top: 28px; flex-wrap: wrap;">
+          <div style="display: flex; align-items: center; gap: 14px; background: #F1ECDE; border: 2px solid rgba(14,33,25,0.12); border-radius: 14px; padding: 14px 20px;">
+            <div style="width: 32px; height: 40px; border-radius: 5px; background: #C4622D;"></div>
+            <div>
+              <div style="font: 600 20px 'Outfit', sans-serif;">orden-cafecielo-sep.pdf</div>
+              <div style="font: 400 16px 'IBM Plex Mono', monospace; color: rgba(14,33,25,0.7); margin-top: 3px;">pdf · 210 kb</div>
+            </div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 14px; background: #F1ECDE; border: 2px solid rgba(14,33,25,0.12); border-radius: 14px; padding: 14px 20px;">
+            <div style="width: 32px; height: 40px; border-radius: 5px; background: #C79350;"></div>
+            <div>
+              <div style="font: 600 20px 'Outfit', sans-serif;">comprobante-anticipo.jpg</div>
+              <div style="font: 400 16px 'IBM Plex Mono', monospace; color: rgba(14,33,25,0.7); margin-top: 3px;">jpg · 1.4 mb</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="flex: 0 0 auto; margin-top: 18px; background: #5B8C6A; color: #FFFFFF; border-radius: 18px; padding: 22px 28px; display: flex; align-items: center; gap: 22px; flex-wrap: wrap;">
+        <div style="min-width: 240px; flex: 1;">
+          <div style="font: 500 15px 'IBM Plex Mono', monospace; letter-spacing: 0.18em; text-transform: uppercase;">Tarea creada desde este correo</div>
+          <div style="font: 600 26px 'Outfit', sans-serif; margin-top: 8px;">Confirmar tueste del viernes</div>
+        </div>
+        <div style="font: 500 18px 'IBM Plex Mono', monospace;">comercial · hoy · Amit M.</div>
+        <div style="height: 46px; border-radius: 12px; background: #FFFFFF; color: #12281C; padding: 0 22px; display: flex; align-items: center; font: 600 19px 'Outfit', sans-serif;">Ver en Tareas</div>
+      </div>
+
+      <div style="flex: 0 0 auto; padding: 18px 0 26px; display: flex; align-items: center; gap: 14px;">
+        <div style="flex: 1; min-width: 0; height: 66px; border-radius: 16px; background: #FFFFFF; border: 2px solid rgba(14,33,25,0.16); display: flex; align-items: center; padding: 0 22px; font: 400 22px 'Outfit', sans-serif; color: rgba(14,33,25,0.55);">Responder a Marcela…</div>
+        <div style="height: 66px; border-radius: 16px; border: 2px solid rgba(14,33,25,0.2); padding: 0 24px; display: flex; align-items: center; font: 600 20px 'Outfit', sans-serif;" style-hover="border-color: #12281C; background: #FFFFFF">Responder con IA</div>
+        <div style="height: 66px; border-radius: 16px; background: #12281C; color: #F6F3EA; padding: 0 34px; display: flex; align-items: center; font: 600 22px 'Outfit', sans-serif;" style-hover="background: #0E2119">Enviar</div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = { w: 1920 };
+  componentDidMount() {
+    this.measure = () => {
+      const w = (this.el && this.el.parentNode ? this.el.parentNode.clientWidth : 0) || window.innerWidth;
+      if (w && w !== this.state.w) this.setState({ w: w });
+    };
+    this.measure();
+    window.addEventListener('resize', this.measure);
+    this.iv = setInterval(this.measure, 500);
+  }
+  componentWillUnmount() {
+    window.removeEventListener('resize', this.measure);
+    clearInterval(this.iv);
+  }
+  renderVals() {
+    const k = Math.min(1, this.state.w / 1920);
+    return {
+      frame: 'width: 100%; height: ' + (1080 * k).toFixed(0) + 'px; overflow: hidden; background: #E8E2D2;',
+      fit: 'scale(' + k.toFixed(5) + ')',
+      ref: (n) => { this.el = n; }
+    };
+  }
+}
+</script>
+</body>
+</html>

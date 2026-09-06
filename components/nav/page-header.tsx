@@ -35,20 +35,20 @@ export function PageHeader({
   const subtitle = area ? "" : fallbackSub;
 
   return (
-    <header className="flex h-[62px] shrink-0 items-center gap-2 border-b border-line bg-paper/90 px-4 backdrop-blur-[6px] md:gap-4 md:px-7">
+    <header className="flex h-[64px] shrink-0 items-center gap-3 border-b-2 border-ink/15 bg-wash px-4 md:h-[92px] md:gap-4 md:px-9">
       <SidebarToggle className="-ml-1" />
       <div className="min-w-0 flex-1">
-        <div className="flex min-w-0 items-baseline gap-2">
-          <div className="truncate text-title text-ink">{title}</div>
+        <div className="flex min-w-0 items-baseline gap-3">
+          <div className="truncate text-[22px] font-bold tracking-tight text-ink md:text-[34px]">{title}</div>
           {blurb ? (
-            <p className="min-w-0 truncate text-[11px] font-normal text-ink/45">{blurb}</p>
+            <p className="hidden min-w-0 truncate text-[16px] font-normal text-ink/70 md:block">{blurb}</p>
           ) : null}
         </div>
       </div>
       {subtitle ? (
-        <div className="hidden font-mono text-[11px] text-ink/45 md:block">{subtitle}</div>
+        <div className="hidden font-mono text-[15px] font-medium text-ink/70 md:block">{subtitle}</div>
       ) : null}
-      <div className="ml-auto flex shrink-0 items-center gap-1.5 md:gap-2">
+      <div className="ml-auto flex shrink-0 items-center gap-2 md:gap-3">
         <GlobalSearch />
         {conversationId ? <CaptureBox conversationId={conversationId} trigger="button" /> : null}
       </div>
