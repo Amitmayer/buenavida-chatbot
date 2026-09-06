@@ -133,7 +133,7 @@ export function MailWorkspace({
             ))}
           </div>
           {connect ? null : (
-            <div className="flex flex-wrap gap-2.5">
+            <div className="flex flex-nowrap gap-2.5 overflow-x-auto">
               {filters.map((item) => (
                 <Link
                   key={item.id}

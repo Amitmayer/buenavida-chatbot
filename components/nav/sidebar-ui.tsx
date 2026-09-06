@@ -29,8 +29,10 @@ export function SidebarToggle({
   mark?: "chevron" | "menu";
 }) {
   const { open, show, hide } = useSidebarUi();
-  if (edge && !open) return null;
-  if (!edge && open) return null;
+  if (mark !== "menu") {
+    if (edge && !open) return null;
+    if (!edge && open) return null;
+  }
   return (
     <button
       type="button"
