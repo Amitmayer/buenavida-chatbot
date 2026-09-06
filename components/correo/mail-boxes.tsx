@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { es } from "@/lib/i18n/es";
 import { cn } from "@/lib/utils";
-import { teamEdge } from "@/components/tasks/team-colors";
 import {
   correoHref,
   FOLDER_LABEL,
@@ -12,7 +11,6 @@ import {
   type MailFilter,
   type MailFolder,
 } from "@/lib/email/mailbox";
-import type { Team } from "@/lib/db/types";
 
 const DOT: Record<MailFolder, string> = {
   inbox: "bg-overdue",
@@ -26,13 +24,11 @@ export function MailBoxes({
   folder,
   filter = "all",
   query = "",
-  teams = [],
 }: {
   counts: MailCounts;
   folder: MailFolder;
   filter?: MailFilter;
   query?: string;
-  teams?: Pick<Team, "id" | "slug" | "name">[];
 }) {
   const badge: Record<MailFolder, number> = {
     inbox: counts.unread,
@@ -82,29 +78,6 @@ export function MailBoxes({
           );
         })}
       </ul>
-      {teams.length > 0 ? (
-        <>
-          <p className="mt-7 px-5 font-mono text-[11px] font-medium tracking-[0.18em] text-gold">
-            {es.nav.areas.toUpperCase()}
-          </p>
-          <ul className="mt-3.5 flex flex-col gap-1 px-4">
-            {teams.map((team) => (
-              <li key={team.id}>
-                <Link
-                  href={`/areas/${team.slug}`}
-                  className="flex h-11 items-center gap-3.5 rounded-[11px] px-3.5 text-cream/90 hover:bg-cream/[0.09]"
-                >
-                  <span
-                    className="h-[9px] w-[9px] shrink-0 rounded-full"
-                    style={{ background: teamEdge(team.slug) }}
-                  />
-                  <span className="min-w-0 flex-1 truncate text-[14px]">{team.name}</span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </>
-      ) : null}
     </div>
   );
 }

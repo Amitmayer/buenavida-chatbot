@@ -20,7 +20,7 @@ import { AutoSync } from "@/components/correo/auto-sync";
 import { SidebarToggle } from "@/components/nav/sidebar-ui";
 import { MailDisconnect } from "@/components/correo/mail-disconnect";
 import { EmptyState } from "@/components/empty-state";
-import type { Email, Team } from "@/lib/db/types";
+import type { Email } from "@/lib/db/types";
 
 export function MailWorkspace({
   name,
@@ -35,7 +35,6 @@ export function MailWorkspace({
   html,
   canModify = false,
   autoSync = false,
-  teams = [],
 }: {
   name: string;
   address: string;
@@ -49,7 +48,6 @@ export function MailWorkspace({
   html?: string;
   canModify?: boolean;
   autoSync?: boolean;
-  teams?: Pick<Team, "id" | "slug" | "name">[];
 }) {
   const emptyTitle = folder === "sent" ? es.correo.emptySent : es.correo.empty;
   const emptyHint = folder === "sent" ? es.correo.emptySentHint : es.correo.emptyHint;
@@ -81,7 +79,6 @@ export function MailWorkspace({
                 folder={folder}
                 filter={filter}
                 query={query}
-                teams={teams}
               />
             </Suspense>
           )}

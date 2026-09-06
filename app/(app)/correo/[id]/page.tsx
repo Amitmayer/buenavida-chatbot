@@ -66,7 +66,6 @@ export default async function CorreoThreadPage({
       name={profile.full_name}
       address={account.email}
       canModify={account.canModify}
-      teams={profile.accessibleTeams}
       rows={filterMails(all, { folder, filter, query })}
       selected={selectedMail}
       counts={countFolders(all)}
