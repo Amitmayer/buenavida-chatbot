@@ -23,7 +23,6 @@ const ITEMS = [
   { href: "/archivos", label: es.nav.archivos },
 ] as const;
 
-const STORAGE = "bv-sidebar-open";
 const SIDE = 300;
 
 export function AppShell({
@@ -48,8 +47,9 @@ export function AppShell({
   mailCounts?: MailCounts | null;
 }) {
   const path = usePathname();
+  const home = path === "/hoy";
   const hideHeader = path.startsWith("/correo");
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(home);
   const [animate, setAnimate] = useState(false);
   const items = [
     ...ITEMS.filter((item) => {
@@ -66,21 +66,25 @@ export function AppShell({
   }, []);
 
   useEffect(() => {
-    persist(false);
-  }, [path]);
+    setOpen(home);
+  }, [home, path]);
 
   function persist(next: boolean) {
+    if (home) {
+      setOpen(true);
+      return;
+    }
     setOpen(next);
-    window.localStorage.setItem(STORAGE, next ? "1" : "0");
   }
 
   const sidebar = useMemo(
     () => ({
-      open,
+      open: home || open,
+      locked: home,
       show: () => persist(true),
       hide: () => persist(false),
     }),
-    [open],
+    [home, open],
   );
 
   return (
@@ -90,7 +94,7 @@ export function AppShell({
           className={cn(
             "hidden h-full min-w-0 shrink-0 overflow-hidden bg-pine text-cream md:flex",
             animate ? "transition-[width] duration-300 ease-in-out" : "",
-            open ? "w-[300px]" : "w-0",
+            home || open ? "w-[300px]" : "w-0",
           )}
         >
           <div
@@ -98,7 +102,7 @@ export function AppShell({
             style={{ width: SIDE }}
           >
             <div className="flex items-start justify-between px-6">
-              <Link href="/hoy" onClick={() => persist(false)} className="flex items-start gap-2 text-cream">
+              <Link href="/hoy" onClick={() => persist(true)} className="flex items-start gap-2 text-cream">
                 <span>
                   <span className="block text-[28px] font-light leading-[0.94] tracking-[0.02em]">
                     {es.auth.buena.toUpperCase()}

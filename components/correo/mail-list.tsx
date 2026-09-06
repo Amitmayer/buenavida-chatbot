@@ -45,6 +45,7 @@ export function MailList({
           <li key={row.id}>
             <Link
               href={href}
+              scroll={false}
               prefetch={false}
               className={cn(
                 "flex gap-3.5 rounded-2xl px-5 py-[18px]",

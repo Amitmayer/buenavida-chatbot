@@ -11,6 +11,7 @@ import {
   type MailFolder,
 } from "@/lib/email/mailbox";
 import { MailList } from "@/components/correo/mail-list";
+import { MailListScroll } from "@/components/correo/mail-list-scroll";
 import { MailThread } from "@/components/correo/mail-thread";
 import { MailSearch } from "@/components/correo/mailbox-toolbar";
 import { ComposeButton } from "@/components/correo/compose-dialog";
@@ -68,9 +69,9 @@ export function MailWorkspace({
   return (
     <div className="flex min-h-0 flex-1 overflow-hidden bg-paper">
       <aside className="hidden w-[300px] shrink-0 flex-col bg-forest text-cream md:flex">
-        <div className="flex items-center justify-between px-6 pt-[26px]">
+        <div className="flex items-center gap-2 px-5 pt-[26px]">
+          <SidebarToggle className="h-10 w-10 text-cream hover:bg-cream/10 hover:text-cream" />
           <h1 className="text-[26px] font-semibold tracking-[0.01em]">{es.correo.title}</h1>
-          <SidebarToggle className="h-10 w-10" />
         </div>
         <div className="min-h-0 flex-1 overflow-auto pt-[34px]">
           {connect ? null : (
@@ -155,7 +156,7 @@ export function MailWorkspace({
         <Suspense fallback={null}>
           <AutoSync run={autoSync} live={!connect} />
         </Suspense>
-        <div className="min-h-0 flex-1 overflow-auto">
+        <MailListScroll resetKey={`${folder}:${filter}:${query}`}>
           {connect ? (
             <div className="px-5">{connect}</div>
           ) : rows.length === 0 ? (
@@ -171,7 +172,7 @@ export function MailWorkspace({
               query={query}
             />
           )}
-        </div>
+        </MailListScroll>
         {connect || folder === "sent" ? null : (
           <p className="border-t-2 border-ink/10 px-[26px] py-5 font-mono text-[14px] font-medium text-ink/70 md:text-[16px]">
             {es.correo.countLine.replace("{n}", String(rows.length)).replace("{u}", String(counts.unread))}

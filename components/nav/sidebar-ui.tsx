@@ -7,10 +7,12 @@ import { cn } from "@/lib/utils";
 
 export const SidebarUi = createContext<{
   open: boolean;
+  locked: boolean;
   show: () => void;
   hide: () => void;
 }>({
   open: false,
+  locked: false,
   show: () => undefined,
   hide: () => undefined,
 });
@@ -26,7 +28,8 @@ export function SidebarToggle({
   className?: string;
   edge?: boolean;
 }) {
-  const { open, show, hide } = useSidebarUi();
+  const { open, locked, show, hide } = useSidebarUi();
+  if (locked) return null;
   if (edge && !open) return null;
   if (!edge && open) return null;
   return (
@@ -37,8 +40,8 @@ export function SidebarToggle({
       className={cn(
         "hidden h-7 w-7 shrink-0 items-center justify-center rounded-full md:flex",
         edge
-          ? "text-[#8FBF7A] hover:bg-cream/10 hover:text-[#B7D9A8]"
-          : "text-[#5BA85F] hover:bg-[#5BA85F]/10 hover:text-[#3E8A42]",
+          ? "text-cream/80 hover:bg-cream/10 hover:text-cream"
+          : "text-[#4A3728] hover:bg-[#4A3728]/10 hover:text-[#3D2B1F]",
         className,
       )}
     >

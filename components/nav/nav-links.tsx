@@ -15,7 +15,7 @@ export function NavLinks({
   badges?: Record<string, number>;
 }) {
   const path = usePathname();
-  const { hide } = useSidebarUi();
+  const { show, hide } = useSidebarUi();
   function active(href: string) {
     return path === href || path.startsWith(`${href}/`);
   }
@@ -30,7 +30,10 @@ export function NavLinks({
             <li key={item.href}>
               <Link
                 href={item.href}
-                onClick={() => hide()}
+                onClick={() => {
+                  if (item.href === "/hoy") show();
+                  else hide();
+                }}
                 className={cn(
                   "flex h-11 items-center gap-3.5 rounded-[12px] px-3.5",
                   on ? "bg-cream text-pine" : "text-cream/90 hover:bg-cream/[0.09]",
