@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { X } from "lucide-react";
 import { NavLinks } from "@/components/nav/nav-links";
 import { PageHeader } from "@/components/nav/page-header";
@@ -50,9 +50,11 @@ export function AppShell({
   mailCounts?: MailCounts | null;
 }) {
   const path = usePathname();
+  const params = useSearchParams();
   const hideHeader = path.startsWith("/correo");
   const collapsed = isFocusPath(path);
   const [open, setOpen] = useState(false);
+  const query = params.toString();
   const items = [
     ...ITEMS.filter((item) => {
       if (item.href === "/archivos") return showArchivos;
@@ -64,7 +66,7 @@ export function AppShell({
 
   useEffect(() => {
     setOpen(false);
-  }, [path]);
+  }, [path, query]);
 
   const sidebar = useMemo(
     () => ({
