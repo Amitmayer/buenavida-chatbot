@@ -12,6 +12,9 @@ export async function hydrateMailHtml(
 ): Promise<string> {
   let stored = args.mail.body_html?.trim() ?? "";
   let images = new Map<string, string>();
+  if (args.mail.gmail_id.startsWith("draft-") || args.mail.gmail_id.startsWith("sent-")) {
+    return stored ? wrapMailDocument(stored) : "";
+  }
   try {
     const parsed = await getMessage(args.accessToken, args.mail.gmail_id);
     if (parsed.html && parsed.html !== stored) {

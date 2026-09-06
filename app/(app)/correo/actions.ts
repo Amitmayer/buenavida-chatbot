@@ -297,21 +297,17 @@ export async function markReadAction(emailId: string) {
   const supabase = await createClient();
   const { data: row } = await supabase
     .from("emails")
-    .select("id, gmail_id, unread")
+    .select("id, gmail_id, thread_id, unread")
     .eq("id", id.data)
     .eq("user_id", profile.id)
     .maybeSingle();
   if (!row) return { ok: false as const, detail: "not_found" };
   if (row.unread) {
     await supabase.from("emails").update({ unread: false }).eq("id", row.id);
-    const ready = await accessTokenFor(supabase, profile.id);
-    if (ready) {
-      try {
-        await markGmailRead(ready.accessToken, row.gmail_id);
-      } catch (error) {
-        captureError(error, { where: "markReadAction.gmail" });
-      }
-    }
+  }
+  const ready = await accessTokenFor(supabase, profile.id);
+  if (ready) {
+    await markGmailRead(ready.accessToken, { gmailId: row.gmail_id, threadId: row.thread_id });
   }
   revalidatePath("/correo");
   revalidatePath(`/correo/${row.id}`);

@@ -4,8 +4,10 @@ import { createClient } from "@/lib/supabase/server";
 import { accessTokenFor, publicAccount } from "@/lib/email/accounts";
 import { hydrateMailHtml } from "@/lib/email/hydrate";
 import { wrapMailDocument } from "@/lib/email/html";
+import { markReadAction } from "../actions";
 import { MailWorkspace } from "@/components/correo/mail-workspace";
 import { countFolders, filterMails, parseFilter, parseFolder } from "@/lib/email/mailbox";
+import { captureError } from "@/lib/sentry";
 import type { Email } from "@/lib/db/types";
 
 export default async function CorreoThreadPage({
@@ -43,12 +45,21 @@ export default async function CorreoThreadPage({
 
   const all = (emails ?? []) as Email[];
   const selectedMail = selected as Email;
-  const ready = await accessTokenFor(supabase, profile.id);
-  const html = ready
-    ? await hydrateMailHtml(supabase, { accessToken: ready.accessToken, mail: selectedMail })
-    : selectedMail.body_html
-      ? wrapMailDocument(selectedMail.body_html)
-      : "";
+  let html = selectedMail.body_html ? wrapMailDocument(selectedMail.body_html) : "";
+  try {
+    const ready = await accessTokenFor(supabase, profile.id);
+    if (ready) {
+      html =
+        (await hydrateMailHtml(supabase, { accessToken: ready.accessToken, mail: selectedMail })) ||
+        html;
+      if (selectedMail.unread) {
+        await markReadAction(selectedMail.id);
+      }
+    }
+  } catch (error) {
+    captureError(error, { where: "CorreoThreadPage.hydrate" });
+    html = selectedMail.body_html ? wrapMailDocument(selectedMail.body_html) : html;
+  }
 
   return (
     <MailWorkspace

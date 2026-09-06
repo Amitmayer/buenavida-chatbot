@@ -276,8 +276,9 @@ export async function getMessageLabels(accessToken: string, id: string): Promise
   return data.labelIds ?? [];
 }
 
-export async function markGmailRead(accessToken: string, gmailId: string) {
-  const res = await fetch(`${GMAIL}/messages/${encodeURIComponent(gmailId)}/modify`, {
+async function removeUnread(accessToken: string, kind: "messages" | "threads", id: string) {
+  if (!id || id.startsWith("draft-") || id.startsWith("sent-")) return false;
+  const res = await fetch(`${GMAIL}/${kind}/${encodeURIComponent(id)}/modify`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${accessToken}`,
@@ -286,9 +287,19 @@ export async function markGmailRead(accessToken: string, gmailId: string) {
     body: JSON.stringify({ removeLabelIds: ["UNREAD"] }),
   });
   if (!res.ok) {
-    captureError(new Error(`gmail modify ${res.status}`), { where: "gmail.markRead" });
-    throw new Error("gmail_modify");
+    captureError(new Error(`gmail ${kind} modify ${res.status}`), { where: "gmail.markRead" });
+    return false;
   }
+  return true;
+}
+
+export async function markGmailRead(
+  accessToken: string,
+  args: { gmailId: string; threadId?: string | null },
+) {
+  const message = await removeUnread(accessToken, "messages", args.gmailId);
+  const thread = args.threadId ? await removeUnread(accessToken, "threads", args.threadId) : false;
+  return message || thread;
 }
 
 export async function getMessage(accessToken: string, id: string): Promise<ParsedMessage> {

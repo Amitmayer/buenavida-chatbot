@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { getSessionProfile } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
 import { encryptSecret } from "@/lib/email/crypto";
+import { loadAccount } from "@/lib/email/accounts";
 import { exchangeCode, gmailUserEmail } from "@/lib/email/gmail";
 import { captureError } from "@/lib/sentry";
 
@@ -29,20 +30,24 @@ export async function GET(request: Request) {
   }
   try {
     const tokens = await exchangeCode(code);
-    if (!tokens.refresh_token) {
+    const supabase = await createClient();
+    const existing = await loadAccount(supabase, profile.id);
+    const refreshEnc = tokens.refresh_token
+      ? encryptSecret(tokens.refresh_token)
+      : existing?.refresh_token_enc;
+    if (!refreshEnc) {
       return NextResponse.redirect(new URL("/correo?error=refresh", site()));
     }
     const email = await gmailUserEmail(tokens.access_token);
-    const supabase = await createClient();
     const { error } = await supabase.from("email_accounts").upsert(
       {
         user_id: profile.id,
         provider: "gmail",
         email,
-        refresh_token_enc: encryptSecret(tokens.refresh_token),
+        refresh_token_enc: refreshEnc,
         access_token_enc: encryptSecret(tokens.access_token),
         access_expires_at: new Date(Date.now() + tokens.expires_in * 1000).toISOString(),
-        scope: tokens.scope ?? "gmail",
+        scope: tokens.scope ?? existing?.scope ?? "gmail",
         updated_at: new Date().toISOString(),
       },
       { onConflict: "user_id,provider" },
