@@ -14,6 +14,9 @@ const nextConfig: NextConfig = {
       dynamic: 20,
       static: 30,
     },
+    serverActions: {
+      bodySizeLimit: "26mb",
+    },
   },
 };
 

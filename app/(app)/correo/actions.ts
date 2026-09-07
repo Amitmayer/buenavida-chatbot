@@ -5,11 +5,61 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { createTaskSchema, getSessionProfile } from "@/lib/session";
 import { accessTokenFor } from "@/lib/email/accounts";
+import { parseAddressList } from "@/lib/email/addresses";
+import { MAX_MAIL_ATTACHMENTS, MAX_MAIL_RECIPIENTS, mimeFromFilename } from "@/lib/email/mail-files";
 import { draftComposeText, draftReplyText, summarizeEmailText, syncInbox } from "@/lib/email/sync";
-import { markGmailRead, sendMessage, setGmailArchived } from "@/lib/email/gmail";
+import { markGmailRead, sendMessage, setGmailArchived, type OutgoingAttachment } from "@/lib/email/gmail";
 import { sanitizeTitle } from "@/lib/agent/titles";
 import { isDraft } from "@/lib/email/mailbox";
 import { captureError } from "@/lib/sentry";
+import { validateUpload } from "@/lib/storage";
+import { MAX_UPLOAD_BYTES } from "@/lib/constants";
+import { es } from "@/lib/i18n/es";
+
+type ActionFail = { ok: false; detail: "forbidden" | "validation" | "not_found" | "not_connected" | "server_error"; message?: string };
+
+function fail(detail: ActionFail["detail"], message?: string): ActionFail {
+  return message ? { ok: false, detail, message } : { ok: false, detail };
+}
+
+function parseRecipients(form: FormData, fallbackTo: string[]) {
+  const parsedTo = parseAddressList(String(form.get("to") ?? ""));
+  const parsedCc = parseAddressList(String(form.get("cc") ?? ""));
+  const parsedBcc = parseAddressList(String(form.get("bcc") ?? ""));
+  if (!parsedTo.ok || !parsedCc.ok || !parsedBcc.ok) {
+    return { ok: false as const, message: es.correo.badAddress };
+  }
+  const to = parsedTo.emails.length ? parsedTo.emails : fallbackTo;
+  if (!to.length) return { ok: false as const, message: es.correo.badAddress };
+  const unique = new Set([...to, ...parsedCc.emails, ...parsedBcc.emails]);
+  if (unique.size > MAX_MAIL_RECIPIENTS) return { ok: false as const, message: es.correo.badAddress };
+  return { ok: true as const, to, cc: parsedCc.emails, bcc: parsedBcc.emails };
+}
+
+async function attachmentsFromForm(form: FormData): Promise<
+  { ok: true; files: OutgoingAttachment[] } | { ok: false; message: string }
+> {
+  const files = form.getAll("files").filter((item): item is File => item instanceof File && item.size > 0);
+  if (files.length > MAX_MAIL_ATTACHMENTS) return { ok: false, message: es.correo.tooManyFiles };
+  let total = 0;
+  const out: OutgoingAttachment[] = [];
+  for (const file of files) {
+    total += file.size;
+    if (total > MAX_UPLOAD_BYTES) return { ok: false, message: es.correo.filesTooLarge };
+    const check = validateUpload({
+      mimeType: file.type || mimeFromFilename(file.name),
+      sizeBytes: file.size,
+      filename: file.name,
+    });
+    if (!check.ok) return { ok: false, message: check.detail };
+    out.push({
+      filename: check.data.filename,
+      mime: check.data.mimeType,
+      bytes: Buffer.from(await file.arrayBuffer()),
+    });
+  }
+  return { ok: true, files: out };
+}
 
 export async function syncMailAction(opts?: { watch?: boolean }) {
   const profile = await getSessionProfile();
@@ -48,7 +98,7 @@ export async function disconnectMailAction() {
 
 export async function sendMailAction(formData: FormData) {
   const profile = await getSessionProfile();
-  if (!profile || profile.isGuest) return { ok: false as const, detail: "forbidden" };
+  if (!profile || profile.isGuest) return fail("forbidden");
   const parsed = z
     .object({
       email_id: z.string().uuid(),
@@ -58,32 +108,38 @@ export async function sendMailAction(formData: FormData) {
       email_id: formData.get("email_id"),
       body: formData.get("body"),
     });
-  if (!parsed.success) return { ok: false as const, detail: "validation" };
+  if (!parsed.success) return fail("validation");
   const supabase = await createClient();
   const ready = await accessTokenFor(supabase, profile.id);
-  if (!ready) return { ok: false as const, detail: "not_connected" };
+  if (!ready) return fail("not_connected");
   const { data: original, error } = await supabase
     .from("emails")
     .select("*")
     .eq("id", parsed.data.email_id)
     .eq("user_id", profile.id)
     .maybeSingle();
-  if (error || !original) return { ok: false as const, detail: "not_found" };
-  const to = original.inbound
-    ? (original.from_address.match(/<([^>]+)>/)?.[1] ?? original.from_address)
-    : (original.to_addresses[0] ?? "");
-  if (!to) return { ok: false as const, detail: "validation" };
+  if (error || !original) return fail("not_found");
+  const fallbackTo = original.inbound
+    ? [original.from_address.match(/<([^>]+)>/)?.[1] ?? original.from_address]
+    : original.to_addresses.slice(0, 1);
+  const recipients = parseRecipients(formData, fallbackTo.filter(Boolean));
+  if (!recipients.ok) return fail("validation", recipients.message);
+  const files = await attachmentsFromForm(formData);
+  if (!files.ok) return fail("validation", files.message);
   const subject = original.subject.toLowerCase().startsWith("re:")
     ? original.subject
-    : `Re: ${original.subject || "(sin asunto)"}`;
+    : `Re: ${original.subject || es.correo.noSubject}`;
   try {
     const sent = await sendMessage(ready.accessToken, {
       from: ready.account.email,
-      to,
+      to: recipients.to,
+      cc: recipients.cc,
+      bcc: recipients.bcc,
       subject,
       body: parsed.data.body,
       inReplyTo: original.rfc_message_id,
       threadId: original.thread_id,
+      attachments: files.files,
     });
     const { error: insertError } = await supabase.from("emails").insert({
       account_id: ready.account.id,
@@ -91,7 +147,7 @@ export async function sendMailAction(formData: FormData) {
       gmail_id: sent.id,
       thread_id: sent.threadId,
       from_address: ready.account.email,
-      to_addresses: [to],
+      to_addresses: recipients.to,
       subject,
       snippet: parsed.data.body.slice(0, 400),
       body_text: parsed.data.body,
@@ -104,7 +160,7 @@ export async function sendMailAction(formData: FormData) {
     if (insertError) captureError(insertError, { where: "sendMailAction.insert" });
   } catch (sendError) {
     captureError(sendError, { where: "sendMailAction" });
-    return { ok: false as const, detail: "server_error" };
+    return fail("server_error");
   }
   revalidatePath("/correo");
   revalidatePath(`/correo/${original.id}`);
@@ -113,41 +169,51 @@ export async function sendMailAction(formData: FormData) {
 
 export async function sendDraftAction(formData: FormData) {
   const profile = await getSessionProfile();
-  if (!profile || profile.isGuest) return { ok: false as const, detail: "forbidden" };
+  if (!profile || profile.isGuest) return fail("forbidden");
   const parsed = z
     .object({
       email_id: z.string().uuid(),
       body: z.string().trim().min(1).max(8000),
+      subject: z.string().trim().max(200).optional(),
     })
     .safeParse({
       email_id: formData.get("email_id"),
       body: formData.get("body"),
+      subject: String(formData.get("subject") ?? ""),
     });
-  if (!parsed.success) return { ok: false as const, detail: "validation" };
+  if (!parsed.success) return fail("validation");
   const supabase = await createClient();
   const ready = await accessTokenFor(supabase, profile.id);
-  if (!ready) return { ok: false as const, detail: "not_connected" };
+  if (!ready) return fail("not_connected");
   const { data: draft, error } = await supabase
     .from("emails")
     .select("*")
     .eq("id", parsed.data.email_id)
     .eq("user_id", profile.id)
     .maybeSingle();
-  if (error || !draft || !isDraft(draft)) return { ok: false as const, detail: "not_found" };
-  const to = draft.to_addresses[0] ?? "";
-  if (!to) return { ok: false as const, detail: "validation" };
+  if (error || !draft || !isDraft(draft)) return fail("not_found");
+  const recipients = parseRecipients(formData, draft.to_addresses);
+  if (!recipients.ok) return fail("validation", recipients.message);
+  const files = await attachmentsFromForm(formData);
+  if (!files.ok) return fail("validation", files.message);
+  const subject = parsed.data.subject?.trim() || draft.subject || es.correo.noSubject;
   try {
     const sent = await sendMessage(ready.accessToken, {
       from: ready.account.email,
-      to,
-      subject: draft.subject || "(sin asunto)",
+      to: recipients.to,
+      cc: recipients.cc,
+      bcc: recipients.bcc,
+      subject,
       body: parsed.data.body,
+      attachments: files.files,
     });
     await supabase
       .from("emails")
       .update({
         gmail_id: sent.id,
         thread_id: sent.threadId,
+        to_addresses: recipients.to,
+        subject,
         body_text: parsed.data.body,
         snippet: parsed.data.body.slice(0, 400),
         is_draft: false,
@@ -158,7 +224,7 @@ export async function sendDraftAction(formData: FormData) {
       .eq("id", draft.id);
   } catch (sendError) {
     captureError(sendError, { where: "sendDraftAction" });
-    return { ok: false as const, detail: "server_error" };
+    return fail("server_error");
   }
   revalidatePath("/correo");
   revalidatePath(`/correo/${draft.id}`);
@@ -361,24 +427,26 @@ export async function markReadAction(emailId: string) {
 
 export async function composeMailAction(formData: FormData) {
   const profile = await getSessionProfile();
-  if (!profile || profile.isGuest) return { ok: false as const, detail: "forbidden" };
+  if (!profile || profile.isGuest) return fail("forbidden");
   const parsed = z
     .object({
-      to: z.string().email(),
       subject: z.string().trim().max(200),
       body: z.string().trim().min(1).max(8000),
       save_draft: z.enum(["0", "1"]).optional(),
     })
     .safeParse({
-      to: String(formData.get("to") ?? "").trim(),
       subject: formData.get("subject") ?? "",
       body: formData.get("body"),
       save_draft: formData.get("save_draft") === "1" ? "1" : "0",
     });
-  if (!parsed.success) return { ok: false as const, detail: "validation" };
+  if (!parsed.success) return fail("validation");
+  const recipients = parseRecipients(formData, []);
+  if (!recipients.ok) return fail("validation", recipients.message);
+  const files = await attachmentsFromForm(formData);
+  if (!files.ok) return fail("validation", files.message);
   const supabase = await createClient();
   const ready = await accessTokenFor(supabase, profile.id);
-  if (!ready) return { ok: false as const, detail: "not_connected" };
+  if (!ready) return fail("not_connected");
   const draft = parsed.data.save_draft === "1";
   if (draft) {
     const { error } = await supabase.from("emails").insert({
@@ -387,7 +455,7 @@ export async function composeMailAction(formData: FormData) {
       gmail_id: `draft-${crypto.randomUUID()}`,
       thread_id: crypto.randomUUID(),
       from_address: ready.account.email,
-      to_addresses: [parsed.data.to],
+      to_addresses: recipients.to,
       subject: parsed.data.subject,
       snippet: parsed.data.body.slice(0, 400),
       body_text: parsed.data.body,
@@ -399,7 +467,7 @@ export async function composeMailAction(formData: FormData) {
     });
     if (error) {
       captureError(error, { where: "composeMailAction.draft" });
-      return { ok: false as const, detail: "server_error" };
+      return fail("server_error");
     }
     revalidatePath("/correo");
     return { ok: true as const, draft: true };
@@ -407,13 +475,16 @@ export async function composeMailAction(formData: FormData) {
   try {
     await sendMessage(ready.accessToken, {
       from: ready.account.email,
-      to: parsed.data.to,
-      subject: parsed.data.subject || "(sin asunto)",
+      to: recipients.to,
+      cc: recipients.cc,
+      bcc: recipients.bcc,
+      subject: parsed.data.subject || es.correo.noSubject,
       body: parsed.data.body,
+      attachments: files.files,
     });
   } catch (error) {
     captureError(error, { where: "composeMailAction.send" });
-    return { ok: false as const, detail: "server_error" };
+    return fail("server_error");
   }
   await supabase.from("emails").insert({
     account_id: ready.account.id,
@@ -421,7 +492,7 @@ export async function composeMailAction(formData: FormData) {
     gmail_id: `sent-${crypto.randomUUID()}`,
     thread_id: crypto.randomUUID(),
     from_address: ready.account.email,
-    to_addresses: [parsed.data.to],
+    to_addresses: recipients.to,
     subject: parsed.data.subject,
     snippet: parsed.data.body.slice(0, 400),
     body_text: parsed.data.body,

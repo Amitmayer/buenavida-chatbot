@@ -383,39 +383,108 @@ export async function getMessage(accessToken: string, id: string): Promise<Parse
   };
 }
 
-function rfc2822(args: {
+export type OutgoingAttachment = {
+  filename: string;
+  mime: string;
+  bytes: Buffer;
+};
+
+export type OutgoingMail = {
   from: string;
-  to: string;
+  to: string | string[];
+  cc?: string[];
+  bcc?: string[];
   subject: string;
   body: string;
   inReplyTo?: string | null;
-}) {
+  attachments?: OutgoingAttachment[];
+  boundary?: string;
+};
+
+function sanitizeHeader(value: string) {
+  return value.replace(/[\r\n]+/g, " ").trim();
+}
+
+function encodeHeader(value: string) {
+  const clean = sanitizeHeader(value);
+  if (/^[\x20-\x7E]*$/.test(clean)) return clean;
+  return `=?UTF-8?B?${Buffer.from(clean, "utf8").toString("base64")}?=`;
+}
+
+function addressList(values: string[] | undefined) {
+  return (values ?? []).map((value) => sanitizeHeader(value)).filter(Boolean);
+}
+
+function wrap76(value: string) {
+  return value.match(/.{1,76}/g)?.join("\r\n") ?? value;
+}
+
+function contentDisposition(filename: string) {
+  const safe = sanitizeHeader(filename).replace(/"/g, "_") || "file";
+  const ascii = safe.replace(/[^\x20-\x7E]/g, "_") || "file";
+  const encoded = encodeURIComponent(safe).replace(/[!'()*]/g, (char) =>
+    `%${char.charCodeAt(0).toString(16).toUpperCase()}`,
+  );
+  return `attachment; filename="${ascii}"; filename*=UTF-8''${encoded}`;
+}
+
+function asList(value: string | string[]) {
+  return Array.isArray(value) ? value : [value];
+}
+
+export function buildRfc2822(args: OutgoingMail) {
+  const to = addressList(asList(args.to));
+  const cc = addressList(args.cc);
+  const bcc = addressList(args.bcc);
+  const attachments = args.attachments ?? [];
   const lines = [
-    `From: ${args.from}`,
-    `To: ${args.to}`,
-    `Subject: ${args.subject}`,
+    `From: ${sanitizeHeader(args.from)}`,
+    `To: ${to.join(", ")}`,
+    `Subject: ${encodeHeader(args.subject)}`,
     "MIME-Version: 1.0",
-    "Content-Type: text/plain; charset=UTF-8",
   ];
+  if (cc.length) lines.push(`Cc: ${cc.join(", ")}`);
+  if (bcc.length) lines.push(`Bcc: ${bcc.join(", ")}`);
   if (args.inReplyTo) {
-    lines.push(`In-Reply-To: ${args.inReplyTo}`);
-    lines.push(`References: ${args.inReplyTo}`);
+    const replyId = sanitizeHeader(args.inReplyTo);
+    lines.push(`In-Reply-To: ${replyId}`);
+    lines.push(`References: ${replyId}`);
   }
-  return `${lines.join("\r\n")}\r\n\r\n${args.body}`;
+
+  if (!attachments.length) {
+    lines.push("Content-Type: text/plain; charset=UTF-8");
+    return `${lines.join("\r\n")}\r\n\r\n${args.body}`;
+  }
+
+  const boundary = args.boundary ?? `bv_${crypto.randomUUID().replace(/-/g, "")}`;
+  lines.push(`Content-Type: multipart/mixed; boundary="${boundary}"`);
+  const parts = [
+    `--${boundary}`,
+    "Content-Type: text/plain; charset=UTF-8",
+    "Content-Transfer-Encoding: 8bit",
+    "",
+    args.body,
+  ];
+  for (const file of attachments) {
+    const mime = sanitizeHeader(file.mime) || "application/octet-stream";
+    parts.push(
+      `--${boundary}`,
+      `Content-Type: ${mime}; name="${sanitizeHeader(file.filename).replace(/"/g, "_") || "file"}"`,
+      `Content-Disposition: ${contentDisposition(file.filename)}`,
+      "Content-Transfer-Encoding: base64",
+      "",
+      wrap76(file.bytes.toString("base64")),
+    );
+  }
+  parts.push(`--${boundary}--`);
+  return `${lines.join("\r\n")}\r\n\r\n${parts.join("\r\n")}\r\n`;
 }
 
 export async function sendMessage(
   accessToken: string,
-  args: {
-    from: string;
-    to: string;
-    subject: string;
-    body: string;
-    inReplyTo?: string | null;
-    threadId?: string;
-  },
+  args: OutgoingMail & { threadId?: string },
 ) {
-  const raw = Buffer.from(rfc2822(args))
+  const raw = Buffer.from(buildRfc2822(args))
     .toString("base64")
     .replace(/\+/g, "-")
     .replace(/\//g, "_")

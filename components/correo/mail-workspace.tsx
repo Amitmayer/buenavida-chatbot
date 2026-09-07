@@ -178,7 +178,14 @@ export function MailWorkspace({
       </section>
 
       {selected ? (
-        <MailThread mail={selected} html={html ?? ""} folder={folder} filter={filter} query={query} />
+        <MailThread
+          mail={selected}
+          html={html ?? ""}
+          folder={folder}
+          filter={filter}
+          query={query}
+          selfEmail={address}
+        />
       ) : connect ? null : (
         <div className="hidden min-w-0 flex-1 items-center justify-center bg-paper md:flex">
           <p className="text-[16px] text-ink/55">{es.correo.pick}</p>
