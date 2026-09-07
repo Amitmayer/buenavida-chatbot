@@ -9,6 +9,7 @@ import { PageHeader } from "@/components/nav/page-header";
 import { ProfileMenu } from "@/components/nav/profile-menu";
 import { AreaLinks } from "@/components/nav/area-links";
 import { SidebarToggle, SidebarUi } from "@/components/nav/sidebar-ui";
+import { IncomingAlerts } from "@/components/nav/incoming-alerts";
 import { es } from "@/lib/i18n/es";
 import { cn } from "@/lib/utils";
 import type { MailCounts } from "@/lib/email/mailbox";
@@ -35,6 +36,7 @@ export function AppShell({
   showCorreo = false,
   conversationId,
   mailCounts,
+  userId,
 }: {
   children: ReactNode;
   name: string;
@@ -45,6 +47,7 @@ export function AppShell({
   showCorreo?: boolean;
   conversationId: string | null;
   mailCounts?: MailCounts | null;
+  userId: string;
 }) {
   const path = usePathname();
   const home = path === "/hoy";
@@ -155,6 +158,7 @@ export function AppShell({
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
           {hideHeader ? null : <PageHeader conversationId={conversationId} teams={teams} />}
           <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">{children}</main>
+          <IncomingAlerts userId={userId} watchMail={showCorreo} />
           <nav className="z-20 shrink-0 border-t-2 border-ink/10 bg-paper px-2 pb-[max(10px,env(safe-area-inset-bottom))] pt-0.5 md:hidden">
             <NavLinks
               items={items}

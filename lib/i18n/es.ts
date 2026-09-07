@@ -331,6 +331,12 @@ export const es = {
     enabled: "Avisos activados",
     denied: "Los avisos están bloqueados en el navegador",
   },
+  notify: {
+    mail: "Correo",
+    chat: "Mensaje",
+    noSubject: "Sin asunto",
+    close: "Cerrar",
+  },
   correo: {
     title: "Correo",
     boxes: "Buzones",
