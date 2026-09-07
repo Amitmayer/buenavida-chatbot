@@ -15,6 +15,7 @@ import {
   taskFromMailAction,
 } from "@/app/(app)/correo/actions";
 import { crDateLabel, crInstantYmd, crTimeLabel } from "@/lib/agent/dates";
+import { replyAllCc, replyToAddress } from "@/lib/email/addresses";
 import {
   correoHref,
   displayAddress,
@@ -26,6 +27,7 @@ import {
   type MailFolder,
 } from "@/lib/email/mailbox";
 import { MailHtmlFrame } from "@/components/correo/mail-html-frame";
+import { MailWriteForm } from "@/components/correo/mail-write-form";
 import { initials } from "@/lib/utils";
 import type { Email } from "@/lib/db/types";
 
@@ -35,14 +37,15 @@ export function MailThread({
   folder,
   filter,
   query,
+  selfEmail,
 }: {
   mail: Email;
   html: string;
   folder: MailFolder;
   filter: MailFilter;
   query: string;
+  selfEmail: string;
 }) {
-  const [body, setBody] = useState(mail.draft_reply ?? mail.body_text ?? "");
   const [summary, setSummary] = useState(mail.summary ?? "");
   const [pending, start] = useTransition();
   const router = useRouter();
@@ -50,6 +53,16 @@ export function MailThread({
   const draft = isDraft(mail);
   const box = folderOf(mail);
   const listHref = correoHref({ folder, filter, query });
+  const replyTo = replyToAddress({
+    fromAddress: mail.from_address,
+    toAddresses: mail.to_addresses,
+    inbound: mail.inbound,
+  });
+  const replyAll = replyAllCc({
+    fromAddress: mail.from_address,
+    toAddresses: mail.to_addresses,
+    selfEmail,
+  });
 
   useEffect(() => {
     if (!mail.unread || !mail.inbound || draft) return;
@@ -57,9 +70,8 @@ export function MailThread({
   }, [mail.id, mail.unread, mail.inbound, draft]);
 
   useEffect(() => {
-    setBody(draft ? (mail.body_text || mail.draft_reply || "") : (mail.draft_reply ?? ""));
     setSummary(mail.summary ?? "");
-  }, [mail.id, mail.draft_reply, mail.summary, mail.body_text, draft]);
+  }, [mail.id, mail.summary]);
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-paper">
@@ -181,62 +193,37 @@ export function MailThread({
           </div>
         ) : null}
 
-        <form
-          className="shrink-0 py-4 md:py-6"
-          onSubmit={(event) => {
-            event.preventDefault();
-            const form = event.currentTarget;
-            start(async () => {
-              const result = draft
-                ? await sendDraftAction(new FormData(form))
-                : await sendMailAction(new FormData(form));
-              if (result.ok) {
-                toast.success(es.correo.sentOk);
-                setBody("");
-                router.refresh();
-              } else toast.error(es.correo.sendError);
-            });
-          }}
-        >
-          <input type="hidden" name="email_id" value={mail.id} />
-          <div className="flex items-center gap-3.5">
-            <textarea
-              name="body"
-              required
-              maxLength={8000}
-              rows={1}
-              value={body}
-              onChange={(event) => setBody(event.target.value)}
-              placeholder={draft ? es.correo.composeBody : es.correo.replyTo.replace("{name}", who)}
-              className="h-[48px] min-w-0 flex-1 resize-none rounded-xl border-2 border-ink/15 bg-white px-4 py-3 text-[14px] outline-none placeholder:text-ink/55 focus:border-ink md:h-[52px] md:text-[15px]"
-            />
-            {draft ? null : (
-              <button
-                type="button"
-                disabled={pending}
-                onClick={() => {
-                  start(async () => {
+        <div className="shrink-0 py-4 md:py-6">
+          <MailWriteForm
+            layout="reply"
+            showSubject={draft}
+            requireTo
+            resetKey={mail.id}
+            action={draft ? sendDraftAction : sendMailAction}
+            hidden={{ email_id: mail.id }}
+            defaults={{
+              to: draft ? mail.to_addresses.join(", ") : replyTo,
+              subject: mail.subject,
+              body: draft ? mail.body_text || mail.draft_reply || "" : mail.draft_reply ?? "",
+            }}
+            replyAllCc={draft ? "" : replyAll.filter((email) => email !== replyTo).join(", ")}
+            bodyPlaceholder={draft ? es.correo.composeBody : es.correo.replyTo.replace("{name}", who)}
+            onAiDraft={
+              draft
+                ? undefined
+                : async () => {
                     const result = await draftMailAction(mail.id);
                     if (result.ok && result.draft) {
-                      setBody(result.draft);
                       toast.success(es.correo.draftReady);
-                    } else toast.error(es.correo.draftError);
-                  });
-                }}
-                className="hidden h-[48px] shrink-0 rounded-xl border-2 border-ink/20 px-4 text-[14px] font-semibold text-ink hover:border-ink hover:bg-white md:flex md:h-[52px] md:items-center md:text-[15px]"
-              >
-                {es.correo.replyAi}
-              </button>
-            )}
-            <button
-              type="submit"
-              disabled={pending || !body.trim()}
-              className="flex h-[48px] shrink-0 items-center rounded-xl bg-ink px-5 text-[15px] font-semibold text-cream hover:bg-pine disabled:opacity-40 md:h-[52px] md:text-[16px]"
-            >
-              {es.correo.send}
-            </button>
-          </div>
-        </form>
+                      return result.draft;
+                    }
+                    toast.error(es.correo.draftError);
+                    return null;
+                  }
+            }
+            onSuccess={() => router.refresh()}
+          />
+        </div>
       </div>
     </div>
   );
