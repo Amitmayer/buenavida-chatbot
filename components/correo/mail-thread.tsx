@@ -79,6 +79,8 @@ export function MailThread({
               if (result.ok) {
                 toast.success(mail.archived ? es.correo.unarchive : es.correo.archivedOk);
                 router.push(listHref);
+              } else {
+                toast.error(mail.archived ? es.correo.unarchiveError : es.correo.archiveError);
               }
             });
           }}

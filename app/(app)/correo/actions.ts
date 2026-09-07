@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createTaskSchema, getSessionProfile } from "@/lib/session";
 import { accessTokenFor } from "@/lib/email/accounts";
 import { draftComposeText, draftReplyText, summarizeEmailText, syncInbox } from "@/lib/email/sync";
-import { markGmailRead, sendMessage } from "@/lib/email/gmail";
+import { markGmailRead, sendMessage, setGmailArchived } from "@/lib/email/gmail";
 import { sanitizeTitle } from "@/lib/agent/titles";
 import { isDraft } from "@/lib/email/mailbox";
 import { captureError } from "@/lib/sentry";
@@ -302,17 +302,35 @@ export async function archiveMailAction(emailId: string, archived = true) {
   const id = z.string().uuid().safeParse(emailId);
   if (!id.success) return { ok: false as const, detail: "validation" };
   const supabase = await createClient();
+  const { data: row } = await supabase
+    .from("emails")
+    .select("id, gmail_id, thread_id")
+    .eq("id", id.data)
+    .eq("user_id", profile.id)
+    .maybeSingle();
+  if (!row) return { ok: false as const, detail: "not_found" };
+  const localOnly = row.gmail_id.startsWith("draft-") || row.gmail_id.startsWith("sent-");
+  if (!localOnly) {
+    const ready = await accessTokenFor(supabase, profile.id);
+    if (!ready) return { ok: false as const, detail: "not_connected" };
+    const gmailOk = await setGmailArchived(ready.accessToken, {
+      gmailId: row.gmail_id,
+      threadId: row.thread_id,
+      archived,
+    });
+    if (!gmailOk) return { ok: false as const, detail: "server_error" };
+  }
   const { error } = await supabase
     .from("emails")
-    .update({ archived, unread: false })
-    .eq("id", id.data)
+    .update(archived ? { archived: true, unread: false } : { archived: false })
+    .eq("id", row.id)
     .eq("user_id", profile.id);
   if (error) {
     captureError(error, { where: "archiveMailAction" });
     return { ok: false as const, detail: "server_error" };
   }
   revalidatePath("/correo");
-  revalidatePath(`/correo/${id.data}`);
+  revalidatePath(`/correo/${row.id}`);
   return { ok: true as const };
 }
 
