@@ -6,10 +6,18 @@ import { captureError } from "@/lib/sentry";
 
 type Client = SupabaseClient<Database>;
 
+export type FreshMail = {
+  id: string;
+  from_address: string;
+  subject: string;
+  snippet: string;
+  occurred_at: string;
+};
+
 export async function syncInbox(
   supabase: Client,
   args: { userId: string; accountId: string; accessToken: string; first?: boolean; watch?: boolean },
-): Promise<{ inserted: number }> {
+): Promise<{ inserted: number; fresh: FreshMail[] }> {
   const inboxMax = args.watch ? 15 : args.first ? 24 : 80;
   const sentMax = args.watch ? 8 : args.first ? 16 : 40;
   const insertMax = args.watch ? 12 : args.first ? 16 : 40;
@@ -24,7 +32,7 @@ export async function syncInbox(
     return true;
   });
   const ids = listed.map((row) => row.id);
-  if (ids.length === 0) return { inserted: 0 };
+  if (ids.length === 0) return { inserted: 0, fresh: [] };
   const { data: existing } = await supabase
     .from("emails")
     .select("id, gmail_id, body_html")
@@ -71,34 +79,48 @@ export async function syncInbox(
   }
   const missing = listed.filter((row) => !have.has(row.id)).slice(0, insertMax);
   let inserted = 0;
+  const fresh: FreshMail[] = [];
   for (const item of missing) {
     const parsed = await getMessage(args.accessToken, item.id);
-    const { error } = await supabase.from("emails").insert({
-      account_id: args.accountId,
-      user_id: args.userId,
-      gmail_id: parsed.gmailId,
-      thread_id: parsed.threadId,
-      rfc_message_id: parsed.rfcMessageId,
-      from_address: parsed.from,
-      to_addresses: parsed.to,
-      subject: parsed.subject,
-      snippet: parsed.snippet,
-      body_text: parsed.body,
-      body_html: parsed.html || null,
-      occurred_at: parsed.occurredAt,
-      unread: parsed.unread,
-      inbound: parsed.inbound,
-      is_draft: parsed.isDraft,
-      archived: parsed.archived,
-    });
+    const { data: saved, error } = await supabase
+      .from("emails")
+      .insert({
+        account_id: args.accountId,
+        user_id: args.userId,
+        gmail_id: parsed.gmailId,
+        thread_id: parsed.threadId,
+        rfc_message_id: parsed.rfcMessageId,
+        from_address: parsed.from,
+        to_addresses: parsed.to,
+        subject: parsed.subject,
+        snippet: parsed.snippet,
+        body_text: parsed.body,
+        body_html: parsed.html || null,
+        occurred_at: parsed.occurredAt,
+        unread: parsed.unread,
+        inbound: parsed.inbound,
+        is_draft: parsed.isDraft,
+        archived: parsed.archived,
+      })
+      .select("id, from_address, subject, snippet, inbound, is_draft")
+      .maybeSingle();
     if (error) {
       captureError(error, { where: "email.sync.insert" });
       continue;
     }
     inserted += 1;
+    if (saved && saved.inbound && !saved.is_draft) {
+      fresh.push({
+        id: saved.id,
+        from_address: saved.from_address,
+        subject: saved.subject,
+        snippet: saved.snippet,
+        occurred_at: parsed.occurredAt,
+      });
+    }
   }
   if (!args.first) await summarizeNew(supabase, args.userId);
-  return { inserted };
+  return { inserted, fresh };
 }
 
 async function summarizeNew(supabase: Client, userId: string) {

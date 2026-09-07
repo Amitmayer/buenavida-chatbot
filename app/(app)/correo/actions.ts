@@ -26,7 +26,7 @@ export async function syncMailAction(opts?: { watch?: boolean }) {
     });
     revalidatePath("/correo");
     revalidatePath("/", "layout");
-    return { ok: true as const, inserted: result.inserted };
+    return { ok: true as const, inserted: result.inserted, fresh: result.fresh };
   } catch (error) {
     captureError(error, { where: "syncMailAction" });
     return { ok: false as const, detail: "server_error" };

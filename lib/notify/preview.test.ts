@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { clipPreview } from "./preview";
+import { clipPreview, isRecentIso } from "./preview";
 
 describe("clipPreview", () => {
   it("keeps short text", () => {
@@ -12,5 +12,10 @@ describe("clipPreview", () => {
     expect(out.endsWith("…")).toBe(true);
     expect(out.length).toBeLessThanOrEqual(20);
     expect(out.startsWith("Pedido de café")).toBe(true);
+  });
+
+  it("treats a timestamp from a minute ago as recent", () => {
+    expect(isRecentIso(new Date(Date.now() - 60_000).toISOString())).toBe(true);
+    expect(isRecentIso(new Date(Date.now() - 40 * 60 * 1000).toISOString())).toBe(false);
   });
 });

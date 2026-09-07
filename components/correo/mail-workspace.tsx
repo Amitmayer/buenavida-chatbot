@@ -151,7 +151,7 @@ export function MailWorkspace({
           )}
         </div>
         <Suspense fallback={null}>
-          <AutoSync run={autoSync} live={!connect} />
+          <AutoSync run={autoSync} />
         </Suspense>
         <MailListScroll resetKey={`${folder}:${filter}:${query}`}>
           {connect ? (
