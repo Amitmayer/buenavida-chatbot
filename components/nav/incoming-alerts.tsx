@@ -11,6 +11,7 @@ import { displayName } from "@/lib/email/mailbox";
 import { clipPreview, isRecentIso } from "@/lib/notify/preview";
 import { syncMailAction } from "@/app/(app)/correo/actions";
 import { captureError } from "@/lib/sentry";
+import { cn } from "@/lib/utils";
 
 const WATCH_MS = 30_000;
 const SHOW_MS = 8_000;
@@ -186,7 +187,10 @@ export function IncomingAlerts({
       {cards.map((card) => (
         <div
           key={card.id}
-          className="pointer-events-auto rounded-[14px] border-2 border-ink/10 bg-sheet p-3.5 shadow-lg"
+          className={cn(
+            "pointer-events-auto rounded-[14px] p-3.5 shadow-lg",
+            card.kind === "mail" ? "bg-forest text-cream" : "bg-pine text-cream",
+          )}
         >
           <div className="flex items-start justify-between gap-2">
             <p className="font-mono text-[10px] font-medium tracking-[0.14em] text-gold">
@@ -195,7 +199,7 @@ export function IncomingAlerts({
             <button
               type="button"
               aria-label={es.notify.close}
-              className="flex h-6 w-6 shrink-0 items-center justify-center rounded-[6px] text-ink/40 hover:bg-wash hover:text-ink"
+              className="flex h-6 w-6 shrink-0 items-center justify-center rounded-[6px] text-cream/50 hover:bg-cream/10 hover:text-cream"
               onClick={() => setCards((prev) => prev.filter((item) => item.id !== card.id))}
             >
               <X className="h-3.5 w-3.5" strokeWidth={2.25} aria-hidden />
@@ -206,8 +210,8 @@ export function IncomingAlerts({
             onClick={() => setCards((prev) => prev.filter((item) => item.id !== card.id))}
             className="mt-1 block hover:opacity-90"
           >
-            <p className="truncate text-[14px] font-semibold text-ink">{card.from}</p>
-            <p className="mt-0.5 line-clamp-2 text-[13px] leading-snug text-ink/70">{card.title}</p>
+            <p className="truncate text-[14px] font-semibold text-cream">{card.from}</p>
+            <p className="mt-0.5 line-clamp-2 text-[13px] leading-snug text-cream/75">{card.title}</p>
           </Link>
         </div>
       ))}
