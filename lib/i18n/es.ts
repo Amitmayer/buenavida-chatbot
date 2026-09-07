@@ -365,7 +365,7 @@ export const es = {
     connectTitle: "Conectá tu correo",
     connectHint: "Entra con la cuenta que ya usás. Nadie más ve esta bandeja.",
     setupHint:
-      "Falta GOOGLE_CLIENT_ID y GOOGLE_CLIENT_SECRET en .env.local. Creá un cliente OAuth en Google Cloud con redirect http://localhost:3000/api/correo/callback.",
+      "Faltan GOOGLE_CLIENT_ID y GOOGLE_CLIENT_SECRET en Railway (servicio worker). En Google Cloud, Authorized redirect URIs debe incluir {uri}.",
     connectError: "No se pudo conectar.",
     empty: "No hay correos en este buzón.",
     emptyHint: "Los correos se cargan solos al conectar Gmail.",
@@ -397,7 +397,7 @@ export const es = {
     sendError: "No se pudo enviar.",
     yesterday: "ayer",
     errors: {
-      setup: "Falta la configuración de Google en este entorno.",
+      setup: "Faltan GOOGLE_CLIENT_ID y GOOGLE_CLIENT_SECRET en Railway.",
       denied: "No se dio permiso a Gmail.",
       state: "La conexión expiró. Probá de nuevo.",
       refresh: "Google no envió el permiso permanente. Probá de nuevo.",
