@@ -51,6 +51,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
       showCorreo={!profile.isGuest}
       conversationId={conversationId}
       mailCounts={mailCounts}
+      userId={profile.id}
     >
       {children}
     </AppShell>
