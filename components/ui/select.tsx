@@ -104,7 +104,7 @@ const SelectContent = React.forwardRef<
       collisionPadding={8}
       sideOffset={4}
       className={cn(
-        "z-[70] overflow-hidden rounded-[9px] border border-line bg-sheet shadow-lg",
+        "z-[100] overflow-hidden rounded-[9px] border border-line bg-sheet shadow-lg",
         "min-w-[var(--radix-select-trigger-width)]",
         className,
       )}
