@@ -5,6 +5,10 @@ export function hasAuthSessionCookie(cookies: { name: string }[]): boolean {
   return cookies.some((cookie) => AUTH_TOKEN_COOKIE.test(cookie.name));
 }
 
+export function authCookieNames(cookies: { name: string }[]): string[] {
+  return cookies.filter((cookie) => AUTH_TOKEN_COOKIE.test(cookie.name)).map((cookie) => cookie.name);
+}
+
 export function shouldRefreshSession(
   cookies: { name: string; value: string }[],
   nowSec = Math.floor(Date.now() / 1000),

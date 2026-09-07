@@ -4,7 +4,7 @@
 
 begin;
 
-select plan(30);
+select plan(33);
 
 insert into public.brand_files (
   storage_path, filename, mime_type, size_bytes, folder, uploaded_by
@@ -295,6 +295,61 @@ select is(
   (select count(*)::int from public.conversations),
   0,
   'Deybid cannot read Gally''s conversation'
+);
+
+-- Mail is personal. full_access / admin does not read someone else's inbox.
+call public.test_login('a0000000-0000-0000-0000-000000000001');
+insert into public.email_accounts (id, user_id, email, refresh_token_enc)
+values (
+  'e0000000-0000-0000-0000-000000000001',
+  'a0000000-0000-0000-0000-000000000001',
+  'gally@buenavida.cr',
+  'enc'
+);
+insert into public.emails (
+  id, account_id, user_id, gmail_id, thread_id, from_address, subject, snippet,
+  body_text, occurred_at, unread, inbound
+) values (
+  'e1000000-0000-0000-0000-000000000001',
+  'e0000000-0000-0000-0000-000000000001',
+  'a0000000-0000-0000-0000-000000000001',
+  'gmail-1',
+  'thread-1',
+  'cliente@example.com',
+  'Pedido',
+  'Necesitamos 20 kg',
+  'Necesitamos 20 kg',
+  now(),
+  true,
+  true
+);
+
+call public.test_login('a0000000-0000-0000-0000-000000000002');
+select is(
+  (select count(*)::int from public.emails),
+  0,
+  'Naty (full_access) cannot read Gally''s inbox'
+);
+
+call public.test_login('a0000000-0000-0000-0000-000000000003');
+select is(
+  (select count(*)::int from public.email_accounts),
+  0,
+  'Deybid (admin) cannot read Gally''s mail connection'
+);
+
+call public.test_login('a0000000-0000-0000-0000-00000000000c');
+select throws_ok(
+  $$
+    insert into public.email_accounts (user_id, email, refresh_token_enc)
+    values (
+      'a0000000-0000-0000-0000-00000000000c',
+      'david@example.com',
+      'enc'
+    )
+  $$,
+  '42501',
+  'David (guest) cannot connect mail'
 );
 
 select * from finish();

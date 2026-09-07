@@ -3,12 +3,13 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { teamBlurb } from "@/lib/i18n/es";
+import { useSidebarUi } from "@/components/nav/sidebar-ui";
 import { teamEdge } from "@/components/tasks/team-colors";
 import type { Team } from "@/lib/db/types";
 
 export function AreaLinks({ teams }: { teams: Pick<Team, "id" | "slug" | "name">[] }) {
   const path = usePathname();
+  const { hide } = useSidebarUi();
   const [current, setCurrent] = useState<string | null>(null);
 
   useEffect(() => {
@@ -17,31 +18,24 @@ export function AreaLinks({ teams }: { teams: Pick<Team, "id" | "slug" | "name">
   }, [path]);
 
   return (
-    <div className="flex flex-col gap-px">
+    <div className="flex flex-col gap-0.5">
       {teams.map((team) => {
         const on = path.startsWith("/areas/") && current === team.slug;
-        const blurb = teamBlurb(team.slug);
+        const color = teamEdge(team.slug);
         return (
           <Link
             key={team.id}
             href={`/areas/${team.slug}`}
-            onClick={() => setCurrent(team.slug)}
-            className={
-              on
-                ? "relative flex items-center gap-2.5 rounded-[8px] px-2.5 py-1.5 text-[12.5px] text-cream"
-                : "flex items-center gap-2.5 rounded-[8px] px-2.5 py-1.5 text-[12.5px] text-cream/78 hover:bg-cream/[0.06] hover:text-cream"
-            }
+            onClick={() => {
+              setCurrent(team.slug);
+              hide();
+            }}
+            className="flex h-[34px] items-center gap-2.5 rounded-[10px] px-3"
+            style={on ? { background: "rgba(246,243,234,0.14)", boxShadow: `inset 0 0 0 2px ${color}` } : undefined}
           >
-            {on ? (
-              <span className="absolute inset-0 rounded-[8px] bg-cream/[0.11] shadow-[inset_2px_0_0_#C79350]" />
-            ) : null}
-            <span
-              className="relative h-1.5 w-1.5 shrink-0 rounded-full"
-              style={{ background: teamEdge(team.slug) }}
-            />
-            <span className="relative min-w-0 flex-1 leading-tight">
-              <span className="block truncate">{team.name}</span>
-              {blurb ? <span className="block truncate text-[10px] text-cream/40">{blurb}</span> : null}
+            <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: color }} />
+            <span className={`min-w-0 flex-1 truncate text-[14px] text-cream ${on ? "font-semibold" : "font-medium"}`}>
+              {team.name}
             </span>
           </Link>
         );

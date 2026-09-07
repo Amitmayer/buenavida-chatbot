@@ -29,6 +29,7 @@ export function TaskFilters({
       assignee: params.get("assignee") ?? "",
       status: params.get("status") ?? "",
       due: params.get("due") ?? "all",
+      historial: params.get("historial") === "1",
     }),
     [params],
   );
@@ -41,10 +42,36 @@ export function TaskFilters({
   }
 
   const selectedTeam = teams.find((t) => t.slug === current.team);
-  const hasFilters = Boolean(current.team || current.area || current.assignee || current.status || current.due !== "all");
+  const hasFilters = Boolean(
+    current.team || current.area || current.assignee || current.status || current.due !== "all" || current.historial,
+  );
 
   return (
     <div className="flex flex-wrap items-center gap-2">
+      <button
+        type="button"
+        className={!current.historial ? chipOn : chip}
+        onClick={() => {
+          const next = new URLSearchParams(params.toString());
+          next.delete("historial");
+          next.delete("status");
+          router.push(`/tareas?${next.toString()}`);
+        }}
+      >
+        {es.tasks.live}
+      </button>
+      <button
+        type="button"
+        className={current.historial ? chipOn : chip}
+        onClick={() => {
+          const next = new URLSearchParams(params.toString());
+          next.set("historial", "1");
+          if (current.status === "open" || current.status === "in_progress") next.delete("status");
+          router.push(`/tareas?${next.toString()}`);
+        }}
+      >
+        {es.tasks.history}
+      </button>
       <button
         type="button"
         className={current.due === "week" ? chipOn : chip}
@@ -86,7 +113,10 @@ export function TaskFilters({
         placeholder={es.tasks.status}
         triggerClassName={current.status ? selectOn : undefined}
         onValueChange={(value) => update("status", value)}
-        options={(["open", "in_progress", "done", "cancelled"] as const).map((status) => ({
+        options={(current.historial
+          ? (["done", "cancelled"] as const)
+          : (["open", "in_progress"] as const)
+        ).map((status) => ({
           value: status,
           label: es.status[status],
         }))}

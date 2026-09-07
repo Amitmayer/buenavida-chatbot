@@ -240,7 +240,7 @@ export function CaptureBox({
           type="button"
           onClick={resetAndOpen}
           aria-label={es.hoy.createTask}
-          className="flex h-[34px] w-[34px] items-center justify-center rounded-[9px] bg-pine text-[12.5px] font-medium text-cream hover:bg-[#1B3A28] md:w-auto md:gap-2 md:px-3.5"
+          className="flex h-9 w-9 items-center justify-center rounded-[11px] bg-ink text-[14px] font-semibold text-cream hover:bg-pine md:h-[42px] md:w-auto md:gap-1.5 md:px-4 md:text-[15px]"
         >
           <span className="font-mono text-[12px]">+</span>
           <span className="hidden md:inline">{es.hoy.createTask}</span>

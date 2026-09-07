@@ -6,6 +6,7 @@ import { wrapListing, sanitizeTitle } from "@/lib/agent/titles";
 import { parseDueDate, todayYmd, addDaysYmd } from "@/lib/agent/dates";
 import { captureError } from "@/lib/sentry";
 import { postToGeneral } from "@/lib/announcements";
+import { draftReplyText } from "@/lib/email/sync";
 
 export type UserContext = {
   userId: string;
@@ -142,6 +143,25 @@ export const toolDefinitions = [
         assignee_name: { type: "string" },
       },
       required: ["task_id", "assignee_name"],
+    },
+  },
+  {
+    name: "list_emails",
+    description: "Lista correos recientes de la persona. Solo su bandeja.",
+    input_schema: {
+      type: "object",
+      properties: {
+        unread_only: { type: "boolean" },
+      },
+    },
+  },
+  {
+    name: "draft_reply",
+    description: "Redacta un borrador para un correo ya visto en esta conversación. No lo envía.",
+    input_schema: {
+      type: "object",
+      properties: { email_id: { type: "string" } },
+      required: ["email_id"],
     },
   },
   {
@@ -501,6 +521,63 @@ async function announce(
   return ok({ id: posted.id, title: parsed.data.body, task_id: taskId });
 }
 
+async function listEmails(
+  supabase: Client,
+  ctx: UserContext,
+  input: unknown,
+): Promise<ToolResult<{ emails: { id: string; subject: string; from: string; summary: string | null }[] }>> {
+  if (ctx.isGuest) return err("forbidden", "Esta cuenta no tiene correo.");
+  const unreadOnly = z.object({ unread_only: z.boolean().optional() }).safeParse(input);
+  let query = supabase
+    .from("emails")
+    .select("id, subject, from_address, summary, snippet, unread")
+    .eq("user_id", ctx.userId)
+    .order("occurred_at", { ascending: false })
+    .limit(20);
+  if (unreadOnly.success && unreadOnly.data.unread_only) query = query.eq("unread", true);
+  const { data, error } = await query;
+  if (error) {
+    captureError(error, { where: "list_emails" });
+    return err("server_error", "No se pudieron listar los correos.");
+  }
+  return ok({
+    emails: (data ?? []).map((row) => ({
+      id: row.id,
+      subject: row.subject,
+      from: row.from_address,
+      summary: row.summary ?? row.snippet,
+    })),
+  });
+}
+
+async function draftReply(
+  supabase: Client,
+  conversationId: string,
+  ctx: UserContext,
+  input: unknown,
+): Promise<ToolResult<{ id: string; title: string }>> {
+  if (ctx.isGuest) return err("forbidden", "Esta cuenta no tiene correo.");
+  const parsed = z.object({ email_id: z.string().uuid() }).safeParse(input);
+  if (!parsed.success) return err("validation", "Falta el correo.");
+  const known = await requireKnownTask(supabase, conversationId, parsed.data.email_id);
+  if (!known.ok) return known;
+  const { data: row } = await supabase
+    .from("emails")
+    .select("*")
+    .eq("id", parsed.data.email_id)
+    .eq("user_id", ctx.userId)
+    .maybeSingle();
+  if (!row) return err("not_found", "No encontré ese correo.");
+  const draft = await draftReplyText({
+    from: row.from_address,
+    subject: row.subject,
+    body: row.body_text || row.snippet,
+  });
+  if (!draft) return err("server_error", "No se pudo redactar.");
+  await supabase.from("emails").update({ draft_reply: draft }).eq("id", row.id);
+  return ok({ id: row.id, title: draft.slice(0, 120) });
+}
+
 export async function executeTool(args: {
   supabase: Client;
   ctx: UserContext;
@@ -524,6 +601,10 @@ export async function executeTool(args: {
       return assignTask(supabase, conversationId, input);
     case "announce":
       return announce(supabase, ctx, conversationId, input);
+    case "list_emails":
+      return listEmails(supabase, ctx, input);
+    case "draft_reply":
+      return draftReply(supabase, conversationId, ctx, input);
     default:
       return err("validation", `Herramienta desconocida: ${name}`);
   }

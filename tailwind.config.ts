@@ -11,6 +11,7 @@ const config: Config = {
       colors: {
         ink: "var(--ink)",
         pine: "var(--pine)",
+        forest: "var(--forest)",
         gold: "var(--gold)",
         sage: "var(--sage)",
         overdue: "var(--overdue)",
@@ -27,8 +28,8 @@ const config: Config = {
         hair: "var(--hair)",
       },
       fontFamily: {
-        sans: ["var(--font-jost)", "Century Gothic", "ui-sans-serif", "system-ui"],
-        mono: ["var(--font-jetbrains)", "ui-monospace", "monospace"],
+        sans: ["var(--font-outfit)", "ui-sans-serif", "system-ui"],
+        mono: ["var(--font-plex)", "ui-monospace", "monospace"],
       },
       borderRadius: {
         sm: "8px",
@@ -36,7 +37,7 @@ const config: Config = {
         lg: "16px",
       },
       fontSize: {
-        title: ["19px", { lineHeight: "1.2", letterSpacing: "-0.01em", fontWeight: "600" }],
+        title: ["34px", { lineHeight: "1.1", letterSpacing: "-0.01em", fontWeight: "700" }],
         task: ["20px", { lineHeight: "1.25", fontWeight: "600" }],
         row: ["15px", { lineHeight: "1.3", fontWeight: "500" }],
         "row-desk": ["13px", { lineHeight: "1.3", fontWeight: "500" }],

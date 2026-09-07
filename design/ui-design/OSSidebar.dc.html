@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<div style="width: 300px; height: 100%; box-sizing: border-box; flex: 0 0 300px; background: #0E2119; color: #F6F3EA; display: flex; flex-direction: column; padding: 26px 0 22px; font-family: 'Outfit', system-ui, sans-serif;">
+  <div style="padding: 0 24px; display: flex; align-items: flex-start; gap: 8px;">
+    <div>
+      <div style="font: 300 34px 'Outfit', sans-serif; letter-spacing: 0.02em; line-height: 0.94;">BUENA</div>
+      <div style="display: flex; align-items: flex-end; gap: 6px;">
+        <div style="font: 300 34px 'Outfit', sans-serif; letter-spacing: 0.02em; line-height: 0.94;">VIDA</div>
+        <div style="font: 400 9px 'Outfit', sans-serif; line-height: 1.15; padding-bottom: 3px; letter-spacing: 0.04em;">SPECIALTY<br />COFFEE</div>
+      </div>
+    </div>
+    <div style="font: 500 12px 'IBM Plex Mono', monospace; color: #E0834A; letter-spacing: 0.18em;">OS</div>
+  </div>
+
+  <div style="padding: 0 24px; margin-top: 40px; font: 500 15px 'IBM Plex Mono', monospace; letter-spacing: 0.18em; text-transform: uppercase; color: #E5B978;">Trabajo</div>
+  <div style="margin-top: 12px; display: flex; flex-direction: column; gap: 4px; padding: 0 16px;">
+    <sc-for list="{{ nav }}" as="n" hint-placeholder-count="6">
+      <div style="{{ n.rowStyle }}">
+        <div style="{{ n.iconStyle }}"></div>
+        <div style="{{ n.textStyle }}">{{ n.label }}</div>
+        <sc-if value="{{ n.badge }}" hint-placeholder-val="{{ false }}">
+          <div style="min-width: 28px; height: 28px; border-radius: 9px; background: #C4622D; color: #FFFFFF; display: flex; align-items: center; justify-content: center; padding: 0 8px; font: 500 15px 'IBM Plex Mono', monospace;">{{ n.badge }}</div>
+        </sc-if>
+      </div>
+    </sc-for>
+  </div>
+
+  <div style="padding: 0 24px; margin-top: 34px; font: 500 15px 'IBM Plex Mono', monospace; letter-spacing: 0.18em; text-transform: uppercase; color: #E5B978;">Áreas</div>
+  <div style="flex: 1; min-height: 0; overflow: auto; margin-top: 10px; display: flex; flex-direction: column; gap: 2px; padding: 0 16px;">
+    <sc-for list="{{ areas }}" as="a" hint-placeholder-count="8">
+      <div style="{{ a.rowStyle }}">
+        <div style="{{ a.dotStyle }}"></div>
+        <div style="min-width: 0; flex: 1;">
+          <div style="{{ a.nameStyle }}">{{ a.name }}</div>
+        </div>
+      </div>
+    </sc-for>
+  </div>
+
+  <div style="height: 16px; flex: 0 0 16px;"></div>
+  <div style="margin: 0 16px; padding: 14px; border-radius: 14px; background: rgba(246,243,234,0.08); display: flex; align-items: center; gap: 13px;">
+    <div style="width: 42px; height: 42px; border-radius: 12px; background: #C79350; color: #0E2119; display: flex; align-items: center; justify-content: center; font: 600 17px 'IBM Plex Mono', monospace;">AM</div>
+    <div style="min-width: 0; flex: 1;">
+      <div style="font: 500 20px 'Outfit', sans-serif;">Amit M.</div>
+      <div style="font: 400 15px 'IBM Plex Mono', monospace; color: rgba(246,243,234,0.7);">Dirección</div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:300,&quot;height&quot;:1080},&quot;active&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;Inicio&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;area&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;&quot;,&quot;tsType&quot;:&quot;string&quot;}}">
+var NAV = [
+  ['Inicio', null], ['Mensajes', 4], ['Correo', 8], ['Asistente', null],
+  ['Tareas', null], ['Archivos', null], ['Equipo', null]
+];
+var AREAS = [
+  ['Comercial', 'B2B, ruta, cotizaciones', '#5B8C6A'],
+  ['Operaciones', 'Tueste, bodega, envíos', '#4F7FA8'],
+  ['USA', 'Clientes US y exportaciones', '#7A6FC0'],
+  ['Academia', 'Talleres, cursos, eventos', '#B06FA8'],
+  ['Marketing', 'Diseño, etiquetas, contenido', '#C4718A'],
+  ['Administración', 'Cobros, facturas, oficina', '#C79350'],
+  ['Regenerativo', 'Certificación y fincas', '#8FA85B'],
+  ['Dirección', 'Estrategia y alianzas', '#9AA85B']
+];
+
+class Component extends DCLogic {
+  renderVals() {
+    var active = this.props.active == null ? 'Inicio' : this.props.active;
+    var areaActive = this.props.area || null;
+    return {
+      nav: NAV.map(function (n) {
+        var on = n[0] === active;
+        return {
+          label: n[0],
+          badge: (n[1] && !on) ? n[1] : (n[1] && on ? n[1] : null),
+          rowStyle: 'display: flex; align-items: center; gap: 14px; height: 44px; border-radius: 12px; padding: 0 14px;'
+            + (on ? 'background: #F6F3EA; color: #0E2119;' : 'color: rgba(246,243,234,0.9);'),
+          iconStyle: 'width: 16px; height: 16px; flex: 0 0 16px; border-radius: '
+            + (n[0] === 'Asistente' ? '9px;' : '4px;')
+            + ' border: 2.5px solid ' + (on ? '#0E2119' : 'rgba(246,243,234,0.6)') + ';',
+          textStyle: 'flex: 1; font: ' + (on ? '600' : '400') + ' 23px \'Outfit\', sans-serif;'
+        };
+      }),
+      areas: AREAS.map(function (a) {
+        var on = a[0] === areaActive;
+        return {
+          name: a[0], desc: a[1],
+          rowStyle: 'display: flex; align-items: center; gap: 13px; height: 38px; padding: 0 14px; border-radius: 11px;'
+            + (on ? 'background: rgba(246,243,234,0.14); box-shadow: inset 0 0 0 2px ' + a[2] + ';' : ''),
+          dotStyle: 'width: 10px; height: 10px; flex: 0 0 10px; border-radius: 6px; background: ' + a[2] + ';',
+          nameStyle: 'font: ' + (on ? '600' : '500') + ' 21px \'Outfit\', sans-serif; color: #F6F3EA; white-space: nowrap;'
+        };
+      })
+    };
+  }
+}
+</script>
+</body>
+</html>

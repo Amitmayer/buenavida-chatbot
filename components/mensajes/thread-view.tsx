@@ -50,7 +50,7 @@ export function ThreadView({
   members: Member[];
   initial: ChatMessage[];
   emptyLabel?: string;
-  layout?: "thread" | "announcements";
+  layout?: "thread" | "announcements" | "area";
   tasks?: LinkedTask[];
   composerPlaceholder?: string;
 }) {
@@ -62,6 +62,7 @@ export function ThreadView({
   const taskById = new Map(tasks.map((task) => [task.id, task]));
   const today = todayYmd();
   const feed = layout === "announcements";
+  const area = layout === "area";
 
   useEffect(() => {
     bottom.current?.scrollIntoView({ behavior: "smooth" });
@@ -116,7 +117,13 @@ export function ThreadView({
 
   return (
     <>
-      <div className="flex min-h-0 flex-1 flex-col gap-3.5 overflow-y-auto px-4 py-5 md:px-6">
+      <div
+        className={
+          area
+            ? "flex min-h-0 flex-1 flex-col justify-end gap-[18px] overflow-y-auto px-6 py-5"
+            : "flex min-h-0 flex-1 flex-col gap-3.5 overflow-y-auto px-4 py-5 md:px-6"
+        }
+      >
         {messages.length === 0 ? (
           <p className="py-8 text-center text-sm text-mute">{emptyLabel ?? es.mensajes.emptyThread}</p>
         ) : null}
@@ -183,22 +190,35 @@ export function ThreadView({
                   {crRelativeStamp(day, today)}
                 </p>
               ) : null}
-              <div className={`flex max-w-[70%] gap-2.5 ${mine ? "ml-auto flex-row-reverse" : ""}`}>
-                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#DDD8C6] text-[10.5px] font-semibold text-[#3C5540]">
-                  {initials(full)}
-                </span>
-                <div>
+              <div
+                className={`flex ${area ? "max-w-[92%]" : "max-w-[70%] gap-2.5"} ${mine ? "ml-auto flex-row-reverse" : ""}`}
+              >
+                {area ? null : (
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#DDD8C6] text-[10.5px] font-semibold text-[#3C5540]">
+                    {initials(full)}
+                  </span>
+                )}
+                <div className={area && mine ? "flex flex-col items-end" : ""}>
                   <div className={`mb-1 flex items-baseline gap-2 ${mine ? "flex-row-reverse" : ""}`}>
-                    <span className="text-[12px] font-medium text-ink">{who}</span>
-                    <span className="font-mono text-[10px] text-ink/40">
-                      {crTimeLabel(message.created_at)}
+                    <span className={area ? "font-mono text-[13px] text-ink/70" : "text-[12px] font-medium text-ink"}>
+                      {mine && area ? es.mensajes.you : who}
+                      {area ? ` · ${crTimeLabel(message.created_at)}` : ""}
                     </span>
+                    {area ? null : (
+                      <span className="font-mono text-[10px] text-ink/40">
+                        {crTimeLabel(message.created_at)}
+                      </span>
+                    )}
                   </div>
                   <p
                     className={
-                      mine
-                        ? "whitespace-pre-wrap rounded-md rounded-tr-sm bg-pine px-3.5 py-2.5 text-[13px] leading-relaxed text-cream"
-                        : "whitespace-pre-wrap rounded-md rounded-tl-sm border border-ink/10 bg-sheet px-3.5 py-2.5 text-[13px] leading-relaxed text-ink"
+                      area
+                        ? mine
+                          ? "whitespace-pre-wrap rounded-[14px] rounded-br-[4px] bg-ink px-4 py-3 text-[15px] leading-relaxed text-cream md:text-[16px]"
+                          : "inline-block whitespace-pre-wrap rounded-[14px] rounded-bl-[4px] border-2 border-ink/12 bg-white px-4 py-3 text-[15px] leading-relaxed text-ink md:text-[16px]"
+                        : mine
+                          ? "whitespace-pre-wrap rounded-md rounded-tr-sm bg-pine px-3.5 py-2.5 text-[13px] leading-relaxed text-cream"
+                          : "whitespace-pre-wrap rounded-md rounded-tl-sm border border-ink/10 bg-sheet px-3.5 py-2.5 text-[13px] leading-relaxed text-ink"
                     }
                   >
                     {message.content}
@@ -211,21 +231,35 @@ export function ThreadView({
         <div ref={bottom} />
       </div>
       <form
-        className="shrink-0 px-4 pb-5 pt-3 md:px-6"
+        className={area ? "shrink-0 border-t-2 border-ink/12 px-6 py-5" : "shrink-0 px-4 pb-5 pt-3 md:px-6"}
         onSubmit={(e) => {
           e.preventDefault();
           send();
         }}
       >
-        <div className="flex items-center gap-2.5 rounded-md border border-ink/15 bg-sheet px-3.5 py-2.5">
+        <div
+          className={
+            area
+              ? "flex items-center gap-3"
+              : "flex items-center gap-2.5 rounded-md border border-ink/15 bg-sheet px-3.5 py-2.5"
+          }
+        >
           <input
             value={text}
             onChange={(e) => setText(e.target.value)}
             placeholder={composerPlaceholder ?? es.mensajes.composer}
             maxLength={4000}
-            className="h-7 flex-1 bg-transparent text-[13px] outline-none placeholder:text-ink/40"
+            className={
+              area
+                ? "h-11 min-w-0 flex-1 rounded-[12px] border-2 border-ink/16 bg-white px-4 text-[15px] outline-none placeholder:text-ink/55"
+                : "h-7 flex-1 bg-transparent text-[13px] outline-none placeholder:text-ink/40"
+            }
           />
-          <Button type="submit" disabled={pending} className="h-8 px-3.5 text-[12px]">
+          <Button
+            type="submit"
+            disabled={pending}
+            className={area ? "h-11 rounded-[12px] px-4 text-[15px]" : "h-8 px-3.5 text-[12px]"}
+          >
             {es.mensajes.send}
           </Button>
         </div>
