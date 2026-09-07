@@ -277,7 +277,12 @@ export async function getMessageLabels(accessToken: string, id: string): Promise
   return data.labelIds ?? [];
 }
 
-async function removeUnread(accessToken: string, kind: "messages" | "threads", id: string) {
+async function modifyLabels(
+  accessToken: string,
+  kind: "messages" | "threads",
+  id: string,
+  body: { addLabelIds?: string[]; removeLabelIds?: string[] },
+) {
   if (!id || id.startsWith("draft-") || id.startsWith("sent-")) return false;
   const res = await fetch(`${GMAIL}/${kind}/${encodeURIComponent(id)}/modify`, {
     method: "POST",
@@ -285,10 +290,10 @@ async function removeUnread(accessToken: string, kind: "messages" | "threads", i
       Authorization: `Bearer ${accessToken}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ removeLabelIds: ["UNREAD"] }),
+    body: JSON.stringify(body),
   });
   if (!res.ok) {
-    captureError(new Error(`gmail ${kind} modify ${res.status}`), { where: "gmail.markRead" });
+    captureError(new Error(`gmail ${kind} modify ${res.status}`), { where: "gmail.modify" });
     return false;
   }
   return true;
@@ -298,8 +303,19 @@ export async function markGmailRead(
   accessToken: string,
   args: { gmailId: string; threadId?: string | null },
 ) {
-  const message = await removeUnread(accessToken, "messages", args.gmailId);
-  const thread = args.threadId ? await removeUnread(accessToken, "threads", args.threadId) : false;
+  const body = { removeLabelIds: ["UNREAD"] };
+  const message = await modifyLabels(accessToken, "messages", args.gmailId, body);
+  const thread = args.threadId ? await modifyLabels(accessToken, "threads", args.threadId, body) : false;
+  return message || thread;
+}
+
+export async function setGmailArchived(
+  accessToken: string,
+  args: { gmailId: string; threadId?: string | null; archived: boolean },
+) {
+  const body = args.archived ? { removeLabelIds: ["INBOX"] } : { addLabelIds: ["INBOX"] };
+  const message = await modifyLabels(accessToken, "messages", args.gmailId, body);
+  const thread = args.threadId ? await modifyLabels(accessToken, "threads", args.threadId, body) : false;
   return message || thread;
 }
 
