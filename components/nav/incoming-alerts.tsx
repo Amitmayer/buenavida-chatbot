@@ -2,13 +2,13 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { z } from "zod";
 import { X } from "lucide-react";
 import { es } from "@/lib/i18n/es";
 import { createClient } from "@/lib/supabase/client";
 import { displayName } from "@/lib/email/mailbox";
-import { clipPreview } from "@/lib/notify/preview";
+import { clipPreview, isRecentIso } from "@/lib/notify/preview";
 import { syncMailAction } from "@/app/(app)/correo/actions";
 import { captureError } from "@/lib/sentry";
 
@@ -23,14 +23,18 @@ const ChatInsert = z.object({
   content: z.string(),
 });
 
+const asBool = z
+  .union([z.boolean(), z.string(), z.number()])
+  .transform((value) => value === true || value === "true" || value === "t" || value === 1);
+
 const MailInsert = z.object({
   id: z.string().uuid(),
-  user_id: z.string().uuid(),
   from_address: z.string(),
-  subject: z.string(),
+  subject: z.string().optional().default(""),
   snippet: z.string().optional().default(""),
-  inbound: z.boolean(),
-  is_draft: z.boolean().optional().default(false),
+  inbound: asBool,
+  is_draft: asBool.optional().default(false),
+  occurred_at: z.string().optional(),
 });
 
 type Card = {
@@ -41,6 +45,21 @@ type Card = {
   title: string;
 };
 
+function mailCard(row: {
+  id: string;
+  from_address: string;
+  subject: string;
+  snippet: string;
+}): Card {
+  return {
+    id: row.id,
+    kind: "mail",
+    href: `/correo/${row.id}`,
+    from: displayName(row.from_address),
+    title: clipPreview(row.subject) || clipPreview(row.snippet) || es.notify.noSubject,
+  };
+}
+
 export function IncomingAlerts({
   userId,
   watchMail,
@@ -49,6 +68,7 @@ export function IncomingAlerts({
   watchMail: boolean;
 }) {
   const path = usePathname();
+  const router = useRouter();
   const pathRef = useRef(path);
   pathRef.current = path;
   const [cards, setCards] = useState<Card[]>([]);
@@ -105,24 +125,14 @@ export function IncomingAlerts({
       )
       .on(
         "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "emails",
-          filter: `user_id=eq.${userId}`,
-        },
+        { event: "INSERT", schema: "public", table: "emails" },
         (payload) => {
           const parsed = MailInsert.safeParse(payload.new);
           if (!parsed.success) return;
           if (!parsed.data.inbound || parsed.data.is_draft) return;
+          if (parsed.data.occurred_at && !isRecentIso(parsed.data.occurred_at)) return;
           if (pathRef.current.startsWith(`/correo/${parsed.data.id}`)) return;
-          pushCard({
-            id: parsed.data.id,
-            kind: "mail",
-            href: `/correo/${parsed.data.id}`,
-            from: displayName(parsed.data.from_address),
-            title: clipPreview(parsed.data.subject) || clipPreview(parsed.data.snippet) || es.notify.noSubject,
-          });
+          pushCard(mailCard(parsed.data));
         },
       )
       .subscribe();
@@ -137,10 +147,16 @@ export function IncomingAlerts({
 
     async function pull() {
       if (document.visibilityState !== "visible" || busy.current) return;
-      if (pathRef.current.startsWith("/correo")) return;
       busy.current = true;
       try {
-        await syncMailAction({ watch: true });
+        const result = await syncMailAction({ watch: true });
+        if (!result.ok) return;
+        for (const row of result.fresh) {
+          if (!isRecentIso(row.occurred_at)) continue;
+          if (pathRef.current.startsWith(`/correo/${row.id}`)) continue;
+          pushCard(mailCard(row));
+        }
+        if (result.inserted > 0) router.refresh();
       } catch (error) {
         captureError(error, { where: "IncomingAlerts.watch" });
       } finally {
@@ -152,6 +168,7 @@ export function IncomingAlerts({
       if (document.visibilityState === "visible") void pull();
     }
 
+    void pull();
     const timer = window.setInterval(() => void pull(), WATCH_MS);
     document.addEventListener("visibilitychange", onVisible);
     window.addEventListener("focus", onVisible);
@@ -160,14 +177,12 @@ export function IncomingAlerts({
       document.removeEventListener("visibilitychange", onVisible);
       window.removeEventListener("focus", onVisible);
     };
-  }, [watchMail]);
+  }, [watchMail, router]);
 
   if (cards.length === 0) return null;
 
   return (
-    <div
-      className="pointer-events-none fixed right-3 z-[85] flex w-[min(100%-24px,320px)] flex-col gap-2 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] md:bottom-5 md:right-5"
-    >
+    <div className="pointer-events-none fixed right-3 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-[85] flex w-[min(100%-24px,320px)] flex-col gap-2 md:bottom-5 md:right-5">
       {cards.map((card) => (
         <div
           key={card.id}
