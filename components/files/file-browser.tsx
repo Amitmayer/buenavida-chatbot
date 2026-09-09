@@ -5,6 +5,8 @@ import { es } from "@/lib/i18n/es";
 import { EmptyState } from "@/components/empty-state";
 import { BrandUploader } from "@/components/files/brand-uploader";
 import { ChannelUploader } from "@/components/files/channel-uploader";
+import { FileOpenActions, FilePreview } from "@/components/files/file-preview";
+import { canPreviewFile } from "@/lib/files/preview";
 import { formatBytes } from "@/lib/utils";
 
 export type LibraryFolder = {
@@ -146,42 +148,61 @@ export function FileBrowser({
         ) : (
           <section className="grid grid-cols-2 gap-3 px-4 pb-10 sm:grid-cols-3 md:grid-cols-[repeat(auto-fill,minmax(214px,1fr))] md:gap-4 md:px-7">
             {visible.map((file) => (
-              <article
-                key={file.id}
-                className="overflow-hidden rounded-[14px] border border-ink/10 bg-sheet hover:border-ink/25"
-              >
-                {file.url && file.mime_type.startsWith("image/") ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={file.url} alt={file.filename} className="h-[104px] w-full object-cover" />
-                ) : (
-                  <div className="flex h-[104px] items-center justify-center bg-[repeating-linear-gradient(135deg,#EDEBDF_0_8px,#E5E2D3_8px_16px)]">
-                    <span className="font-mono text-[10px] tracking-[0.1em] text-ink/40">
-                      {(file.mime_type.split("/")[1] ?? "FILE").toUpperCase()}
-                    </span>
-                  </div>
-                )}
-                <div className="px-3.5 py-3">
-                  {file.url ? (
-                    <a
-                      href={file.url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="block text-[12.5px] font-medium leading-snug text-ink"
-                    >
-                      {file.filename}
-                    </a>
-                  ) : (
-                    <p className="text-[12.5px] font-medium leading-snug text-ink">{file.filename}</p>
-                  )}
-                  <p className="mt-1.5 font-mono text-[10px] text-ink/45">
-                    {formatBytes(file.size_bytes)}
-                  </p>
-                </div>
-              </article>
+              <FileCard key={file.id} file={file} />
             ))}
           </section>
         )}
       </div>
+    </div>
+  );
+}
+
+function FileCard({ file }: { file: LibraryFile }) {
+  const [open, setOpen] = useState(false);
+  const previewable = Boolean(file.url && canPreviewFile(file.mime_type));
+
+  return (
+    <article className="overflow-hidden rounded-[14px] border border-ink/10 bg-sheet hover:border-ink/25">
+      {previewable ? (
+        <button type="button" onClick={() => setOpen(true)} className="block w-full" aria-label={es.files.preview}>
+          <FileThumb file={file} />
+        </button>
+      ) : (
+        <FileThumb file={file} />
+      )}
+      <div className="px-3.5 py-3">
+        <p className="text-[12.5px] font-medium leading-snug text-ink">{file.filename}</p>
+        <p className="mt-1.5 font-mono text-[10px] text-ink/45">{formatBytes(file.size_bytes)}</p>
+        {file.url ? (
+          <div className="mt-2">
+            <FileOpenActions url={file.url} filename={file.filename} mimeType={file.mime_type} />
+          </div>
+        ) : null}
+      </div>
+      {open && file.url ? (
+        <FilePreview
+          filename={file.filename}
+          mimeType={file.mime_type}
+          src={file.url}
+          onClose={() => setOpen(false)}
+        />
+      ) : null}
+    </article>
+  );
+}
+
+function FileThumb({ file }: { file: LibraryFile }) {
+  if (file.url && file.mime_type.startsWith("image/")) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img src={file.url} alt={file.filename} className="h-[104px] w-full object-cover" />
+    );
+  }
+  return (
+    <div className="flex h-[104px] items-center justify-center bg-[repeating-linear-gradient(135deg,#EDEBDF_0_8px,#E5E2D3_8px_16px)]">
+      <span className="font-mono text-[10px] tracking-[0.1em] text-ink/40">
+        {(file.mime_type.split("/")[1] ?? "FILE").toUpperCase()}
+      </span>
     </div>
   );
 }

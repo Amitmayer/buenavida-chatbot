@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { es } from "@/lib/i18n/es";
 import { crDateLabel, crInstantYmd } from "@/lib/agent/dates";
 import { formatBytes } from "@/lib/utils";
+import { FileOpenActions } from "@/components/files/file-preview";
+import { captureError } from "@/lib/sentry";
 import type { Attachment } from "@/lib/db/types";
 
 export function AttachmentList({ attachments }: { attachments: Attachment[] }) {
@@ -26,7 +28,9 @@ function AttachmentRow({ file }: { file: Attachment }) {
       .then((body: { url?: string } | null) => {
         if (active && body?.url) setUrl(body.url);
       })
-      .catch(() => undefined);
+      .catch((error) => {
+        captureError(error, { where: "files.attachmentUrl" });
+      });
     return () => {
       active = false;
     };
@@ -50,11 +54,7 @@ function AttachmentRow({ file }: { file: Attachment }) {
         <span className="block truncate text-[13px] font-medium text-ink">{file.filename}</span>
         <span className="mt-0.5 block font-mono text-[10.5px] text-ink/45">{meta}</span>
       </span>
-      {url ? (
-        <a href={url} className="shrink-0 text-[11px] font-medium text-pine">
-          {es.files.download}
-        </a>
-      ) : null}
+      {url ? <FileOpenActions url={url} filename={file.filename} mimeType={file.mime_type} /> : null}
     </li>
   );
 }

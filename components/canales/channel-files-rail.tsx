@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { es } from "@/lib/i18n/es";
 import { ChannelUploader } from "@/components/files/channel-uploader";
+import { FileOpenActions } from "@/components/files/file-preview";
 import { formatBytes } from "@/lib/utils";
 
 export type ChannelFileCard = {
@@ -33,21 +34,15 @@ export function ChannelFilesRail({
         <ul className="space-y-2">
           {files.map((file) => (
             <li key={file.id}>
-              {file.url ? (
-                <a
-                  href={file.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="block truncate text-[12.5px] font-medium text-ink hover:text-pine"
-                >
-                  {file.filename}
-                </a>
-              ) : (
-                <p className="truncate text-[12.5px] font-medium text-ink">{file.filename}</p>
-              )}
+              <p className="truncate text-[12.5px] font-medium text-ink">{file.filename}</p>
               <p className="font-mono text-[10px] text-ink/45">
                 {(file.mime_type.split("/")[1] ?? "file").toUpperCase()} · {formatBytes(file.size_bytes)}
               </p>
+              {file.url ? (
+                <div className="mt-1">
+                  <FileOpenActions url={file.url} filename={file.filename} mimeType={file.mime_type} />
+                </div>
+              ) : null}
             </li>
           ))}
         </ul>

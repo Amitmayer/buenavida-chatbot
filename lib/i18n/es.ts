@@ -284,6 +284,8 @@ export const es = {
     rejectedType: "Este tipo de archivo no está permitido",
     empty: "No hay archivos todavía. Subí el manual de marca o un logo.",
     download: "Descargar",
+    preview: "Vista previa",
+    previewFailed: "No se pudo abrir la vista previa.",
     guestHidden: "La biblioteca de marca no está disponible en esta cuenta.",
     all: "Todo",
     folders: "Carpetas",
