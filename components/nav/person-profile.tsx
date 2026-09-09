@@ -59,11 +59,8 @@ export function PersonProfile({ userId, onClose }: { userId: string; onClose: ()
     setWriting(true);
     const form = new FormData();
     form.set("user_id", card.id);
-    try {
-      await openDmAction(form);
-    } finally {
-      setWriting(false);
-    }
+    onClose();
+    await openDmAction(form);
   }
 
   const title = card?.fullName ?? es.team.profile;
