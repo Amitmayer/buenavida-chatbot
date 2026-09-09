@@ -7,6 +7,8 @@ import { ThreadView } from "@/components/mensajes/thread-view";
 import { AreaWorkspace } from "@/components/areas/area-workspace";
 import { AreaBoard } from "@/components/areas/area-board";
 import { createClient } from "@/lib/supabase/server";
+import { captureError } from "@/lib/sentry";
+import { mapAreaPeople } from "@/lib/areas/people";
 
 export default async function AreaPage({
   params,
@@ -23,7 +25,7 @@ export default async function AreaPage({
   if (!member && !profile.hasFullAccess) notFound();
 
   const today = todayYmd();
-  const [tasks, thread, people] = await Promise.all([
+  const [tasks, thread, members] = await Promise.all([
     listVisibleTasks({
       teamId: team.id,
       today,
@@ -33,13 +35,15 @@ export default async function AreaPage({
     profile.isGuest ? Promise.resolve(null) : loadTeamChat(team.id, profile.id),
     supabase
       .from("team_members")
-      .select("*", { count: "exact", head: true })
+      .select("is_lead, user_id, profiles(id, full_name, title)")
       .eq("team_id", team.id),
   ]);
+  if (members.error) captureError(members.error, { where: "area.people" });
+  const people = mapAreaPeople(members.data);
 
   return (
     <AreaWorkspace
-      tasks={<AreaBoard tasks={tasks} peopleCount={people.count ?? 0} />}
+      tasks={<AreaBoard tasks={tasks} teamName={team.name} people={people} />}
       chat={
         thread ? (
           <>

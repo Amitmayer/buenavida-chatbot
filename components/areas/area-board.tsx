@@ -5,19 +5,24 @@ import { es } from "@/lib/i18n/es";
 import { todayYmd } from "@/lib/agent/dates";
 import { TaskRow } from "@/components/tasks/task-row";
 import { EmptyState } from "@/components/empty-state";
+import { AreaPeopleDialog } from "@/components/areas/area-people-dialog";
 import { cn } from "@/lib/utils";
+import type { AreaPerson } from "@/lib/areas/people";
 import type { TaskRow as TaskRowData } from "@/lib/session";
 
 type Chip = "today" | "high" | "overdue" | "undated";
 
 export function AreaBoard({
   tasks,
-  peopleCount,
+  teamName,
+  people,
 }: {
   tasks: TaskRowData[];
-  peopleCount: number;
+  teamName: string;
+  people: AreaPerson[];
 }) {
   const [on, setOn] = useState<Chip[]>([]);
+  const [peopleOpen, setPeopleOpen] = useState(false);
   const today = todayYmd();
   const overdueCount = tasks.filter((task) => task.due_date && task.due_date < today).length;
 
@@ -112,8 +117,21 @@ export function AreaBoard({
           hint={es.areas.statOverdueHint}
           alert={overdueCount > 0}
         />
-        <Stat label={es.areas.statPeople} value={String(peopleCount)} hint={es.areas.statPeopleHint} />
+        <Stat
+          label={es.areas.statPeople}
+          value={String(people.length)}
+          hint={es.areas.statPeopleHint}
+          onClick={() => setPeopleOpen(true)}
+          openLabel={es.areas.peopleOpen}
+        />
       </div>
+      {peopleOpen ? (
+        <AreaPeopleDialog
+          teamName={teamName}
+          people={people}
+          onClose={() => setPeopleOpen(false)}
+        />
+      ) : null}
     </div>
   );
 }
@@ -123,14 +141,18 @@ function Stat({
   value,
   hint,
   alert,
+  onClick,
+  openLabel,
 }: {
   label: string;
   value: string;
   hint: string;
   alert?: boolean;
+  onClick?: () => void;
+  openLabel?: string;
 }) {
-  return (
-    <div className="rounded-[18px] border-2 border-ink/12 bg-wash px-6 py-[22px]">
+  const inner = (
+    <>
       <p className="font-mono text-[12px] font-medium uppercase tracking-[0.18em] text-ink/70 md:text-[14px]">
         {label}
       </p>
@@ -138,6 +160,18 @@ function Stat({
         {value}
       </p>
       <p className="mt-1 text-[14px] text-ink/75 md:text-[15px]">{hint}</p>
-    </div>
+    </>
   );
+  const className = cn(
+    "rounded-[18px] border-2 border-ink/12 bg-wash px-6 py-[22px] text-left",
+    onClick && "hover:border-ink hover:bg-white",
+  );
+  if (onClick) {
+    return (
+      <button type="button" onClick={onClick} aria-label={openLabel} className={className}>
+        {inner}
+      </button>
+    );
+  }
+  return <div className={className}>{inner}</div>;
 }

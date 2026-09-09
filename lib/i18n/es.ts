@@ -172,6 +172,9 @@ export const es = {
     statOverdueHint: "necesitan fecha nueva",
     statPeople: "Personas",
     statPeopleHint: "con acceso al área",
+    peopleTitle: "Personas de {name}",
+    peopleEmpty: "Nadie en este área.",
+    peopleOpen: "Ver personas con acceso",
     blurbs: {
       comercial: "B2B, ruta, cotizaciones",
       operaciones: "Tueste, bodega, envíos",
