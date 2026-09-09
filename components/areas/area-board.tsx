@@ -153,13 +153,13 @@ function Stat({
 }) {
   const inner = (
     <>
-      <p className="font-mono text-[12px] font-medium uppercase tracking-[0.18em] text-ink/70 md:text-[14px]">
+      <span className="block font-mono text-[12px] font-medium uppercase tracking-[0.18em] text-ink/70 md:text-[14px]">
         {label}
-      </p>
-      <p className={cn("mt-1.5 font-mono text-[26px] font-bold md:text-[30px]", alert ? "text-[#A8501F]" : "text-ink")}>
+      </span>
+      <span className={cn("mt-1.5 block font-mono text-[26px] font-bold md:text-[30px]", alert ? "text-[#A8501F]" : "text-ink")}>
         {value}
-      </p>
-      <p className="mt-1 text-[14px] text-ink/75 md:text-[15px]">{hint}</p>
+      </span>
+      <span className="mt-1 block text-[14px] text-ink/75 md:text-[15px]">{hint}</span>
     </>
   );
   const className = cn(
