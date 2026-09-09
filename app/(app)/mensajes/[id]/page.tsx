@@ -25,7 +25,7 @@ export default async function MensajeThreadPage({
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="flex items-center gap-2.5 border-b border-ink/10 bg-paper px-4 py-3 md:px-6">
-        <Link href="/mensajes" className="shrink-0 text-[11px] font-medium text-ink/50">
+        <Link href="/mensajes" className="shrink-0 text-[11px] font-medium text-ink/50 md:hidden">
           {es.mensajes.back}
         </Link>
         <span
@@ -47,6 +47,7 @@ export default async function MensajeThreadPage({
         </div>
       </div>
       <ThreadView
+        key={thread.chat.id}
         chatId={thread.chat.id}
         userId={profile.id}
         members={thread.members}
