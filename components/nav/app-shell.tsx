@@ -51,6 +51,7 @@ export function AppShell({
 }) {
   const path = usePathname();
   const home = path === "/hoy";
+  const section = path.split("/").filter(Boolean)[0] ?? "";
   const hideHeader = path.startsWith("/correo");
   const [open, setOpen] = useState(home);
   const [animate, setAnimate] = useState(false);
@@ -70,7 +71,7 @@ export function AppShell({
 
   useEffect(() => {
     setOpen(home);
-  }, [home, path]);
+  }, [home, section]);
 
   function persist(next: boolean) {
     if (home) {

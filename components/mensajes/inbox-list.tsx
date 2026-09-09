@@ -1,11 +1,15 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import type { InboxRow } from "@/lib/mensajes";
 import { es } from "@/lib/i18n/es";
 import { crTimeLabel, crInstantYmd, todayYmd, crRelativeStamp } from "@/lib/agent/dates";
-import { initials } from "@/lib/utils";
+import { cn, initials } from "@/lib/utils";
 import { teamEdge } from "@/components/tasks/team-colors";
 
 export function InboxList({ rows }: { rows: InboxRow[] }) {
+  const path = usePathname();
   const today = todayYmd();
   const sections = [
     {
@@ -33,19 +37,24 @@ export function InboxList({ rows }: { rows: InboxRow[] }) {
                 : "";
               const announce = row.kind === "channel" && row.chat.slug === "general";
               const color = row.chat.slug ? teamEdge(row.chat.slug) : "#12281C";
+              const href =
+                row.kind === "channel" && row.chat.slug
+                  ? `/canales/${row.chat.slug}`
+                  : `/mensajes/${row.chat.id}`;
+              const selected = path === href || path === `/mensajes/${row.chat.id}`;
               return (
                 <li key={row.chat.id}>
                   <Link
-                    href={
-                      row.kind === "channel" && row.chat.slug
-                        ? `/canales/${row.chat.slug}`
-                        : `/mensajes/${row.chat.id}`
-                    }
+                    href={href}
                     prefetch={false}
+                    scroll={false}
                     className={
                       announce
                         ? "flex items-center gap-3.5 rounded-[14px] bg-gold px-4 py-3.5 text-ink"
-                        : "flex items-center gap-3.5 rounded-[14px] border-2 border-ink/10 bg-white px-4 py-3.5 hover:border-ink"
+                        : cn(
+                            "flex items-center gap-3.5 rounded-[14px] border-2 bg-white px-4 py-3.5 hover:border-ink",
+                            selected ? "border-ink" : "border-ink/10",
+                          )
                     }
                   >
                     <span
