@@ -102,6 +102,7 @@ export type Team = {
   slug: string;
   name: string;
   areas: string[];
+  is_private?: boolean;
 };
 
 export type TeamMember = {

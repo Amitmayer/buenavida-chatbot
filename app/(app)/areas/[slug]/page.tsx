@@ -22,7 +22,9 @@ export default async function AreaPage({
   const { data: team } = await supabase.from("teams").select("*").eq("slug", slug).maybeSingle();
   if (!team) notFound();
   const member = profile.teams.some((item) => item.id === team.id);
-  if (!member && !profile.hasFullAccess) notFound();
+  // Private areas are membership-only — full_access / owner never bypass.
+  const canAccess = member || (profile.hasFullAccess && !team.is_private);
+  if (!canAccess) notFound();
 
   const today = todayYmd();
   const [tasks, thread, members] = await Promise.all([

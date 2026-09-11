@@ -201,6 +201,7 @@ export const es = {
       administracion: "Cobros, facturas, oficina",
       regenerativo: "Certificación y fincas",
       direccion: "Estrategia y alianzas",
+      "gally-naty": "Solo Gally y Naty",
     },
   },
   resultCard: {
