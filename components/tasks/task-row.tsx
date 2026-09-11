@@ -30,6 +30,7 @@ export function TaskRow({
       ? es.hoy.overdueSection
       : es.status[task.status];
 
+  const fileCount = task.attachments?.length ?? 0;
   const title = (
     <p
       className={cn(
@@ -41,6 +42,16 @@ export function TaskRow({
       )}
     >
       {task.title}
+      {fileCount > 0 ? (
+        <span
+          className={cn(
+            "ml-1.5 inline-flex align-middle font-mono text-[10px] font-normal",
+            dark ? "text-paper/50" : "text-ink/40",
+          )}
+        >
+          {fileCount === 1 ? es.tasks.fileCountOne : es.tasks.fileCount.replace("{n}", String(fileCount))}
+        </span>
+      ) : null}
     </p>
   );
 

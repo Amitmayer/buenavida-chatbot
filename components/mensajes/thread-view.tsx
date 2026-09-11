@@ -7,6 +7,7 @@ import { es } from "@/lib/i18n/es";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 import { sendChatMessageAction } from "@/app/(app)/mensajes/actions";
+import { MessageContent } from "@/components/mensajes/message-content";
 import {
   crDateLabel,
   crInstantYmd,
@@ -23,9 +24,25 @@ const IncomingMessage = z.object({
   sender_id: z.string().uuid(),
   content: z.string(),
   created_at: z.string(),
+  edited_at: z.string().nullable().optional(),
+  deleted_at: z.string().nullable().optional(),
   via_assistant: z.boolean().optional(),
   task_id: z.string().uuid().nullable().optional(),
 });
+
+function toMessage(row: z.infer<typeof IncomingMessage>): ChatMessage {
+  return {
+    id: row.id,
+    chat_id: row.chat_id,
+    sender_id: row.sender_id,
+    content: row.content,
+    created_at: row.created_at,
+    edited_at: row.edited_at ?? null,
+    deleted_at: row.deleted_at ?? null,
+    via_assistant: row.via_assistant ?? false,
+    task_id: row.task_id ?? null,
+  };
+}
 
 type Member = { user_id: string; full_name: string };
 type LinkedTask = {
@@ -83,19 +100,26 @@ export function ThreadView({
         (payload) => {
           const parsed = IncomingMessage.safeParse(payload.new);
           if (!parsed.success) return;
-          const row: ChatMessage = {
-            id: parsed.data.id,
-            chat_id: parsed.data.chat_id,
-            sender_id: parsed.data.sender_id,
-            content: parsed.data.content,
-            created_at: parsed.data.created_at,
-            via_assistant: parsed.data.via_assistant ?? false,
-            task_id: parsed.data.task_id ?? null,
-          };
+          const row = toMessage(parsed.data);
           setMessages((prev) => {
             if (prev.some((item) => item.id === row.id)) return prev;
             return [...prev, row];
           });
+        },
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "chat_messages",
+          filter: `chat_id=eq.${chatId}`,
+        },
+        (payload) => {
+          const parsed = IncomingMessage.safeParse(payload.new);
+          if (!parsed.success) return;
+          const row = toMessage(parsed.data);
+          setMessages((prev) => prev.map((item) => (item.id === row.id ? row : item)));
         },
       )
       .subscribe();
@@ -160,7 +184,14 @@ export function ThreadView({
                       {crTimeLabel(message.created_at)}
                     </span>
                   </div>
-                  <p className="whitespace-pre-wrap text-[14px] leading-relaxed text-ink">{message.content}</p>
+                  <MessageContent
+                    message={message}
+                    mine={mine}
+                    area={false}
+                    onChange={(next) =>
+                      setMessages((prev) => prev.map((item) => (item.id === next.id ? next : item)))
+                    }
+                  />
                   {task ? (
                     <Link
                       href={`/tareas/${task.id}`}
@@ -210,19 +241,14 @@ export function ThreadView({
                       </span>
                     )}
                   </div>
-                  <p
-                    className={
-                      area
-                        ? mine
-                          ? "whitespace-pre-wrap rounded-[14px] rounded-br-[4px] bg-ink px-4 py-3 text-[15px] leading-relaxed text-cream md:text-[16px]"
-                          : "inline-block whitespace-pre-wrap rounded-[14px] rounded-bl-[4px] border-2 border-ink/12 bg-white px-4 py-3 text-[15px] leading-relaxed text-ink md:text-[16px]"
-                        : mine
-                          ? "whitespace-pre-wrap rounded-md rounded-tr-sm bg-pine px-3.5 py-2.5 text-[13px] leading-relaxed text-cream"
-                          : "whitespace-pre-wrap rounded-md rounded-tl-sm border border-ink/10 bg-sheet px-3.5 py-2.5 text-[13px] leading-relaxed text-ink"
+                  <MessageContent
+                    message={message}
+                    mine={mine}
+                    area={area}
+                    onChange={(next) =>
+                      setMessages((prev) => prev.map((item) => (item.id === next.id ? next : item)))
                     }
-                  >
-                    {message.content}
-                  </p>
+                  />
                 </div>
               </div>
             </div>

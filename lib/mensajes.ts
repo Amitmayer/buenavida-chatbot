@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import type { Chat, ChatMessage, Profile } from "@/lib/db/types";
 import { captureError } from "@/lib/sentry";
 import { es } from "@/lib/i18n/es";
+import { FEEDBACK_CHAT_ID } from "@/lib/constants";
 
 export type InboxRow = {
   chat: Chat;
@@ -56,7 +57,7 @@ export async function listInbox(userId: string, opts?: { isGuest?: boolean }): P
     supabase.from("profiles").select("id, full_name").in("id", peopleIds),
     supabase
       .from("chat_messages")
-      .select("chat_id, sender_id, content, created_at")
+      .select("chat_id, sender_id, content, created_at, deleted_at")
       .in("chat_id", chatIds)
       .order("created_at", { ascending: false }),
   ]);
@@ -64,6 +65,7 @@ export async function listInbox(userId: string, opts?: { isGuest?: boolean }): P
   const lastByChat = new Map<string, { content: string; created_at: string }>();
   const unreadByChat = new Map<string, number>();
   for (const message of messages ?? []) {
+    if (message.deleted_at) continue;
     if (!lastByChat.has(message.chat_id)) {
       lastByChat.set(message.chat_id, {
         content: message.content,
@@ -85,6 +87,7 @@ export async function listInbox(userId: string, opts?: { isGuest?: boolean }): P
       unread = (messages ?? []).filter(
         (message) =>
           message.chat_id === chat.id &&
+          !message.deleted_at &&
           message.sender_id !== userId &&
           message.created_at > membership.last_read_at,
       ).length;
@@ -93,7 +96,12 @@ export async function listInbox(userId: string, opts?: { isGuest?: boolean }): P
     const last = lastByChat.get(chat.id);
     rows.push({
       chat,
-      title: chat.kind === "channel" ? es.mensajes.announcements : titleFor(chat, people ?? [], memberIds, userId),
+      title:
+        chat.id === FEEDBACK_CHAT_ID
+          ? es.mensajes.feedback
+          : chat.kind === "channel"
+            ? es.mensajes.announcements
+            : titleFor(chat, people ?? [], memberIds, userId),
       lastMessage: last?.content ?? null,
       lastAt: last?.created_at ?? chat.created_at,
       unread,
@@ -140,7 +148,10 @@ export async function loadThread(chatId: string, userId: string) {
 
   return {
     chat,
-    title: titleFor(chat, people ?? [], memberIds, userId),
+    title:
+      chat.id === FEEDBACK_CHAT_ID
+        ? es.mensajes.feedback
+        : titleFor(chat, people ?? [], memberIds, userId),
     members: (people ?? []).map((person) => ({
       user_id: person.id,
       full_name: person.full_name,

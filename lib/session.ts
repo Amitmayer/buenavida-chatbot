@@ -1,7 +1,7 @@
 import { cache } from "react";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
-import type { Profile, Task, TaskStatus, Team } from "@/lib/db/types";
+import type { Attachment, Profile, Task, TaskStatus, Team } from "@/lib/db/types";
 import { captureError } from "@/lib/sentry";
 
 export const taskPatchSchema = z.object({
@@ -100,6 +100,7 @@ export type TaskRow = Task & {
   owner: Pick<Profile, "id" | "full_name"> | null;
   assignee: Pick<Profile, "id" | "full_name"> | null;
   team: Pick<Team, "id" | "slug" | "name"> | null;
+  attachments?: Pick<Attachment, "id">[] | null;
 };
 
 export async function listVisibleTasks(opts: {
@@ -117,7 +118,7 @@ export async function listVisibleTasks(opts: {
   const supabase = await createClient();
   let query = supabase
     .from("tasks")
-    .select("*, owner:profiles!owner_id(id, full_name), assignee:profiles!assignee_id(id, full_name), team:teams(id, slug, name)")
+    .select("*, attachments(id), owner:profiles!owner_id(id, full_name), assignee:profiles!assignee_id(id, full_name), team:teams(id, slug, name)")
     .order("due_date", { ascending: true, nullsFirst: false });
   if (opts.teamId) query = query.eq("team_id", opts.teamId);
   if (opts.area) query = query.eq("area", opts.area);

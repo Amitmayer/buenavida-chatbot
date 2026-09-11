@@ -15,6 +15,8 @@ export const USER_IDS = {
   david: "a0000000-0000-0000-0000-00000000000c",
 } as const;
 
+export const FEEDBACK_CHAT_ID = "e0000000-0000-0000-0000-000000000001";
+
 export const CHANNEL_IDS = {
   ventasCr: "c0000000-0000-0000-0000-000000000001",
   estrategia: "c0000000-0000-0000-0000-000000000002",

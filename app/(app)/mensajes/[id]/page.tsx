@@ -5,6 +5,7 @@ import { getSessionProfile } from "@/lib/session";
 import { loadThread } from "@/lib/mensajes";
 import { ThreadView } from "@/components/mensajes/thread-view";
 import { initials } from "@/lib/utils";
+import { FEEDBACK_CHAT_ID } from "@/lib/constants";
 
 export default async function MensajeThreadPage({
   params,
@@ -39,7 +40,9 @@ export default async function MensajeThreadPage({
         </span>
         <div className="min-w-0 flex-1">
           <h1 className="truncate text-[14px] font-semibold text-ink">{thread.title}</h1>
-          {others.length > 0 ? (
+          {thread.chat.id === FEEDBACK_CHAT_ID ? (
+            <p className="truncate text-[11px] text-ink/50">{es.mensajes.feedbackHint}</p>
+          ) : others.length > 0 ? (
             <p className="truncate text-[11px] text-ink/50">
               {others.map((m) => m.full_name.split(" ")[0]).join(", ")}
             </p>
@@ -52,6 +55,7 @@ export default async function MensajeThreadPage({
         userId={profile.id}
         members={thread.members}
         initial={thread.messages}
+        emptyLabel={thread.chat.id === FEEDBACK_CHAT_ID ? es.mensajes.feedbackEmpty : undefined}
       />
     </div>
   );

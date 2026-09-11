@@ -266,8 +266,8 @@ async function runSearch(raw: string): Promise<Hit[]> {
       kind: "file",
       id: `a-${file.id}`,
       label: file.filename,
-      href: `/tareas/${file.task_id}`,
-      hint: es.nav.searchTasks,
+      href: "/archivos?carpeta=tareas",
+      hint: es.nav.searchFiles,
     });
     if (hits.filter((h) => h.kind === "file").length >= 8) break;
   }

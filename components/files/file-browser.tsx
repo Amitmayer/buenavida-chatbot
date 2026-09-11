@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { es } from "@/lib/i18n/es";
 import { EmptyState } from "@/components/empty-state";
 import { BrandUploader } from "@/components/files/brand-uploader";
@@ -12,7 +13,7 @@ import { formatBytes } from "@/lib/utils";
 export type LibraryFolder = {
   id: string;
   label: string;
-  kind: "marca" | "channel";
+  kind: "marca" | "channel" | "tasks";
 };
 
 export type LibraryFile = {
@@ -22,6 +23,8 @@ export type LibraryFile = {
   mime_type: string;
   size_bytes: number;
   url: string | null;
+  taskHref?: string;
+  taskTitle?: string;
 };
 
 export function FileBrowser({
@@ -42,12 +45,21 @@ export function FileBrowser({
   const selected = folders.find((item) => item.id === folder) ?? folders[0];
   const visible = files.filter((file) => {
     const q = query.trim().toLowerCase();
-    const matchQ = !q || file.filename.toLowerCase().includes(q);
-    const matchF = !selected || file.folder === selected.id;
-    return matchQ && matchF;
+    const matchQ =
+      !q ||
+      file.filename.toLowerCase().includes(q) ||
+      (file.taskTitle ?? "").toLowerCase().includes(q);
+    if (!matchQ) return false;
+    if (!selected) return true;
+    if (selected.id === "tareas") return file.folder.startsWith("tareas:");
+    return file.folder === selected.id;
   });
   const emptyTitle =
-    selected?.kind === "channel" ? es.files.channelEmpty : es.files.empty;
+    selected?.kind === "channel"
+      ? es.files.channelEmpty
+      : selected?.kind === "tasks"
+        ? es.files.tasksEmpty
+        : es.files.empty;
   const canUpload = selected?.kind === "marca" ? canUploadMarca : selected?.kind === "channel";
 
   useEffect(() => {
@@ -56,11 +68,13 @@ export function FileBrowser({
 
   const groupedFolders = useMemo(() => {
     const marca = folders.filter((item) => item.kind === "marca");
+    const tasks = folders.filter((item) => item.kind === "tasks");
     const channels = folders.filter((item) => item.kind === "channel");
-    return { marca, channels };
+    return { marca, tasks, channels };
   }, [folders]);
 
   function count(id: string) {
+    if (id === "tareas") return files.filter((file) => file.folder.startsWith("tareas:")).length;
     return files.filter((file) => file.folder === id).length;
   }
 
@@ -71,6 +85,20 @@ export function FileBrowser({
           {es.files.folders.toUpperCase()}
         </p>
         {groupedFolders.marca.map((item) => (
+          <FolderButton
+            key={item.id}
+            name={item.label}
+            count={count(item.id)}
+            on={folder === item.id}
+            onClick={() => setFolder(item.id)}
+          />
+        ))}
+        {groupedFolders.tasks.length > 0 ? (
+          <p className="mt-4 px-2 pb-2.5 font-mono text-[9.5px] tracking-[0.14em] text-ink/45">
+            {es.files.tasks.toUpperCase()}
+          </p>
+        ) : null}
+        {groupedFolders.tasks.map((item) => (
           <FolderButton
             key={item.id}
             name={item.label}
@@ -141,6 +169,9 @@ export function FileBrowser({
         {selected?.kind === "channel" ? (
           <p className="px-4 pb-2 text-[12px] text-ink/50 md:px-7">{es.files.channelHint}</p>
         ) : null}
+        {selected?.kind === "tasks" ? (
+          <p className="px-4 pb-2 text-[12px] text-ink/50 md:px-7">{es.files.tasksHint}</p>
+        ) : null}
         {visible.length === 0 ? (
           <div className="px-4 py-6 md:px-7">
             <EmptyState title={emptyTitle} />
@@ -160,19 +191,25 @@ export function FileBrowser({
 function FileCard({ file }: { file: LibraryFile }) {
   const [open, setOpen] = useState(false);
   const previewable = Boolean(file.url && canPreviewFile(file.mime_type));
+  const ext = (file.filename.split(".").pop() ?? file.mime_type.split("/")[1] ?? "FILE").toUpperCase();
 
   return (
     <article className="overflow-hidden rounded-[14px] border border-ink/10 bg-sheet hover:border-ink/25">
       {previewable ? (
         <button type="button" onClick={() => setOpen(true)} className="block w-full" aria-label={es.files.preview}>
-          <FileThumb file={file} />
+          <FileThumb file={file} ext={ext} />
         </button>
       ) : (
-        <FileThumb file={file} />
+        <FileThumb file={file} ext={ext} />
       )}
       <div className="px-3.5 py-3">
         <p className="text-[12.5px] font-medium leading-snug text-ink">{file.filename}</p>
         <p className="mt-1.5 font-mono text-[10px] text-ink/45">{formatBytes(file.size_bytes)}</p>
+        {file.taskHref && file.taskTitle ? (
+          <Link href={file.taskHref} prefetch={false} className="mt-1.5 block truncate text-[11px] text-pine">
+            {file.taskTitle}
+          </Link>
+        ) : null}
         {file.url ? (
           <div className="mt-2">
             <FileOpenActions url={file.url} filename={file.filename} mimeType={file.mime_type} />
@@ -191,7 +228,7 @@ function FileCard({ file }: { file: LibraryFile }) {
   );
 }
 
-function FileThumb({ file }: { file: LibraryFile }) {
+function FileThumb({ file, ext }: { file: LibraryFile; ext: string }) {
   if (file.url && file.mime_type.startsWith("image/")) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
@@ -200,9 +237,7 @@ function FileThumb({ file }: { file: LibraryFile }) {
   }
   return (
     <div className="flex h-[104px] items-center justify-center bg-[repeating-linear-gradient(135deg,#EDEBDF_0_8px,#E5E2D3_8px_16px)]">
-      <span className="font-mono text-[10px] tracking-[0.1em] text-ink/40">
-        {(file.mime_type.split("/")[1] ?? "FILE").toUpperCase()}
-      </span>
+      <span className="font-mono text-[10px] tracking-[0.1em] text-ink/40">{ext}</span>
     </div>
   );
 }

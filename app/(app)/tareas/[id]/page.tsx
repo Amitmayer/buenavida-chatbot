@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getSessionProfile } from "@/lib/session";
 import { TaskDetail } from "@/components/tasks/task-detail";
+import { TareasBoard } from "@/components/tasks/tareas-board";
 import { captureError } from "@/lib/sentry";
 
 export default async function TaskDetailPage({
@@ -35,12 +36,17 @@ export default async function TaskDetailPage({
     ]);
 
   return (
-    <TaskDetail
-      task={task}
-      events={events ?? []}
-      attachments={attachments ?? []}
-      people={people ?? []}
-      teams={teams ?? []}
-    />
+    <div className="flex min-h-0 flex-1 overflow-hidden bg-paper">
+      <div className="hidden min-w-0 flex-1 md:flex md:flex-col">
+        <TareasBoard searchParams={{ todo: profile.isOwner ? "1" : undefined }} />
+      </div>
+      <TaskDetail
+        task={task}
+        events={events ?? []}
+        attachments={attachments ?? []}
+        people={people ?? []}
+        teams={teams ?? []}
+      />
+    </div>
   );
 }

@@ -23,7 +23,7 @@ max_client_conn = 100
 schema_paths = []
 
 [db.seed]
-sql_paths = ["./seed.sql"]
+sql_paths = ["./seed.sql", "./seed_board.sql"]
 
 [realtime]
 enabled = true
@@ -46,11 +46,13 @@ enabled = true
 site_url = "http://localhost:3000"
 additional_redirect_urls = ["http://localhost:3000/auth/callback"]
 jwt_expiry = 3600
+# Block public signUp(); keep the email provider on so seeded users can log in.
+# [auth.email].enable_signup maps to GOTRUE_EXTERNAL_EMAIL_ENABLED in this CLI.
 enable_signup = false
 enable_anonymous_sign_ins = false
 
 [auth.email]
-enable_signup = false
+enable_signup = true
 double_confirm_changes = true
 enable_confirmations = false
 otp_length = 6

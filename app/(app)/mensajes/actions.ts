@@ -69,9 +69,64 @@ export async function sendChatMessageAction(chatId: string, content: string) {
     captureError(error, { where: "sendChatMessageAction" });
     return { ok: false as const, detail: "server_error" };
   }
-  revalidatePath(`/mensajes/${parsed.data.chatId}`);
+  revalidateChat(parsed.data.chatId);
+  return { ok: true as const };
+}
+
+export async function editChatMessageAction(messageId: string, content: string) {
+  const profile = await getSessionProfile();
+  if (!profile) return { ok: false as const, detail: "forbidden" };
+  const parsed = z
+    .object({
+      messageId: z.string().uuid(),
+      content: z.string().trim().min(1).max(4000),
+    })
+    .safeParse({ messageId, content });
+  if (!parsed.success) return { ok: false as const, detail: "validation" };
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("chat_messages")
+    .update({ content: parsed.data.content, edited_at: new Date().toISOString() })
+    .eq("id", parsed.data.messageId)
+    .eq("sender_id", profile.id)
+    .is("deleted_at", null)
+    .select("chat_id")
+    .maybeSingle();
+  if (error) {
+    captureError(error, { where: "editChatMessageAction" });
+    return { ok: false as const, detail: "server_error" };
+  }
+  if (!data) return { ok: false as const, detail: "forbidden" };
+  revalidateChat(data.chat_id);
+  return { ok: true as const };
+}
+
+export async function deleteChatMessageAction(messageId: string) {
+  const profile = await getSessionProfile();
+  if (!profile) return { ok: false as const, detail: "forbidden" };
+  const parsed = z.object({ messageId: z.string().uuid() }).safeParse({ messageId });
+  if (!parsed.success) return { ok: false as const, detail: "validation" };
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("chat_messages")
+    .update({ deleted_at: new Date().toISOString() })
+    .eq("id", parsed.data.messageId)
+    .eq("sender_id", profile.id)
+    .is("deleted_at", null)
+    .select("chat_id")
+    .maybeSingle();
+  if (error) {
+    captureError(error, { where: "deleteChatMessageAction" });
+    return { ok: false as const, detail: "server_error" };
+  }
+  if (!data) return { ok: false as const, detail: "forbidden" };
+  revalidateChat(data.chat_id);
+  return { ok: true as const };
+}
+
+function revalidateChat(chatId: string) {
+  revalidatePath(`/mensajes/${chatId}`);
   revalidatePath("/mensajes");
   revalidatePath("/canales");
   revalidatePath("/areas");
-  return { ok: true as const };
 }

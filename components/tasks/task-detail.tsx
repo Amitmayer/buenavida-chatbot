@@ -51,8 +51,7 @@ export function TaskDetail({
     task.due_date && due.kind === "overdue" ? daysBetweenYmd(task.due_date, todayYmd()) : 0;
 
   return (
-    <div className="flex min-h-0 flex-1 md:justify-end">
-      <div className="flex min-h-0 w-full flex-1 flex-col overflow-auto bg-sheet md:max-w-[360px] md:border-l md:border-ink/10">
+    <aside className="flex min-h-0 w-full shrink-0 flex-col overflow-auto bg-sheet md:w-[360px] md:border-l md:border-ink/10">
         <div className="mx-auto flex w-full max-w-lg flex-1 flex-col rounded-t-lg px-[18px] pb-8 pt-2 md:max-w-none md:rounded-none md:px-[22px] md:pt-[22px]">
           <div className="flex justify-center pb-2 md:hidden">
             <span className="h-1 w-9 rounded-sm bg-field" />
@@ -254,8 +253,7 @@ export function TaskDetail({
             </form>
           </div>
         </div>
-      </div>
-    </div>
+    </aside>
   );
 }
 

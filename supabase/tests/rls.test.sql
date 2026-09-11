@@ -43,7 +43,7 @@ grant execute on procedure public.test_login(uuid) to authenticated;
 call public.test_login('a0000000-0000-0000-0000-000000000001');
 select is(
   (select count(*)::int from public.tasks),
-  25,
+  185,
   'Gally (owner) sees every task'
 );
 select is(
@@ -53,25 +53,25 @@ select is(
 );
 select is(
   (select count(*)::int from public.tasks where team_id = 'b0000000-0000-0000-0000-000000000008'),
-  4,
+  24,
   'Gally sees all Dirección tasks'
 );
 
 call public.test_login('a0000000-0000-0000-0000-00000000000c');
 select is(
   (select count(*)::int from public.tasks),
-  1,
-  'David (guest) sees exactly one task'
+  3,
+  'David (guest) sees only the Dirección tasks assigned to him'
 );
 select is(
   (select count(*)::int from public.tasks where team_id = 'b0000000-0000-0000-0000-000000000008'),
-  1,
-  'David sees exactly one Dirección task — the one assigned to him — not the others, despite membership'
+  3,
+  'David sees assigned Dirección tasks — not the rest of the team, despite membership'
 );
 select is(
-  (select id from public.tasks),
-  'c0000000-0000-0000-0000-000000000003'::uuid,
-  'David''s visible task is the one assigned to him'
+  (select count(*)::int from public.tasks where id = 'c0000000-0000-0000-0000-000000000003'),
+  1,
+  'David still sees the original assigned Dirección task'
 );
 
 call public.test_login('a0000000-0000-0000-0000-000000000006');
@@ -82,7 +82,7 @@ select is(
 );
 select is(
   (select count(*)::int from public.tasks),
-  3,
+  23,
   'Amanda sees her Regenerativo work plus the assigned Operaciones task'
 );
 
@@ -94,8 +94,8 @@ select is(
 );
 select is(
   (select count(*)::int from public.tasks),
-  6,
-  'Angie sees the six Operaciones team tasks'
+  26,
+  'Angie sees the Operaciones team tasks'
 );
 
 call public.test_login('a0000000-0000-0000-0000-000000000003');
@@ -106,14 +106,14 @@ select is(
 );
 select is(
   (select count(*)::int from public.tasks),
-  22,
-  'Deybid (admin) does not get read-all: 25 minus restricted minus Regenerativo'
+  162,
+  'Deybid (admin) does not get read-all: 185 minus restricted minus Regenerativo'
 );
 
 call public.test_login('a0000000-0000-0000-0000-000000000002');
 select is(
   (select count(*)::int from public.tasks),
-  25,
+  185,
   'Naty (full_access) sees every task, including restricted'
 );
 select lives_ok(
@@ -126,22 +126,22 @@ select lives_ok(
 );
 
 call public.test_login('a0000000-0000-0000-0000-000000000004');
-select is((select count(*)::int from public.tasks), 15, 'Roy visible count');
+select is((select count(*)::int from public.tasks), 95, 'Roy visible count');
 
 call public.test_login('a0000000-0000-0000-0000-000000000005');
-select is((select count(*)::int from public.tasks), 9, 'Susana visible count');
+select is((select count(*)::int from public.tasks), 49, 'Susana visible count');
 
 call public.test_login('a0000000-0000-0000-0000-000000000007');
-select is((select count(*)::int from public.tasks), 10, 'Nathan visible count');
+select is((select count(*)::int from public.tasks), 50, 'Nathan visible count');
 
 call public.test_login('a0000000-0000-0000-0000-000000000008');
-select is((select count(*)::int from public.tasks), 4, 'Fernanda visible count');
+select is((select count(*)::int from public.tasks), 44, 'Fernanda visible count');
 
 call public.test_login('a0000000-0000-0000-0000-000000000009');
-select is((select count(*)::int from public.tasks), 4, 'Jenny visible count');
+select is((select count(*)::int from public.tasks), 44, 'Jenny visible count');
 
 call public.test_login('a0000000-0000-0000-0000-00000000000b');
-select is((select count(*)::int from public.tasks), 6, 'Jhonny visible count');
+select is((select count(*)::int from public.tasks), 26, 'Jhonny visible count');
 
 -- Owner and full_access can write outside their memberships ----------------
 

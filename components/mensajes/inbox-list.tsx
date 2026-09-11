@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { InboxRow } from "@/lib/mensajes";
 import { es } from "@/lib/i18n/es";
+import { FEEDBACK_CHAT_ID } from "@/lib/constants";
 import { crTimeLabel, crInstantYmd, todayYmd, crRelativeStamp } from "@/lib/agent/dates";
 import { cn, initials } from "@/lib/utils";
 import { teamEdge } from "@/components/tasks/team-colors";
@@ -18,7 +19,12 @@ export function InboxList({ rows }: { rows: InboxRow[] }) {
     },
     { title: es.nav.areas, items: rows.filter((row) => row.kind === "team") },
     { title: es.mensajes.direct, items: rows.filter((row) => row.kind === "dm") },
-    { title: es.mensajes.groups, items: rows.filter((row) => row.kind === "group") },
+    {
+      title: es.mensajes.groups,
+      items: rows
+        .filter((row) => row.kind === "group")
+        .sort((a, b) => Number(b.chat.id === FEEDBACK_CHAT_ID) - Number(a.chat.id === FEEDBACK_CHAT_ID)),
+    },
   ].filter((section) => section.items.length > 0);
 
   return (
