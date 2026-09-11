@@ -18,9 +18,10 @@ export async function syncInbox(
   supabase: Client,
   args: { userId: string; accountId: string; accessToken: string; first?: boolean; watch?: boolean },
 ): Promise<{ inserted: number; fresh: FreshMail[] }> {
-  const inboxMax = args.watch ? 15 : args.first ? 24 : 80;
-  const sentMax = args.watch ? 8 : args.first ? 16 : 40;
-  const insertMax = args.watch ? 12 : args.first ? 16 : 40;
+  // Connect + manual refresh pull the last 200. Background watch stays light.
+  const inboxMax = args.watch ? 25 : 200;
+  const sentMax = args.watch ? 10 : 100;
+  const insertMax = args.watch ? 20 : 200;
   const [inboxDrafts, sent] = await Promise.all([
     listMessageIds(args.accessToken, inboxMax, "in:inbox OR in:drafts"),
     listMessageIds(args.accessToken, sentMax, "in:sent"),
@@ -40,7 +41,7 @@ export async function syncInbox(
     .in("gmail_id", ids);
   const have = new Set((existing ?? []).map((row) => row.gmail_id));
   if (!args.watch) {
-    const stale = (existing ?? []).filter((row) => !row.body_html).slice(0, 20);
+    const stale = (existing ?? []).filter((row) => !row.body_html).slice(0, args.first ? 80 : 40);
     for (const row of stale) {
       try {
         const parsed = await getMessage(args.accessToken, row.gmail_id);
