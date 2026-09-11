@@ -54,6 +54,7 @@ export function AppShell({
   const section = path.split("/").filter(Boolean)[0] ?? "";
   const hideHeader = path.startsWith("/correo");
   const [open, setOpen] = useState(home);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const [animate, setAnimate] = useState(false);
   const items = [
     { href: "/hoy", label: t.nav.hoy },
@@ -77,33 +78,60 @@ export function AppShell({
     setOpen(home);
   }, [home, section]);
 
-  function persist(next: boolean) {
-    if (home) {
-      setOpen(true);
-      return;
-    }
-    setOpen(next);
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [path]);
+
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMobileOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [mobileOpen]);
+
+  function show() {
+    setOpen(true);
+    setMobileOpen(true);
+  }
+
+  function hide() {
+    setMobileOpen(false);
+    if (!home) setOpen(false);
   }
 
   const sidebar = useMemo(
     () => ({
       open: home || open,
+      mobileOpen,
       locked: home,
-      show: () => persist(true),
-      hide: () => persist(false),
+      show,
+      hide,
     }),
-    [home, open],
+    [home, open, mobileOpen],
   );
 
   return (
     <NoticeProvider initial={notices}>
     <SidebarUi.Provider value={sidebar}>
       <div className="flex h-dvh flex-col overflow-hidden bg-paper md:flex-row">
+        <button
+          type="button"
+          aria-label={t.nav.hideSidebar}
+          tabIndex={mobileOpen ? 0 : -1}
+          className={cn(
+            "fixed inset-0 z-30 bg-ink/40 transition-opacity md:hidden",
+            mobileOpen ? "opacity-100" : "pointer-events-none opacity-0",
+          )}
+          onClick={hide}
+        />
         <aside
           className={cn(
-            "hidden h-full min-w-0 shrink-0 overflow-hidden bg-pine text-cream md:flex",
-            animate ? "transition-[width] duration-300 ease-in-out" : "",
-            home || open ? "w-[264px]" : "w-0",
+            "fixed inset-y-0 left-0 z-40 flex h-full min-w-0 shrink-0 flex-col overflow-hidden bg-pine text-cream transition-transform duration-300 ease-in-out md:static md:z-auto md:translate-x-0",
+            mobileOpen ? "translate-x-0" : "-translate-x-full",
+            animate ? "md:transition-[width]" : "md:transition-none",
+            home || open ? "md:w-[264px]" : "md:w-0",
           )}
         >
           <div
@@ -111,7 +139,7 @@ export function AppShell({
             style={{ width: SIDE }}
           >
             <div className="flex items-start justify-between px-6">
-              <Link href="/hoy" onClick={() => persist(true)} className="flex items-start gap-2 text-cream">
+              <Link href="/hoy" onClick={show} className="flex items-start gap-2 text-cream">
                 <span>
                   <span className="block text-[22px] font-light leading-[0.94] tracking-[0.02em]">
                     {t.auth.buena.toUpperCase()}
