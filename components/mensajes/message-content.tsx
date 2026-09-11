@@ -114,7 +114,7 @@ export function MessageContent({
               className={cn(
                 "flex h-7 w-7 items-center justify-center rounded-full transition-opacity",
                 mine
-                  ? "text-cream/70 hover:bg-cream/15 hover:text-cream"
+                  ? "text-white hover:bg-white/15 hover:text-white"
                   : "text-ink/40 hover:bg-ink/5 hover:text-ink",
                 menuOpen ? "opacity-100" : "opacity-100 md:opacity-0 md:group-hover:opacity-100",
               )}
