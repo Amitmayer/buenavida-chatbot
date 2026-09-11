@@ -4,6 +4,8 @@ import { ensureConversation, getSessionProfile } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
 import { AppShell } from "@/components/nav/app-shell";
 import { countFolders } from "@/lib/email/mailbox";
+import { listInbox, unreadChatTotal } from "@/lib/mensajes";
+import { noticesFromInbox, noticesFromMail } from "@/lib/notify/unseen";
 import { es } from "@/lib/i18n/es";
 
 export const dynamic = "force-dynamic";
@@ -31,15 +33,24 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   const roleLabel =
     profile.teams.find((team) => team.id === profile.default_team)?.name ?? profile.title ?? "";
 
-  let mailCounts = null;
-  if (!profile.isGuest) {
-    const supabase = await createClient();
-    const { data } = await supabase
-      .from("emails")
-      .select("unread, inbound, archived, is_draft, gmail_id")
-      .eq("user_id", profile.id);
-    mailCounts = countFolders(data ?? []);
-  }
+  const supabase = await createClient();
+  const [inbox, mailResult] = await Promise.all([
+    listInbox(profile.id, { isGuest: profile.isGuest }),
+    profile.isGuest
+      ? Promise.resolve({ data: [] })
+      : supabase
+          .from("emails")
+          .select(
+            "id, unread, inbound, archived, is_draft, gmail_id, from_address, subject, snippet, occurred_at",
+          )
+          .eq("user_id", profile.id)
+          .order("occurred_at", { ascending: false }),
+  ]);
+  const mailRows = mailResult.data ?? [];
+  const mailCounts = profile.isGuest ? null : countFolders(mailRows);
+  const notices = [...noticesFromInbox(inbox), ...noticesFromMail(mailRows)].sort((a, b) =>
+    b.at.localeCompare(a.at),
+  );
 
   return (
     <AppShell
@@ -51,6 +62,8 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
       showCorreo={!profile.isGuest}
       conversationId={conversationId}
       mailCounts={mailCounts}
+      chatUnread={unreadChatTotal(inbox)}
+      notices={notices}
       userId={profile.id}
     >
       {children}

@@ -10,9 +10,12 @@ import { ProfileMenu } from "@/components/nav/profile-menu";
 import { AreaLinks } from "@/components/nav/area-links";
 import { SidebarToggle, SidebarUi } from "@/components/nav/sidebar-ui";
 import { IncomingAlerts } from "@/components/nav/incoming-alerts";
+import { NoticeProvider } from "@/components/nav/notice-store";
+import { NotificationBell } from "@/components/nav/notification-bell";
 import { es } from "@/lib/i18n/es";
 import { cn } from "@/lib/utils";
 import type { MailCounts } from "@/lib/email/mailbox";
+import type { Notice } from "@/lib/notify/unseen";
 import type { Team } from "@/lib/db/types";
 
 const ITEMS = [
@@ -36,6 +39,8 @@ export function AppShell({
   showCorreo = false,
   conversationId,
   mailCounts,
+  chatUnread = 0,
+  notices = [],
   userId,
 }: {
   children: ReactNode;
@@ -47,6 +52,8 @@ export function AppShell({
   showCorreo?: boolean;
   conversationId: string | null;
   mailCounts?: MailCounts | null;
+  chatUnread?: number;
+  notices?: Notice[];
   userId: string;
 }) {
   const path = usePathname();
@@ -63,6 +70,9 @@ export function AppShell({
     }),
     ...(showEquipo ? [{ href: "/equipo", label: es.nav.equipo }] : []),
   ];
+  const badges: Record<string, number> = {};
+  if (chatUnread > 0) badges["/mensajes"] = chatUnread;
+  if (mailCounts && mailCounts.unread > 0) badges["/correo"] = mailCounts.unread;
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => setAnimate(true));
@@ -92,6 +102,7 @@ export function AppShell({
   );
 
   return (
+    <NoticeProvider initial={notices}>
     <SidebarUi.Provider value={sidebar}>
       <div className="flex h-dvh flex-col overflow-hidden bg-paper md:flex-row">
         <aside
@@ -133,11 +144,7 @@ export function AppShell({
               {es.nav.work.toUpperCase()}
             </p>
             <div className="mt-3 px-4">
-              <NavLinks
-                items={items}
-                variant="side"
-                badges={mailCounts && mailCounts.unread > 0 ? { "/correo": mailCounts.unread } : undefined}
-              />
+              <NavLinks items={items} variant="side" badges={badges} />
             </div>
             {teams.length > 0 ? (
               <>
@@ -157,18 +164,22 @@ export function AppShell({
           </div>
         </aside>
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-          {hideHeader ? null : <PageHeader conversationId={conversationId} teams={teams} />}
+          {hideHeader ? (
+            <div className="flex h-[56px] shrink-0 items-center justify-end border-b-2 border-ink/15 bg-wash px-4 md:h-[72px] md:px-7">
+              <SidebarToggle className="-ml-1 mr-auto" />
+              <NotificationBell />
+            </div>
+          ) : (
+            <PageHeader conversationId={conversationId} teams={teams} />
+          )}
           <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">{children}</main>
           <IncomingAlerts userId={userId} watchMail={showCorreo} />
           <nav className="z-20 shrink-0 border-t-2 border-ink/10 bg-paper px-2 pb-[max(10px,env(safe-area-inset-bottom))] pt-0.5 md:hidden">
-            <NavLinks
-              items={items}
-              variant="tab"
-              badges={mailCounts && mailCounts.unread > 0 ? { "/correo": mailCounts.unread } : undefined}
-            />
+            <NavLinks items={items} variant="tab" badges={badges} />
           </nav>
         </div>
       </div>
     </SidebarUi.Provider>
+    </NoticeProvider>
   );
 }

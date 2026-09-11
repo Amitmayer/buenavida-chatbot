@@ -51,7 +51,7 @@ export function NavLinks({
                 </span>
                 {badge > 0 ? (
                   <span className="flex min-w-7 items-center justify-center rounded-[9px] bg-overdue px-2 font-mono text-[13px] text-white">
-                    {badge}
+                    {badge > 99 ? "99+" : badge}
                   </span>
                 ) : null}
               </Link>
@@ -79,7 +79,9 @@ export function NavLinks({
             >
               {item.label}
               {(badges?.[item.href] ?? 0) > 0 ? (
-                <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-overdue" />
+                <span className="absolute right-0.5 top-0.5 flex h-4 min-w-4 items-center justify-center rounded-[6px] bg-overdue px-1 font-mono text-[10px] text-white">
+                  {(badges?.[item.href] ?? 0) > 99 ? "99+" : badges?.[item.href]}
+                </span>
               ) : null}
             </Link>
           </li>

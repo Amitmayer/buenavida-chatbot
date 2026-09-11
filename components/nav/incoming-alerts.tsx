@@ -9,9 +9,11 @@ import { es } from "@/lib/i18n/es";
 import { createClient } from "@/lib/supabase/client";
 import { displayName } from "@/lib/email/mailbox";
 import { clipPreview, isRecentIso } from "@/lib/notify/preview";
+import { useNotices } from "@/components/nav/notice-store";
 import { syncMailAction } from "@/app/(app)/correo/actions";
 import { captureError } from "@/lib/sentry";
 import { cn } from "@/lib/utils";
+import type { Notice } from "@/lib/notify/unseen";
 
 const WATCH_MS = 30_000;
 const SHOW_MS = 8_000;
@@ -22,6 +24,8 @@ const ChatInsert = z.object({
   chat_id: z.string().uuid(),
   sender_id: z.string().uuid(),
   content: z.string(),
+  created_at: z.string().optional(),
+  deleted_at: z.string().nullable().optional(),
 });
 
 const asBool = z
@@ -72,21 +76,31 @@ export function IncomingAlerts({
   const router = useRouter();
   const pathRef = useRef(path);
   pathRef.current = path;
+  const { add } = useNotices();
   const [cards, setCards] = useState<Card[]>([]);
   const names = useRef(new Map<string, string>());
   const seen = useRef(new Set<string>());
   const busy = useRef(false);
+  const addRef = useRef(add);
+  addRef.current = add;
 
-  function pushCard(card: Card) {
-    if (seen.current.has(card.id)) return;
-    seen.current.add(card.id);
+  function remember(id: string) {
+    if (seen.current.has(id)) return false;
+    seen.current.add(id);
     if (seen.current.size > 80) {
       seen.current = new Set([...seen.current].slice(-40));
     }
+    return true;
+  }
+
+  function pushCard(card: Card, notice: Notice) {
+    if (!remember(card.id)) return;
+    addRef.current(notice);
     setCards((prev) => [card, ...prev].slice(0, MAX_CARDS));
     window.setTimeout(() => {
       setCards((prev) => prev.filter((item) => item.id !== card.id));
     }, SHOW_MS);
+    router.refresh();
   }
 
   useEffect(() => {
@@ -109,19 +123,45 @@ export function IncomingAlerts({
         (payload) => {
           const parsed = ChatInsert.safeParse(payload.new);
           if (!parsed.success) return;
+          if (parsed.data.deleted_at) return;
           if (parsed.data.sender_id === userId) return;
-          if (pathRef.current.startsWith(`/mensajes/${parsed.data.chat_id}`)) return;
           const preview = clipPreview(parsed.data.content);
           if (!preview) return;
-          void nameOf(parsed.data.sender_id).then((from) => {
-            pushCard({
-              id: parsed.data.id,
-              kind: "chat",
-              href: `/mensajes/${parsed.data.chat_id}`,
-              from,
-              title: preview,
-            });
-          });
+          void (async () => {
+            const { data: chat } = await supabase
+              .from("chats")
+              .select("id, kind, slug")
+              .eq("id", parsed.data.chat_id)
+              .maybeSingle();
+            if (!chat) return;
+            const href =
+              chat.kind === "channel" && chat.slug
+                ? `/canales/${chat.slug}`
+                : `/mensajes/${parsed.data.chat_id}`;
+            const here = pathRef.current;
+            if (here === href || here.startsWith(`${href}/`) || here.startsWith(`/mensajes/${parsed.data.chat_id}`)) {
+              return;
+            }
+            const from = await nameOf(parsed.data.sender_id);
+            pushCard(
+              {
+                id: parsed.data.id,
+                kind: "chat",
+                href,
+                from,
+                title: preview,
+              },
+              {
+                id: `chat:${parsed.data.chat_id}`,
+                kind: "chat",
+                href,
+                from,
+                title: preview,
+                unread: 1,
+                at: parsed.data.created_at ?? new Date().toISOString(),
+              },
+            );
+          })();
         },
       )
       .on(
@@ -133,7 +173,16 @@ export function IncomingAlerts({
           if (!parsed.data.inbound || parsed.data.is_draft) return;
           if (parsed.data.occurred_at && !isRecentIso(parsed.data.occurred_at)) return;
           if (pathRef.current.startsWith(`/correo/${parsed.data.id}`)) return;
-          pushCard(mailCard(parsed.data));
+          const card = mailCard(parsed.data);
+          pushCard(card, {
+            id: `mail:${parsed.data.id}`,
+            kind: "mail",
+            href: card.href,
+            from: card.from,
+            title: card.title,
+            unread: 1,
+            at: parsed.data.occurred_at ?? new Date().toISOString(),
+          });
         },
       )
       .subscribe();
@@ -155,7 +204,16 @@ export function IncomingAlerts({
         for (const row of result.fresh) {
           if (!isRecentIso(row.occurred_at)) continue;
           if (pathRef.current.startsWith(`/correo/${row.id}`)) continue;
-          pushCard(mailCard(row));
+          const card = mailCard(row);
+          pushCard(card, {
+            id: `mail:${row.id}`,
+            kind: "mail",
+            href: card.href,
+            from: card.from,
+            title: card.title,
+            unread: 1,
+            at: row.occurred_at,
+          });
         }
         if (result.inserted > 0) router.refresh();
       } catch (error) {

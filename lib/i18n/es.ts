@@ -132,6 +132,7 @@ export const es = {
     members: "Integrantes",
     removeMember: "Quitar",
     announcements: "Anuncios",
+    unread: "Sin leer",
     edit: "Editar",
     delete: "Eliminar",
     edited: "editado",
@@ -356,6 +357,9 @@ export const es = {
     chat: "Mensaje",
     noSubject: "Sin asunto",
     close: "Cerrar",
+    title: "Avisos",
+    empty: "Nada nuevo",
+    markAll: "Marcar visto",
   },
   correo: {
     title: "Correo",

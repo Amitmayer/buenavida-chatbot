@@ -7,6 +7,7 @@ import { CaptureBox } from "@/components/hoy/capture-box";
 import { GlobalSearch } from "@/components/nav/global-search";
 import { SidebarToggle } from "@/components/nav/sidebar-ui";
 import { ChatHistoryButton } from "@/components/chat/chat-history";
+import { NotificationBell } from "@/components/nav/notification-bell";
 import type { Team } from "@/lib/db/types";
 
 const HEADS: Record<string, () => [string, string]> = {
@@ -52,6 +53,7 @@ export function PageHeader({
       <div className="ml-auto flex shrink-0 items-center gap-2 md:gap-3">
         {path.startsWith("/chat") ? <ChatHistoryButton /> : null}
         <GlobalSearch />
+        <NotificationBell />
         {conversationId ? <CaptureBox conversationId={conversationId} trigger="button" /> : null}
       </div>
     </header>

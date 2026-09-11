@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { InboxRow } from "@/lib/mensajes";
+import { inboxHref, type InboxRow } from "@/lib/mensajes";
 import { es } from "@/lib/i18n/es";
 import { FEEDBACK_CHAT_ID } from "@/lib/constants";
 import { crTimeLabel, crInstantYmd, todayYmd, crRelativeStamp } from "@/lib/agent/dates";
@@ -12,16 +12,20 @@ import { teamEdge } from "@/components/tasks/team-colors";
 export function InboxList({ rows }: { rows: InboxRow[] }) {
   const path = usePathname();
   const today = todayYmd();
+  const unread = rows.filter((row) => row.unread > 0);
+  const unreadIds = new Set(unread.map((row) => row.chat.id));
+  const rest = rows.filter((row) => !unreadIds.has(row.chat.id));
   const sections = [
+    { title: es.mensajes.unread, items: unread },
     {
       title: es.mensajes.announcements,
-      items: rows.filter((row) => row.kind === "channel" && row.chat.slug === "general"),
+      items: rest.filter((row) => row.kind === "channel" && row.chat.slug === "general"),
     },
-    { title: es.nav.areas, items: rows.filter((row) => row.kind === "team") },
-    { title: es.mensajes.direct, items: rows.filter((row) => row.kind === "dm") },
+    { title: es.nav.areas, items: rest.filter((row) => row.kind === "team") },
+    { title: es.mensajes.direct, items: rest.filter((row) => row.kind === "dm") },
     {
       title: es.mensajes.groups,
-      items: rows
+      items: rest
         .filter((row) => row.kind === "group")
         .sort((a, b) => Number(b.chat.id === FEEDBACK_CHAT_ID) - Number(a.chat.id === FEEDBACK_CHAT_ID)),
     },
@@ -43,10 +47,7 @@ export function InboxList({ rows }: { rows: InboxRow[] }) {
                 : "";
               const announce = row.kind === "channel" && row.chat.slug === "general";
               const color = row.chat.slug ? teamEdge(row.chat.slug) : "#12281C";
-              const href =
-                row.kind === "channel" && row.chat.slug
-                  ? `/canales/${row.chat.slug}`
-                  : `/mensajes/${row.chat.id}`;
+              const href = inboxHref(row);
               const selected = path === href || path === `/mensajes/${row.chat.id}`;
               return (
                 <li key={row.chat.id}>

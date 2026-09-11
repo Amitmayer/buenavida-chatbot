@@ -182,6 +182,8 @@ export async function loadChannel(slug: string, userId: string) {
 export function groupChannels(rows: ChannelRow[]) {
   return SECTION_ORDER.map((section) => ({
     section,
-    rows: rows.filter((row) => row.section === section),
+    rows: rows
+      .filter((row) => row.section === section)
+      .sort((a, b) => Number(b.unread > 0) - Number(a.unread > 0)),
   })).filter((group) => group.rows.length > 0);
 }
