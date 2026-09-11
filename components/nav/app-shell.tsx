@@ -8,24 +8,16 @@ import { NavLinks } from "@/components/nav/nav-links";
 import { PageHeader } from "@/components/nav/page-header";
 import { ProfileMenu } from "@/components/nav/profile-menu";
 import { AreaLinks } from "@/components/nav/area-links";
+import { LanguageSwitcher } from "@/components/nav/language-switcher";
 import { SidebarToggle, SidebarUi } from "@/components/nav/sidebar-ui";
 import { IncomingAlerts } from "@/components/nav/incoming-alerts";
 import { NoticeProvider } from "@/components/nav/notice-store";
 import { NotificationBell } from "@/components/nav/notification-bell";
-import { es } from "@/lib/i18n/es";
+import { useI18n } from "@/components/i18n/provider";
 import { cn } from "@/lib/utils";
 import type { MailCounts } from "@/lib/email/mailbox";
 import type { Notice } from "@/lib/notify/unseen";
 import type { Team } from "@/lib/db/types";
-
-const ITEMS = [
-  { href: "/hoy", label: es.nav.hoy },
-  { href: "/mensajes", label: es.nav.mensajes },
-  { href: "/correo", label: es.nav.correo },
-  { href: "/chat", label: es.nav.chat },
-  { href: "/tareas", label: es.nav.tareas },
-  { href: "/archivos", label: es.nav.archivos },
-] as const;
 
 const SIDE = 264;
 
@@ -57,18 +49,20 @@ export function AppShell({
   userId: string;
 }) {
   const path = usePathname();
+  const { t } = useI18n();
   const home = path === "/hoy";
   const section = path.split("/").filter(Boolean)[0] ?? "";
   const hideHeader = path.startsWith("/correo");
   const [open, setOpen] = useState(home);
   const [animate, setAnimate] = useState(false);
   const items = [
-    ...ITEMS.filter((item) => {
-      if (item.href === "/archivos") return showArchivos;
-      if (item.href === "/correo") return showCorreo;
-      return true;
-    }),
-    ...(showEquipo ? [{ href: "/equipo", label: es.nav.equipo }] : []),
+    { href: "/hoy", label: t.nav.hoy },
+    { href: "/mensajes", label: t.nav.mensajes },
+    ...(showCorreo ? [{ href: "/correo", label: t.nav.correo }] : []),
+    { href: "/chat", label: t.nav.chat },
+    { href: "/tareas", label: t.nav.tareas },
+    ...(showArchivos ? [{ href: "/archivos", label: t.nav.archivos }] : []),
+    ...(showEquipo ? [{ href: "/equipo", label: t.nav.equipo }] : []),
   ];
   const badges: Record<string, number> = {};
   if (chatUnread > 0) badges["/mensajes"] = chatUnread;
@@ -120,28 +114,28 @@ export function AppShell({
               <Link href="/hoy" onClick={() => persist(true)} className="flex items-start gap-2 text-cream">
                 <span>
                   <span className="block text-[22px] font-light leading-[0.94] tracking-[0.02em]">
-                    {es.auth.buena.toUpperCase()}
+                    {t.auth.buena.toUpperCase()}
                   </span>
                   <span className="flex items-end gap-1.5">
                     <span className="text-[22px] font-light leading-[0.94] tracking-[0.02em]">
-                      {es.auth.vida.toUpperCase()}
+                      {t.auth.vida.toUpperCase()}
                     </span>
                     <span className="pb-[3px] text-[9px] font-normal leading-[1.15] tracking-[0.04em]">
-                      {es.auth.specialty.toUpperCase()}
+                      {t.auth.specialty.toUpperCase()}
                       <br />
-                      {es.auth.coffee.toUpperCase()}
+                      {t.auth.coffee.toUpperCase()}
                     </span>
                   </span>
                 </span>
                 <span className="font-mono text-[12px] font-medium tracking-[0.18em] text-[#E0834A]">
-                  {es.auth.os}
+                  {t.auth.os}
                 </span>
               </Link>
               <SidebarToggle edge className="mt-1" />
             </div>
 
             <p className="mt-8 px-5 font-mono text-[11px] font-medium tracking-[0.18em] text-[#E5B978]">
-              {es.nav.work.toUpperCase()}
+              {t.nav.work.toUpperCase()}
             </p>
             <div className="mt-3 px-4">
               <NavLinks items={items} variant="side" badges={badges} />
@@ -149,7 +143,7 @@ export function AppShell({
             {teams.length > 0 ? (
               <>
                 <p className="mt-7 px-5 font-mono text-[11px] font-medium tracking-[0.18em] text-[#E5B978]">
-                  {es.nav.areas.toUpperCase()}
+                  {t.nav.areas.toUpperCase()}
                 </p>
                 <div className="mt-2.5 min-h-0 flex-1 overflow-auto px-4">
                   <AreaLinks teams={teams} />
@@ -159,6 +153,7 @@ export function AppShell({
               <div className="flex-1" />
             )}
             <div className="mt-auto px-4 pt-4">
+              <LanguageSwitcher />
               <ProfileMenu name={name} roleLabel={roleLabel} />
             </div>
           </div>

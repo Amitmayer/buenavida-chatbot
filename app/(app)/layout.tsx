@@ -6,12 +6,17 @@ import { AppShell } from "@/components/nav/app-shell";
 import { countFolders } from "@/lib/email/mailbox";
 import { listInbox, unreadChatTotal } from "@/lib/mensajes";
 import { noticesFromInbox, noticesFromMail } from "@/lib/notify/unseen";
-import { es } from "@/lib/i18n/es";
+import { I18nProvider } from "@/components/i18n/provider";
+import { getLocale, getMessages } from "@/lib/i18n/server";
 
 export const dynamic = "force-dynamic";
 
 export default async function AppLayout({ children }: { children: ReactNode }) {
-  const profile = await getSessionProfile();
+  const [profile, locale, es] = await Promise.all([
+    getSessionProfile(),
+    getLocale(),
+    getMessages(),
+  ]);
   if (!profile) {
     const supabase = await createClient();
     const {
@@ -19,12 +24,14 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
     } = await supabase.auth.getUser();
     if (user) {
       return (
-        <main className="flex min-h-dvh flex-col items-center justify-center gap-4 bg-paper px-6">
-          <p className="text-[16px] font-medium text-ink">{es.crash.title}</p>
-          <a href="/hoy" className="rounded-[13px] bg-ink px-5 py-3 text-[16px] font-semibold text-cream">
-            {es.crash.retry}
-          </a>
-        </main>
+        <I18nProvider locale={locale}>
+          <main className="flex min-h-dvh flex-col items-center justify-center gap-4 bg-paper px-6">
+            <p className="text-[16px] font-medium text-ink">{es.crash.title}</p>
+            <a href="/hoy" className="rounded-[13px] bg-ink px-5 py-3 text-[16px] font-semibold text-cream">
+              {es.crash.retry}
+            </a>
+          </main>
+        </I18nProvider>
       );
     }
     redirect("/entrar");
@@ -53,6 +60,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   );
 
   return (
+    <I18nProvider locale={locale}>
     <AppShell
       name={profile.full_name}
       roleLabel={roleLabel}
@@ -68,5 +76,6 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
     >
       {children}
     </AppShell>
+    </I18nProvider>
   );
 }
