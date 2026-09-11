@@ -1,6 +1,6 @@
 import { displayName, inFolder } from "@/lib/email/mailbox";
 import { clipPreview } from "@/lib/notify/preview";
-import { inboxHref, type InboxRow } from "@/lib/mensajes";
+import { inboxHref, type InboxRow } from "@/lib/inbox";
 import { es } from "@/lib/i18n/es";
 import type { Email } from "@/lib/db/types";
 

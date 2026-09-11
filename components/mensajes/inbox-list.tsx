@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { inboxHref, type InboxRow } from "@/lib/mensajes";
+import { inboxHref, type InboxRow } from "@/lib/inbox";
 import { es } from "@/lib/i18n/es";
 import { FEEDBACK_CHAT_ID } from "@/lib/constants";
 import { crTimeLabel, crInstantYmd, todayYmd, crRelativeStamp } from "@/lib/agent/dates";
