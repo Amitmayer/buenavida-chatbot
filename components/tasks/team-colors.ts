@@ -7,6 +7,7 @@ export const TEAM_EDGE: Record<string, string> = {
   administracion: "#C79350",
   regenerativo: "#8FA85B",
   direccion: "#9AA85B",
+  "gally-naty": "#6B5B4F",
 };
 
 const BARS = ["#5B8C6A", "#4F7FA8", "#7A6FC0", "#B06FA8", "#C4718A", "#C79350"];

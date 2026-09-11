@@ -94,8 +94,13 @@ insert into public.teams (id, slug, name, areas) values
   ('b0000000-0000-0000-0000-000000000005', 'marketing', 'Marketing', array['diseño', 'redes', 'materiales']),
   ('b0000000-0000-0000-0000-000000000006', 'administracion', 'Administración', array['cobros', 'facturación', 'oficina']),
   ('b0000000-0000-0000-0000-000000000007', 'regenerativo', 'Regenerativo', '{}'),
-  ('b0000000-0000-0000-0000-000000000008', 'direccion', 'Dirección', '{}')
+  ('b0000000-0000-0000-0000-000000000008', 'direccion', 'Dirección', '{}'),
+  ('b0000000-0000-0000-0000-000000000009', 'gally-naty', 'Gally y Naty', '{}')
 on conflict (id) do nothing;
+
+update public.teams
+set is_private = true
+where id = 'b0000000-0000-0000-0000-000000000009';
 
 -- Gally first so reports_to FKs resolve.
 update public.profiles set
@@ -235,7 +240,10 @@ insert into public.team_members (team_id, user_id, is_lead) values
   ('b0000000-0000-0000-0000-000000000008', 'a0000000-0000-0000-0000-000000000004', false),
   ('b0000000-0000-0000-0000-000000000008', 'a0000000-0000-0000-0000-000000000003', false),
   ('b0000000-0000-0000-0000-000000000008', 'a0000000-0000-0000-0000-000000000002', false),
-  ('b0000000-0000-0000-0000-000000000008', 'a0000000-0000-0000-0000-00000000000c', false)
+  ('b0000000-0000-0000-0000-000000000008', 'a0000000-0000-0000-0000-00000000000c', false),
+  -- Gally y Naty (private): Gally (lead), Naty
+  ('b0000000-0000-0000-0000-000000000009', 'a0000000-0000-0000-0000-000000000001', true),
+  ('b0000000-0000-0000-0000-000000000009', 'a0000000-0000-0000-0000-000000000002', false)
 on conflict do nothing;
 
 -- 25 tasks. Dirección: 4 (one assigned to David, one restricted).

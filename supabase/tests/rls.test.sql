@@ -4,7 +4,7 @@
 
 begin;
 
-select plan(33);
+select plan(36);
 
 insert into public.brand_files (
   storage_path, filename, mime_type, size_bytes, folder, uploaded_by
@@ -336,6 +336,78 @@ select is(
   (select count(*)::int from public.email_accounts),
   0,
   'Deybid (admin) cannot read Gally''s mail connection'
+);
+
+-- Private Gally y Naty area --------------------------------------------------
+
+reset role;
+insert into public.tasks (
+  id, title, team_id, owner_id, assignee_id, priority, status, visibility, created_by
+) values (
+  'c0000000-0000-0000-0000-0000000000ff',
+  'Nota privada Gally-Naty',
+  'b0000000-0000-0000-0000-000000000009',
+  'a0000000-0000-0000-0000-000000000001',
+  'a0000000-0000-0000-0000-000000000002',
+  'high',
+  'open',
+  'team',
+  'a0000000-0000-0000-0000-000000000001'
+);
+
+call public.test_login('a0000000-0000-0000-0000-000000000001');
+select is(
+  (select count(*)::int from public.teams where id = 'b0000000-0000-0000-0000-000000000009'),
+  1,
+  'Gally sees the private Gally y Naty team'
+);
+select is(
+  (select count(*)::int from public.tasks where id = 'c0000000-0000-0000-0000-0000000000ff'),
+  1,
+  'Gally sees the private Gally-Naty task'
+);
+
+call public.test_login('a0000000-0000-0000-0000-000000000002');
+select is(
+  (select count(*)::int from public.teams where id = 'b0000000-0000-0000-0000-000000000009'),
+  1,
+  'Naty sees the private Gally y Naty team'
+);
+select is(
+  (select count(*)::int from public.tasks where id = 'c0000000-0000-0000-0000-0000000000ff'),
+  1,
+  'Naty (full_access) sees the private task only because she is a member'
+);
+
+call public.test_login('a0000000-0000-0000-0000-000000000003');
+select is(
+  (select count(*)::int from public.teams where id = 'b0000000-0000-0000-0000-000000000009'),
+  0,
+  'Deybid (admin) cannot see the private Gally y Naty team'
+);
+select is(
+  (select count(*)::int from public.tasks where id = 'c0000000-0000-0000-0000-0000000000ff'),
+  0,
+  'Deybid (admin) cannot see the private Gally-Naty task'
+);
+select throws_ok(
+  $$
+    insert into public.team_members (team_id, user_id, is_lead)
+    values (
+      'b0000000-0000-0000-0000-000000000009',
+      'a0000000-0000-0000-0000-000000000003',
+      false
+    )
+  $$,
+  '42501',
+  'Deybid (admin) cannot add himself to the private team'
+);
+
+call public.test_login('a0000000-0000-0000-0000-000000000004');
+select is(
+  (select count(*)::int from public.tasks where id = 'c0000000-0000-0000-0000-0000000000ff'),
+  0,
+  'Roy cannot see the private Gally-Naty task'
 );
 
 call public.test_login('a0000000-0000-0000-0000-00000000000c');

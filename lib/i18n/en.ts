@@ -201,6 +201,7 @@ export const en = {
       administracion: "Collections, invoices, office",
       regenerativo: "Certification and farms",
       direccion: "Strategy and partnerships",
+      "gally-naty": "Gally and Naty only",
     },
   },
   resultCard: {
