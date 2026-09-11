@@ -8,7 +8,6 @@ import { NavLinks } from "@/components/nav/nav-links";
 import { PageHeader } from "@/components/nav/page-header";
 import { ProfileMenu } from "@/components/nav/profile-menu";
 import { AreaLinks } from "@/components/nav/area-links";
-import { LanguageSwitcher } from "@/components/nav/language-switcher";
 import { SidebarToggle, SidebarUi } from "@/components/nav/sidebar-ui";
 import { IncomingAlerts } from "@/components/nav/incoming-alerts";
 import { NoticeProvider } from "@/components/nav/notice-store";
@@ -181,7 +180,6 @@ export function AppShell({
               <div className="flex-1" />
             )}
             <div className="mt-auto px-4 pt-4">
-              <LanguageSwitcher />
               <ProfileMenu name={name} roleLabel={roleLabel} />
             </div>
           </div>
