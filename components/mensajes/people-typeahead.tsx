@@ -21,8 +21,10 @@ export function PeopleTypeahead({
   const available = people.filter((person) => !excludeIds.includes(person.id));
   const matches = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return [];
-    return available.filter((person) => person.full_name.toLowerCase().includes(q)).slice(0, 6);
+    const pool = q
+      ? available.filter((person) => person.full_name.toLowerCase().includes(q))
+      : available;
+    return pool.slice(0, 12);
   }, [available, query]);
 
   function commit(person?: PersonOption) {
@@ -34,7 +36,7 @@ export function PeopleTypeahead({
   }
 
   return (
-    <div className="relative">
+    <div>
       <input
         value={query}
         onChange={(e) => {
@@ -71,28 +73,28 @@ export function PeopleTypeahead({
         autoComplete="off"
         className="h-11 w-full rounded-[9px] border border-ink/15 bg-sheet px-3 text-[14px] text-ink placeholder:text-ink/45 outline-none focus:border-ink"
       />
-      {query.trim() ? (
-        <ul className="absolute z-10 mt-1 w-full overflow-hidden rounded-[9px] border border-ink/10 bg-sheet shadow-md">
-          {matches.length === 0 ? (
-            <li className="px-3 py-2 text-[13px] text-mute">{es.mensajes.noMatch}</li>
-          ) : (
-            matches.map((person, index) => (
-              <li key={person.id}>
-                <button
-                  type="button"
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => commit(person)}
-                  className={`block w-full px-3 py-2 text-left text-[14px] ${
-                    index === active ? "bg-wash font-medium text-ink" : "text-ink"
-                  }`}
-                >
-                  {person.full_name}
-                </button>
-              </li>
-            ))
-          )}
-        </ul>
-      ) : null}
+      <ul className="mt-2 max-h-56 overflow-y-auto rounded-[9px] border border-ink/10 bg-sheet">
+        {matches.length === 0 ? (
+          <li className="px-3 py-2 text-[13px] text-mute">
+            {query.trim() ? es.mensajes.noMatch : es.mensajes.searchPerson}
+          </li>
+        ) : (
+          matches.map((person, index) => (
+            <li key={person.id}>
+              <button
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => commit(person)}
+                className={`block w-full px-3 py-2.5 text-left text-[14px] ${
+                  index === active ? "bg-wash font-medium text-ink" : "text-ink hover:bg-wash/70"
+                }`}
+              >
+                {person.full_name}
+              </button>
+            </li>
+          ))
+        )}
+      </ul>
     </div>
   );
 }

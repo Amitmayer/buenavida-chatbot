@@ -15,6 +15,7 @@ export async function createTaskAction(formData: FormData) {
     notes: formData.get("notes") || undefined,
     team_id: formData.get("team_id"),
     area: formData.get("area") || undefined,
+    project_id: formData.get("project_id") || undefined,
     assignee_id: formData.get("assignee_id") || undefined,
     due_date: formData.get("due_date") || undefined,
     priority: formData.get("priority") || "medium",
@@ -23,7 +24,7 @@ export async function createTaskAction(formData: FormData) {
   if (!parsed.success) return { ok: false as const, detail: "validation" };
   const supabase = await createClient();
   const title = sanitizeTitle(parsed.data.title).title;
-  const { error } = await supabase.rpc("create_task_with_event", {
+  const { data, error } = await supabase.rpc("create_task_with_event", {
     p_title: title,
     p_notes: parsed.data.notes ?? null,
     p_team_id: parsed.data.team_id,
@@ -34,14 +35,16 @@ export async function createTaskAction(formData: FormData) {
     p_priority: parsed.data.priority ?? "medium",
     p_visibility: parsed.data.visibility ?? "team",
     p_source: "ui",
+    p_project_id: parsed.data.project_id ?? null,
   });
-  if (error) {
+  if (error || !data) {
     captureError(error, { where: "createTaskAction" });
     return { ok: false as const, detail: "server_error" };
   }
   revalidatePath("/hoy");
   revalidatePath("/tareas");
-  return { ok: true as const };
+  revalidatePath("/areas", "layout");
+  return { ok: true as const, id: data.id };
 }
 
 export async function updateTaskAction(taskId: string, formData: FormData) {
@@ -52,6 +55,7 @@ export async function updateTaskAction(taskId: string, formData: FormData) {
     notes: formData.get("notes"),
     team_id: formData.get("team_id") || undefined,
     area: formData.get("area") || undefined,
+    project_id: formData.get("project_id") || undefined,
     assignee_id: formData.get("assignee_id") || undefined,
     due_date: formData.get("due_date") || undefined,
     priority: formData.get("priority") || undefined,

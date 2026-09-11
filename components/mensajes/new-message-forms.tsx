@@ -29,6 +29,7 @@ export function NewMessageForms({
   async function createGroup() {
     if (!title.trim() || members.length === 0 || pending) return;
     setPending(true);
+    setGroupOpen(false);
     const form = new FormData();
     form.set("title", title.trim());
     for (const member of members) form.append("member_ids", member.id);
@@ -64,11 +65,13 @@ export function NewMessageForms({
 
       {dmOpen ? (
         <Modal title={es.mensajes.newDmTitle} onClose={() => setDmOpen(false)}>
-          <PeopleTypeahead
-            people={people}
-            onPick={(person) => void pickDm(person)}
-            placeholder={es.mensajes.searchPerson}
-          />
+          <div className="min-h-[22rem]">
+            <PeopleTypeahead
+              people={people}
+              onPick={(person) => void pickDm(person)}
+              placeholder={es.mensajes.searchPerson}
+            />
+          </div>
         </Modal>
       ) : null}
 

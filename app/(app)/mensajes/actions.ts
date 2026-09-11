@@ -49,21 +49,30 @@ export async function createGroupAction(formData: FormData) {
   redirect(`/mensajes/${data}`);
 }
 
-export async function sendChatMessageAction(chatId: string, content: string) {
+export async function sendChatMessageAction(
+  chatId: string,
+  content: string,
+  attachmentId?: string | null,
+) {
   const profile = await getSessionProfile();
   if (!profile) return { ok: false as const, detail: "forbidden" };
   const parsed = z
     .object({
       chatId: z.string().uuid(),
-      content: z.string().trim().min(1).max(4000),
+      content: z.string().trim().max(4000),
+      attachmentId: z.string().uuid().nullable().optional(),
     })
-    .safeParse({ chatId, content });
+    .safeParse({ chatId, content, attachmentId: attachmentId ?? null });
   if (!parsed.success) return { ok: false as const, detail: "validation" };
+  if (!parsed.data.content && !parsed.data.attachmentId) {
+    return { ok: false as const, detail: "validation" };
+  }
   const supabase = await createClient();
   const { error } = await supabase.from("chat_messages").insert({
     chat_id: parsed.data.chatId,
     sender_id: profile.id,
-    content: parsed.data.content,
+    content: parsed.data.content || "📎",
+    attachment_id: parsed.data.attachmentId,
   });
   if (error) {
     captureError(error, { where: "sendChatMessageAction" });

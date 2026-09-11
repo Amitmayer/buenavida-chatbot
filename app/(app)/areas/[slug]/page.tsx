@@ -27,7 +27,7 @@ export default async function AreaPage({
   if (!canAccess) notFound();
 
   const today = todayYmd();
-  const [tasks, thread, members] = await Promise.all([
+  const [tasks, thread, members, projectsRes] = await Promise.all([
     listVisibleTasks({
       teamId: team.id,
       today,
@@ -39,13 +39,29 @@ export default async function AreaPage({
       .from("team_members")
       .select("is_lead, user_id, profiles(id, full_name, title)")
       .eq("team_id", team.id),
+    supabase
+      .from("projects")
+      .select("id, name")
+      .eq("team_id", team.id)
+      .is("archived_at", null)
+      .order("created_at", { ascending: true }),
   ]);
   if (members.error) captureError(members.error, { where: "area.people" });
+  if (projectsRes.error) captureError(projectsRes.error, { where: "area.projects" });
   const people = mapAreaPeople(members.data);
+  const projects = projectsRes.data ?? [];
 
   return (
     <AreaWorkspace
-      tasks={<AreaBoard tasks={tasks} teamName={team.name} people={people} />}
+      tasks={
+        <AreaBoard
+          tasks={tasks}
+          teamId={team.id}
+          teamName={team.name}
+          people={people}
+          projects={projects}
+        />
+      }
       chat={
         thread ? (
           <>
