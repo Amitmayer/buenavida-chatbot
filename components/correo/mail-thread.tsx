@@ -47,6 +47,7 @@ export function MailThread({
   selfEmail: string;
 }) {
   const [summary, setSummary] = useState(mail.summary ?? "");
+  const [replyOpen, setReplyOpen] = useState(false);
   const [pending, start] = useTransition();
   const router = useRouter();
   const who = displayName(mail.from_address);
@@ -72,6 +73,10 @@ export function MailThread({
   useEffect(() => {
     setSummary(mail.summary ?? "");
   }, [mail.id, mail.summary]);
+
+  useEffect(() => {
+    setReplyOpen(Boolean(draft || mail.draft_reply));
+  }, [mail.id, draft, mail.draft_reply]);
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-paper">
@@ -193,37 +198,77 @@ export function MailThread({
           </div>
         ) : null}
 
-        <div className="shrink-0 py-4 md:py-6">
-          <MailWriteForm
-            layout="reply"
-            showSubject={draft}
-            requireTo
-            resetKey={mail.id}
-            action={draft ? sendDraftAction : sendMailAction}
-            hidden={{ email_id: mail.id }}
-            defaults={{
-              to: draft ? mail.to_addresses.join(", ") : replyTo,
-              subject: mail.subject,
-              body: draft ? mail.body_text || mail.draft_reply || "" : mail.draft_reply ?? "",
-            }}
-            replyAllCc={draft ? "" : replyAll.filter((email) => email !== replyTo).join(", ")}
-            bodyPlaceholder={draft ? es.correo.composeBody : es.correo.replyTo.replace("{name}", who)}
-            onAiDraft={
-              draft
-                ? undefined
-                : async () => {
-                    const result = await draftMailAction(mail.id);
-                    if (result.ok && result.draft) {
-                      toast.success(es.correo.draftReady);
-                      return result.draft;
+        {draft || replyOpen ? (
+          <div className="shrink-0 py-4 md:py-6">
+            {draft ? null : (
+              <div className="mb-3 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setReplyOpen(false)}
+                  className="text-[13px] font-semibold text-ink/60 hover:text-ink hover:underline"
+                >
+                  {es.correo.closeReply}
+                </button>
+              </div>
+            )}
+            <MailWriteForm
+              layout="reply"
+              showSubject={draft}
+              requireTo
+              resetKey={mail.id}
+              action={draft ? sendDraftAction : sendMailAction}
+              hidden={{ email_id: mail.id }}
+              defaults={{
+                to: draft ? mail.to_addresses.join(", ") : replyTo,
+                subject: mail.subject,
+                body: draft ? mail.body_text || mail.draft_reply || "" : mail.draft_reply ?? "",
+              }}
+              replyAllCc={draft ? "" : replyAll.filter((email) => email !== replyTo).join(", ")}
+              bodyPlaceholder={draft ? es.correo.composeBody : es.correo.replyTo.replace("{name}", who)}
+              onAiDraft={
+                draft
+                  ? undefined
+                  : async () => {
+                      const result = await draftMailAction(mail.id);
+                      if (result.ok && result.draft) {
+                        toast.success(es.correo.draftReady);
+                        return result.draft;
+                      }
+                      toast.error(es.correo.draftError);
+                      return null;
                     }
-                    toast.error(es.correo.draftError);
-                    return null;
-                  }
-            }
-            onSuccess={() => router.refresh()}
-          />
-        </div>
+              }
+              onSuccess={() => router.refresh()}
+            />
+          </div>
+        ) : (
+          <div className="flex shrink-0 flex-wrap gap-2 py-4 md:py-6">
+            <button
+              type="button"
+              onClick={() => setReplyOpen(true)}
+              className="h-[42px] rounded-[11px] bg-ink px-5 text-[15px] font-semibold text-cream hover:bg-pine"
+            >
+              {es.correo.reply}
+            </button>
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() => {
+                setReplyOpen(true);
+                start(async () => {
+                  const result = await draftMailAction(mail.id);
+                  if (result.ok && result.draft) {
+                    toast.success(es.correo.draftReady);
+                    router.refresh();
+                  } else toast.error(es.correo.draftError);
+                });
+              }}
+              className="h-[42px] rounded-[11px] border-2 border-ink/20 px-5 text-[15px] font-semibold text-ink hover:border-ink hover:bg-white disabled:opacity-40"
+            >
+              {es.correo.replyAi}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

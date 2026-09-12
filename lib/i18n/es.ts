@@ -425,6 +425,8 @@ export const es = {
     attach: "Adjuntar",
     attachHint: "PDF, Word, Excel, imagen o CSV. Hasta 5 archivos, 25 MB en total.",
     removeFile: "Quitar",
+    reply: "Responder",
+    closeReply: "Cerrar respuesta",
     replyAll: "Responder a todos",
     tooManyFiles: "Máximo 5 archivos.",
     filesTooLarge: "Los archivos juntos pesan más de 25 MB.",
