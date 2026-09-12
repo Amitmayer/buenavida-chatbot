@@ -110,9 +110,28 @@ export type Project = {
   id: string;
   team_id: string;
   name: string;
+  notes: string | null;
+  due_date: string | null;
   created_by: string;
   created_at: string;
   archived_at: string | null;
+};
+
+export type ProjectMember = {
+  project_id: string;
+  user_id: string;
+  created_at: string;
+};
+
+export type ProjectFile = {
+  id: string;
+  project_id: string;
+  storage_path: string;
+  filename: string;
+  mime_type: string;
+  size_bytes: number;
+  uploaded_by: string;
+  created_at: string;
 };
 
 export type TeamMember = {
@@ -252,15 +271,38 @@ export type Database = {
       };
       projects: {
         Row: Project;
-        Insert: Omit<Project, "id" | "created_at" | "archived_at"> & {
+        Insert: Omit<Project, "id" | "created_at" | "archived_at" | "notes" | "due_date"> & {
           id?: string;
           created_at?: string;
           archived_at?: string | null;
+          notes?: string | null;
+          due_date?: string | null;
         };
         Update: Partial<Project>;
         Relationships: [
           Rel<"projects_team_id_fkey", "team_id", "teams">,
           Rel<"projects_created_by_fkey", "created_by", "profiles">,
+        ];
+      };
+      project_members: {
+        Row: ProjectMember;
+        Insert: Pick<ProjectMember, "project_id" | "user_id"> & Partial<ProjectMember>;
+        Update: Partial<ProjectMember>;
+        Relationships: [
+          Rel<"project_members_project_id_fkey", "project_id", "projects">,
+          Rel<"project_members_user_id_fkey", "user_id", "profiles">,
+        ];
+      };
+      project_files: {
+        Row: ProjectFile;
+        Insert: Omit<ProjectFile, "id" | "created_at"> & {
+          id?: string;
+          created_at?: string;
+        };
+        Update: Partial<ProjectFile>;
+        Relationships: [
+          Rel<"project_files_project_id_fkey", "project_id", "projects">,
+          Rel<"project_files_uploaded_by_fkey", "uploaded_by", "profiles">,
         ];
       };
       tasks: {

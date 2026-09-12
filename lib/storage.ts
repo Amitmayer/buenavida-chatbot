@@ -39,4 +39,9 @@ export function channelStoragePath(chatId: string, filename: string): string {
   return `${chatId}/${id}-${filename}`;
 }
 
+export function projectStoragePath(projectId: string, filename: string): string {
+  const id = crypto.randomUUID();
+  return `projects/${projectId}/${id}-${filename}`;
+}
+
 export { SIGNED_URL_TTL_SECONDS };

@@ -25,7 +25,7 @@ export function PageHeader({
   teams = [],
 }: {
   conversationId: string | null;
-  teams?: Pick<Team, "slug" | "name">[];
+  teams?: Pick<Team, "id" | "slug" | "name">[];
 }) {
   const path = usePathname();
   const areaSlug = path.startsWith("/areas/") ? path.split("/")[2] : null;
@@ -54,7 +54,14 @@ export function PageHeader({
         {path.startsWith("/chat") ? <ChatHistoryButton /> : null}
         <GlobalSearch />
         <NotificationBell />
-        {conversationId ? <CaptureBox conversationId={conversationId} trigger="button" /> : null}
+        {conversationId ? (
+          <CaptureBox
+            conversationId={conversationId}
+            trigger="button"
+            defaultTeamId={area?.id}
+            stayInPlace={Boolean(area)}
+          />
+        ) : null}
       </div>
     </header>
   );

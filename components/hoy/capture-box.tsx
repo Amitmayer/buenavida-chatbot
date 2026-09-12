@@ -24,16 +24,20 @@ const fieldClass =
   "h-11 w-full rounded-[9px] border border-line bg-sheet px-3 text-[14px] text-ink outline-none focus:border-ink";
 
 export function CaptureBox({
-  conversationId,
+  conversationId: _conversationId,
   trigger = "field",
+  defaultTeamId,
+  stayInPlace = false,
 }: {
   conversationId: string;
   trigger?: "field" | "button" | "inline";
+  defaultTeamId?: string;
+  stayInPlace?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [assigneeId, setAssigneeId] = useState("");
-  const [teamId, setTeamId] = useState("");
+  const [teamId, setTeamId] = useState(defaultTeamId ?? "");
   const [projectId, setProjectId] = useState("");
   const [projects, setProjects] = useState<{ id: string; name: string }[]>([]);
   const [assigneeOptions, setAssigneeOptions] = useState<Person[]>([]);
@@ -81,9 +85,15 @@ export function CaptureBox({
               })
               .filter((team): team is TeamOpt => Boolean(team));
       setTeams(nextTeams);
-      setTeamId((prev) => prev || nextTeams[0]?.id || "");
+      setTeamId((prev) => {
+        if (defaultTeamId && nextTeams.some((team) => team.id === defaultTeamId)) {
+          return defaultTeamId;
+        }
+        if (prev && nextTeams.some((team) => team.id === prev)) return prev;
+        return nextTeams[0]?.id || "";
+      });
     })();
-  }, [open]);
+  }, [open, defaultTeamId]);
 
   useEffect(() => {
     if (!open || !teamId) {
@@ -154,7 +164,9 @@ export function CaptureBox({
       setProjectId("");
       setDue("");
       setPriority("medium");
-      router.push(`/tareas/${result.id}`);
+      if (!stayInPlace) {
+        router.push(`/tareas/${result.id}`);
+      }
       router.refresh();
     } else {
       setTool({
@@ -170,6 +182,7 @@ export function CaptureBox({
   function resetAndOpen() {
     setOpen(true);
     setTool(null);
+    if (defaultTeamId) setTeamId(defaultTeamId);
   }
 
   const dialog = open ? (
