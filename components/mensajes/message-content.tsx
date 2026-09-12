@@ -2,8 +2,11 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { MoreHorizontal } from "lucide-react";
+import { toast } from "sonner";
 import { es } from "@/lib/i18n/es";
 import { deleteChatMessageAction, editChatMessageAction } from "@/app/(app)/mensajes/actions";
+import { FileOpenActions } from "@/components/files/file-preview";
+import { captureError } from "@/lib/sentry";
 import type { ChatMessage } from "@/lib/db/types";
 import { cn } from "@/lib/utils";
 
@@ -90,7 +93,7 @@ export function MessageContent({
             }}
             className="text-[11px] font-medium text-ink/55"
           >
-            {es.tasks.cancel}
+            {es.mensajes.dismiss}
           </button>
         </span>
       </form>
@@ -102,7 +105,12 @@ export function MessageContent({
   return (
     <div className={cn("group", mine ? "flex flex-col items-end" : "")}>
       <div className="relative inline-block max-w-full">
-        <p className={cn(bubble, canManage && "pr-9")}>{message.content}</p>
+        <div className={cn(bubble, canManage && "pr-9")}>
+          {message.content ? <p className="whitespace-pre-wrap">{message.content}</p> : null}
+          {message.attachment_id ? (
+            <ChatAttachment attachmentId={message.attachment_id} mine={mine} />
+          ) : null}
+        </div>
         {canManage ? (
           <div ref={menuRef} className={cn("absolute top-1", mine ? "right-1" : "right-1")}>
             <button
@@ -176,10 +184,91 @@ export function MessageContent({
             {es.mensajes.delete}
           </button>
           <button type="button" className="text-[11px] font-medium text-ink/55" onClick={() => setMode("idle")}>
-            {es.tasks.cancel}
+            {es.mensajes.dismiss}
           </button>
         </span>
       ) : null}
     </div>
   );
 }
+
+function ChatAttachment({ attachmentId, mine }: { attachmentId: string; mine: boolean }) {
+  const [meta, setMeta] = useState<{
+    url: string;
+    filename: string;
+    mimeType: string;
+  } | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    fetch(`/api/files/chat/${attachmentId}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((body: { url?: string; filename?: string; mimeType?: string } | null) => {
+        if (!active || !body?.url || !body.filename || !body.mimeType) return;
+        setMeta({ url: body.url, filename: body.filename, mimeType: body.mimeType });
+      })
+      .catch((error) => {
+        captureError(error, { where: "chat.attachmentUrl" });
+      });
+    return () => {
+      active = false;
+    };
+  }, [attachmentId]);
+
+  async function copyFile() {
+    if (!meta) return;
+    try {
+      if (meta.mimeType.startsWith("image/") && "ClipboardItem" in window) {
+        const res = await fetch(meta.url);
+        const blob = await res.blob();
+        await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
+      } else {
+        await navigator.clipboard.writeText(meta.url);
+      }
+      setCopied(true);
+      toast.success(es.mensajes.fileCopied);
+      window.setTimeout(() => setCopied(false), 1500);
+    } catch (error) {
+      captureError(error, { where: "chat.copyFile" });
+      try {
+        await navigator.clipboard.writeText(meta.url);
+        toast.success(es.mensajes.fileCopied);
+      } catch (fallbackError) {
+        captureError(fallbackError, { where: "chat.copyFile.fallback" });
+      }
+    }
+  }
+
+  if (!meta) {
+    return <p className={cn("mt-2 text-[12px]", mine ? "text-cream/70" : "text-ink/45")}>…</p>;
+  }
+
+  const image = meta.mimeType.startsWith("image/");
+
+  return (
+    <div className="mt-2 space-y-2">
+      {image ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={meta.url}
+          alt={meta.filename}
+          className="max-h-56 max-w-full rounded-[10px] object-contain"
+        />
+      ) : (
+        <p className={cn("text-[13px] font-medium", mine ? "text-cream" : "text-ink")}>{meta.filename}</p>
+      )}
+      <div className="flex flex-wrap items-center gap-2.5">
+        <FileOpenActions url={meta.url} filename={meta.filename} mimeType={meta.mimeType} />
+        <button
+          type="button"
+          onClick={() => void copyFile()}
+          className={cn("text-[11px] font-medium", mine ? "text-cream/85 hover:text-cream" : "text-pine")}
+        >
+          {copied ? es.mensajes.fileCopied : es.mensajes.copyFile}
+        </button>
+      </div>
+    </div>
+  );
+}
+

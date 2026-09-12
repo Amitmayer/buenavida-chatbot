@@ -25,8 +25,8 @@ async function loadChannel(
   supabase: Awaited<ReturnType<typeof createClient>>,
   input: { slug?: string; chatId?: string },
 ) {
-  let query = supabase.from("chats").select("id, kind, slug").eq("kind", "channel");
-  query = input.chatId ? query.eq("id", input.chatId) : query.eq("slug", input.slug ?? "");
+  let query = supabase.from("chats").select("id, kind, slug");
+  query = input.chatId ? query.eq("id", input.chatId) : query.eq("slug", input.slug ?? "").eq("kind", "channel");
   const { data } = await query.maybeSingle();
   return data;
 }
@@ -66,17 +66,21 @@ export async function PUT(request: Request) {
     return Response.json({ error: "forbidden" }, { status: 403 });
   }
 
-  const { error } = await supabase.from("channel_files").insert({
-    chat_id: chat.id,
-    storage_path: parsed.data.path,
-    filename: parsed.data.filename,
-    mime_type: parsed.data.mimeType,
-    size_bytes: parsed.data.sizeBytes,
-    uploaded_by: profile.id,
-  });
-  if (error) {
+  const { data: fileRow, error } = await supabase
+    .from("channel_files")
+    .insert({
+      chat_id: chat.id,
+      storage_path: parsed.data.path,
+      filename: parsed.data.filename,
+      mime_type: parsed.data.mimeType,
+      size_bytes: parsed.data.sizeBytes,
+      uploaded_by: profile.id,
+    })
+    .select("id, filename, mime_type, storage_path")
+    .single();
+  if (error || !fileRow) {
     captureError(error, { where: "channel_files.insert" });
     return Response.json({ error: "server_error" }, { status: 500 });
   }
-  return Response.json({ ok: true });
+  return Response.json({ ok: true, file: fileRow });
 }

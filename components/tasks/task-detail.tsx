@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { es } from "@/lib/i18n/es";
@@ -13,6 +13,7 @@ import { Dropzone } from "@/components/files/dropzone";
 import { PriorityBars, TeamBadge } from "@/components/tasks/badges";
 import { crDateLabel, crInstantYmd, daysBetweenYmd, formatDueLabel, todayYmd } from "@/lib/agent/dates";
 import { initials, shortName } from "@/lib/utils";
+import { createClient } from "@/lib/supabase/client";
 import type { Attachment, Profile, Task, Team } from "@/lib/db/types";
 
 type EventRow = {
@@ -43,9 +44,32 @@ export function TaskDetail({
 }) {
   const [pending, start] = useTransition();
   const [reschedule, setReschedule] = useState(false);
+  const [teamId, setTeamId] = useState(task.team_id);
+  const [assigneeOptions, setAssigneeOptions] = useState(people);
   const team = Array.isArray(task.team) ? task.team[0] : task.team;
   const owner = Array.isArray(task.owner) ? task.owner[0] : task.owner;
   const assignee = Array.isArray(task.assignee) ? task.assignee[0] : task.assignee;
+
+  useEffect(() => {
+    const supabase = createClient();
+    void (async () => {
+      const { data } = await supabase
+        .from("team_members")
+        .select("user_id, profiles(id, full_name)")
+        .eq("team_id", teamId);
+      const next = (data ?? [])
+        .map((row) => {
+          const nested = row.profiles as unknown;
+          const profile = Array.isArray(nested) ? nested[0] : nested;
+          if (!profile || typeof profile !== "object") return null;
+          const person = profile as { id?: string; full_name?: string };
+          if (!person.id || !person.full_name) return null;
+          return { id: person.id, full_name: person.full_name };
+        })
+        .filter((person): person is Pick<Profile, "id" | "full_name"> => Boolean(person));
+      setAssigneeOptions(next.length ? next : people);
+    })();
+  }, [teamId, people]);
   const due = formatDueLabel(task.due_date);
   const overdueDays =
     task.due_date && due.kind === "overdue" ? daysBetweenYmd(task.due_date, todayYmd()) : 0;
@@ -104,7 +128,12 @@ export function TaskDetail({
               <FieldLabel>{es.tasks.team}</FieldLabel>
               <div className="flex items-center gap-1.5">
                 {team ? <TeamBadge slug={team.slug} name={team.name} /> : null}
-                <select name="team_id" defaultValue={task.team_id} className="sr-only">
+                <select
+                  name="team_id"
+                  value={teamId}
+                  onChange={(event) => setTeamId(event.target.value)}
+                  className="sr-only"
+                >
                   {teams.map((item) => (
                     <option key={item.id} value={item.id}>
                       {item.name}
@@ -138,7 +167,7 @@ export function TaskDetail({
                   size="inline"
                   defaultValue={task.assignee_id ?? ""}
                   placeholder={es.tasks.assignee}
-                  options={people.map((person) => ({
+                  options={assigneeOptions.map((person) => ({
                     value: person.id,
                     label: person.full_name,
                   }))}

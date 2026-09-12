@@ -9,6 +9,7 @@ export const taskPatchSchema = z.object({
   notes: z.string().nullable().optional(),
   team_id: z.string().uuid().optional(),
   area: z.string().nullable().optional(),
+  project_id: z.string().uuid().nullable().optional(),
   owner_id: z.string().uuid().optional(),
   assignee_id: z.string().uuid().nullable().optional(),
   due_date: z.string().nullable().optional(),
@@ -22,6 +23,7 @@ export const createTaskSchema = z.object({
   notes: z.string().optional(),
   team_id: z.string().uuid(),
   area: z.string().optional(),
+  project_id: z.string().uuid().optional(),
   owner_id: z.string().uuid().optional(),
   assignee_id: z.string().uuid().optional(),
   due_date: z.string().optional(),
@@ -106,6 +108,7 @@ export type TaskRow = Task & {
 export async function listVisibleTasks(opts: {
   teamId?: string;
   area?: string;
+  projectId?: string;
   assigneeId?: string;
   status?: string;
   due?: "overdue" | "today" | "week" | "all";
@@ -122,6 +125,7 @@ export async function listVisibleTasks(opts: {
     .order("due_date", { ascending: true, nullsFirst: false });
   if (opts.teamId) query = query.eq("team_id", opts.teamId);
   if (opts.area) query = query.eq("area", opts.area);
+  if (opts.projectId) query = query.eq("project_id", opts.projectId);
   if (opts.assigneeId) query = query.eq("assignee_id", opts.assigneeId);
   if (opts.status) query = query.eq("status", opts.status as TaskStatus);
   else if (opts.closedOnly) query = query.in("status", ["done", "cancelled"]);

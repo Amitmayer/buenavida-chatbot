@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
+import { Paperclip } from "lucide-react";
 import { z } from "zod";
 import { es } from "@/lib/i18n/es";
 import { Button } from "@/components/ui/button";
@@ -28,6 +29,7 @@ const IncomingMessage = z.object({
   deleted_at: z.string().nullable().optional(),
   via_assistant: z.boolean().optional(),
   task_id: z.string().uuid().nullable().optional(),
+  attachment_id: z.string().uuid().nullable().optional(),
 });
 
 function toMessage(row: z.infer<typeof IncomingMessage>): ChatMessage {
@@ -41,6 +43,7 @@ function toMessage(row: z.infer<typeof IncomingMessage>): ChatMessage {
     deleted_at: row.deleted_at ?? null,
     via_assistant: row.via_assistant ?? false,
     task_id: row.task_id ?? null,
+    attachment_id: row.attachment_id ?? null,
   };
 }
 
@@ -74,7 +77,9 @@ export function ThreadView({
   const [messages, setMessages] = useState(initial);
   const [text, setText] = useState("");
   const [pending, start] = useTransition();
+  const [uploading, setUploading] = useState(false);
   const bottom = useRef<HTMLDivElement>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
   const names = new Map(members.map((m) => [m.user_id, m.full_name]));
   const taskById = new Map(tasks.map((task) => [task.id, task]));
   const today = todayYmd();
@@ -127,6 +132,54 @@ export function ThreadView({
       void supabase.removeChannel(channel);
     };
   }, [chatId]);
+
+
+
+  async function uploadFile(file: File) {
+    setUploading(true);
+    try {
+      const metaRes = await fetch("/api/files/channel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chatId,
+          filename: file.name,
+          mimeType: file.type || "application/octet-stream",
+          sizeBytes: file.size,
+        }),
+      });
+      if (!metaRes.ok) return;
+      const meta = (await metaRes.json()) as { signedUrl?: string; path?: string };
+      const signedUrl = meta.signedUrl;
+      const path = meta.path;
+      if (!signedUrl || !path) return;
+      const put = await fetch(signedUrl, {
+        method: "PUT",
+        headers: { "Content-Type": file.type || "application/octet-stream" },
+        body: file,
+      });
+      if (!put.ok) return;
+      const confirm = await fetch("/api/files/channel", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chatId,
+          filename: file.name,
+          mimeType: file.type || "application/octet-stream",
+          sizeBytes: file.size,
+          path,
+        }),
+      });
+      if (!confirm.ok) return;
+      const body = (await confirm.json()) as { file?: { id: string; filename: string } };
+      if (!body.file?.id) return;
+      start(async () => {
+        await sendChatMessageAction(chatId, file.name, body.file!.id);
+      });
+    } finally {
+      setUploading(false);
+    }
+  }
 
   function send() {
     const value = text.trim();
@@ -266,24 +319,55 @@ export function ThreadView({
         <div
           className={
             area
-              ? "flex items-center gap-3"
-              : "flex items-center gap-2.5 rounded-md border border-ink/15 bg-sheet px-3.5 py-2.5"
+              ? "flex items-end gap-3"
+              : "flex items-end gap-2.5 rounded-md border border-ink/15 bg-sheet px-3.5 py-2.5"
           }
         >
           <input
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            placeholder={composerPlaceholder ?? es.mensajes.composer}
-            maxLength={4000}
+            ref={fileInput}
+            type="file"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              e.target.value = "";
+              if (file) void uploadFile(file);
+            }}
+          />
+          <button
+            type="button"
+            aria-label={es.mensajes.attachFile}
+            title={es.mensajes.attachFile}
+            disabled={uploading || pending}
+            onClick={() => fileInput.current?.click()}
             className={
               area
-                ? "h-11 min-w-0 flex-1 rounded-[12px] border-2 border-ink/16 bg-white px-4 text-[15px] outline-none placeholder:text-ink/55"
-                : "h-7 flex-1 bg-transparent text-[13px] outline-none placeholder:text-ink/40"
+                ? "flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px] border-2 border-ink/16 text-ink hover:bg-white disabled:opacity-50"
+                : "flex h-8 w-8 shrink-0 items-center justify-center rounded-[8px] text-ink/55 hover:bg-wash hover:text-ink disabled:opacity-50"
+            }
+          >
+            <Paperclip className="h-4 w-4" />
+          </button>
+          <textarea
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                send();
+              }
+            }}
+            placeholder={composerPlaceholder ?? es.mensajes.composer}
+            maxLength={4000}
+            rows={1}
+            className={
+              area
+                ? "max-h-40 min-h-11 min-w-0 flex-1 resize-none rounded-[12px] border-2 border-ink/16 bg-white px-4 py-2.5 text-[15px] outline-none placeholder:text-ink/55"
+                : "max-h-32 min-h-7 flex-1 resize-none bg-transparent py-1 text-[13px] outline-none placeholder:text-ink/40"
             }
           />
           <Button
             type="submit"
-            disabled={pending}
+            disabled={pending || uploading || !text.trim()}
             className={area ? "h-11 rounded-[12px] px-4 text-[15px]" : "h-8 px-3.5 text-[12px]"}
           >
             {es.mensajes.send}

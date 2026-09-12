@@ -6,10 +6,21 @@
     "title": "CEO, fundadora",
     "role": "owner",
     "default_team": "direccion",
-    "teams": ["direccion"],
-    "lead_of": ["direccion"],
+    "teams": [
+      "direccion"
+    ],
+    "lead_of": [
+      "direccion"
+    ],
     "reports_to": null,
-    "channels": ["ventas-cr", "estrategia", "academia", "usa", "admin", "regenerativo"]
+    "channels": [
+      "ventas-cr",
+      "estrategia",
+      "academia",
+      "usa",
+      "admin",
+      "regenerativo"
+    ]
   },
   {
     "email": "naty@buenavida.cr",
@@ -31,6 +42,42 @@
     "lead_of": [],
     "reports_to": "gally@buenavida.cr",
     "full_access": true,
+    "channels": []
+  },
+  {
+    "email": "gerencia@buenavida.coffee",
+    "password": "CAMBIAR",
+    "full_name": "Gerencia",
+    "title": "Gerencia",
+    "role": "member",
+    "default_team": "direccion",
+    "teams": [
+      "comercial",
+      "operaciones",
+      "usa",
+      "academia",
+      "marketing",
+      "administracion",
+      "regenerativo",
+      "direccion"
+    ],
+    "lead_of": [],
+    "reports_to": "gally@buenavida.cr",
+    "full_access": true,
+    "channels": []
+  },
+  {
+    "email": "Delivery@buenavida.coffee",
+    "password": "CAMBIAR",
+    "full_name": "Johnny Conejo",
+    "title": "Delivery",
+    "role": "member",
+    "default_team": "operaciones",
+    "teams": [
+      "operaciones"
+    ],
+    "lead_of": [],
+    "reports_to": null,
     "channels": []
   }
 ]

@@ -38,6 +38,7 @@ export type ChatMessage = {
   deleted_at: string | null;
   via_assistant: boolean;
   task_id: string | null;
+  attachment_id: string | null;
 };
 
 export type EmailAccount = {
@@ -105,6 +106,15 @@ export type Team = {
   is_private?: boolean;
 };
 
+export type Project = {
+  id: string;
+  team_id: string;
+  name: string;
+  created_by: string;
+  created_at: string;
+  archived_at: string | null;
+};
+
 export type TeamMember = {
   team_id: string;
   user_id: string;
@@ -117,6 +127,7 @@ export type Task = {
   notes: string | null;
   team_id: string;
   area: string | null;
+  project_id: string | null;
   owner_id: string;
   assignee_id: string | null;
   due_date: string | null;
@@ -239,16 +250,31 @@ export type Database = {
           Rel<"team_members_user_id_fkey", "user_id", "profiles">,
         ];
       };
+      projects: {
+        Row: Project;
+        Insert: Omit<Project, "id" | "created_at" | "archived_at"> & {
+          id?: string;
+          created_at?: string;
+          archived_at?: string | null;
+        };
+        Update: Partial<Project>;
+        Relationships: [
+          Rel<"projects_team_id_fkey", "team_id", "teams">,
+          Rel<"projects_created_by_fkey", "created_by", "profiles">,
+        ];
+      };
       tasks: {
         Row: Task;
-        Insert: Omit<Task, "id" | "created_at" | "completed_at"> & {
+        Insert: Omit<Task, "id" | "created_at" | "completed_at" | "project_id"> & {
           id?: string;
           created_at?: string;
           completed_at?: string | null;
+          project_id?: string | null;
         };
         Update: Partial<Task>;
         Relationships: [
           Rel<"tasks_team_id_fkey", "team_id", "teams">,
+          Rel<"tasks_project_id_fkey", "project_id", "projects">,
           Rel<"tasks_owner_id_fkey", "owner_id", "profiles">,
           Rel<"tasks_assignee_id_fkey", "assignee_id", "profiles">,
           Rel<"tasks_created_by_fkey", "created_by", "profiles">,
@@ -402,7 +428,13 @@ export type Database = {
         Row: ChatMessage;
         Insert: Omit<
           ChatMessage,
-          "id" | "created_at" | "via_assistant" | "task_id" | "edited_at" | "deleted_at"
+          | "id"
+          | "created_at"
+          | "via_assistant"
+          | "task_id"
+          | "edited_at"
+          | "deleted_at"
+          | "attachment_id"
         > & {
           id?: string;
           created_at?: string;
@@ -410,12 +442,14 @@ export type Database = {
           task_id?: string | null;
           edited_at?: string | null;
           deleted_at?: string | null;
+          attachment_id?: string | null;
         };
         Update: Partial<ChatMessage>;
         Relationships: [
           Rel<"chat_messages_chat_id_fkey", "chat_id", "chats">,
           Rel<"chat_messages_sender_id_fkey", "sender_id", "profiles">,
           Rel<"chat_messages_task_id_fkey", "task_id", "tasks">,
+          Rel<"chat_messages_attachment_id_fkey", "attachment_id", "channel_files">,
         ];
       };
       email_accounts: {
@@ -484,6 +518,7 @@ export type Database = {
           p_priority: TaskPriority;
           p_visibility: TaskVisibility;
           p_source: string;
+          p_project_id?: string | null;
         };
         Returns: Task;
       };

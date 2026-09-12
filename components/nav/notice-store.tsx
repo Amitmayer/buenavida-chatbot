@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import type { Notice } from "@/lib/notify/unseen";
+import { dismissAllNoticesAction, dismissNoticeAction } from "@/app/(app)/notices/actions";
 
 type NoticeStore = {
   items: Notice[];
@@ -66,14 +67,17 @@ export function NoticeProvider({
 
   const dismiss = useCallback((item: Notice) => {
     setHidden((prev) => new Set(prev).add(hideKey(item)));
+    void dismissNoticeAction(item.id);
   }, []);
 
   const dismissAll = useCallback(() => {
+    const all = [...initial, ...live];
     setHidden((prev) => {
       const next = new Set(prev);
-      for (const item of [...initial, ...live]) next.add(hideKey(item));
+      for (const item of all) next.add(hideKey(item));
       return next;
     });
+    void dismissAllNoticesAction(all.map((item) => item.id));
   }, [initial, live]);
 
   const value = useMemo(() => ({ items, add, dismiss, dismissAll }), [items, add, dismiss, dismissAll]);

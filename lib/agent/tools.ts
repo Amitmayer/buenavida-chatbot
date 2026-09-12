@@ -34,6 +34,7 @@ const createSchema = z.object({
   assignee_name: z.string().optional(),
   team_slug: z.string().optional(),
   area: z.string().optional(),
+  project_name: z.string().optional(),
   notes: z.string().optional(),
   announce: z.boolean().optional(),
 });
@@ -97,6 +98,7 @@ export const toolDefinitions = [
         assignee_name: { type: "string" },
         team_slug: { type: "string" },
         area: { type: "string" },
+        project_name: { type: "string", description: "Nombre del proyecto dentro del área" },
         notes: { type: "string" },
         announce: {
           type: "boolean",
@@ -383,6 +385,32 @@ async function createTask(
     if (!person.ok) return person;
     assigneeId = person.data.id;
   }
+  let projectId: string | null = null;
+  if (parsed.data.project_name) {
+    const q = parsed.data.project_name.trim();
+    const { data: projectRows, error: projectError } = await supabase
+      .from("projects")
+      .select("id, name")
+      .eq("team_id", team.data.id)
+      .is("archived_at", null)
+      .ilike("name", q);
+    if (projectError) {
+      captureError(projectError, { where: "create_task.project" });
+      return err("server_error", "No se pudo buscar el proyecto.");
+    }
+    const matches = projectRows ?? [];
+    if (matches.length === 0) {
+      return err("not_found", `No hay un proyecto llamado "${q}" en ese área.`);
+    }
+    if (matches.length > 1) {
+      return err(
+        "ambiguous",
+        "Hay varios proyectos con ese nombre.",
+        matches.map((row) => ({ id: row.id, label: row.name })),
+      );
+    }
+    projectId = matches[0].id;
+  }
   const priority = (parsed.data.priority ?? cleaned.priorityHint ?? "medium") as TaskPriority;
   const { data, error } = await supabase.rpc("create_task_with_event", {
     p_title: cleaned.title,
@@ -395,6 +423,7 @@ async function createTask(
     p_priority: priority,
     p_visibility: "team",
     p_source: "chat",
+    p_project_id: projectId,
   });
   if (error) {
     captureError(error, { where: "create_task" });

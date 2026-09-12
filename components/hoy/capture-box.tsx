@@ -8,6 +8,7 @@ import { AppSelect } from "@/components/ui/select";
 import { Modal } from "@/components/ui/modal";
 import { ResultCard } from "@/components/chat/result-card";
 import { createClient } from "@/lib/supabase/client";
+import { createTaskAction } from "@/app/(app)/tareas/actions";
 
 type Tool = {
   id: string;
@@ -33,6 +34,9 @@ export function CaptureBox({
   const [title, setTitle] = useState("");
   const [assigneeId, setAssigneeId] = useState("");
   const [teamId, setTeamId] = useState("");
+  const [projectId, setProjectId] = useState("");
+  const [projects, setProjects] = useState<{ id: string; name: string }[]>([]);
+  const [assigneeOptions, setAssigneeOptions] = useState<Person[]>([]);
   const [due, setDue] = useState("");
   const [priority, setPriority] = useState<"low" | "medium" | "high" | "urgent">("medium");
   const [notes, setNotes] = useState("");
@@ -81,68 +85,86 @@ export function CaptureBox({
     })();
   }, [open]);
 
-  function promptText() {
-    const assignee = people.find((person) => person.id === assigneeId);
-    const team = teams.find((item) => item.id === teamId);
-    const lines = [`crear tarea: ${title.trim()}`];
-    if (assignee) lines.push(`asignada a ${assignee.full_name}`);
-    if (team) lines.push(`equipo ${team.name}`);
-    if (due) lines.push(`vence ${due}`);
-    if (priority !== "medium") lines.push(`prioridad ${es.priority[priority]}`);
-    if (notes.trim()) lines.push(notes.trim());
-    return lines.join(". ");
-  }
+  useEffect(() => {
+    if (!open || !teamId) {
+      setAssigneeOptions(people);
+      setProjects([]);
+      setProjectId("");
+      return;
+    }
+    const supabase = createClient();
+    void (async () => {
+      const [{ data: members }, { data: projectRows }] = await Promise.all([
+        supabase
+          .from("team_members")
+          .select("user_id, profiles(id, full_name)")
+          .eq("team_id", teamId),
+        supabase
+          .from("projects")
+          .select("id, name")
+          .eq("team_id", teamId)
+          .is("archived_at", null)
+          .order("created_at", { ascending: true }),
+      ]);
+      const opts = (members ?? [])
+        .map((row) => {
+          const nested = row.profiles as unknown;
+          const profile = Array.isArray(nested) ? nested[0] : nested;
+          if (!profile || typeof profile !== "object") return null;
+          const p = profile as { id?: string; full_name?: string };
+          if (!p.id || !p.full_name) return null;
+          return { id: p.id, full_name: p.full_name };
+        })
+        .filter((p): p is Person => Boolean(p));
+      setAssigneeOptions(opts);
+      setAssigneeId((prev) => (opts.some((p) => p.id === prev) ? prev : ""));
+      setProjects((projectRows ?? []) as { id: string; name: string }[]);
+      setProjectId((prev) =>
+        (projectRows ?? []).some((p) => p.id === prev) ? prev : "",
+      );
+    })();
+  }, [open, teamId, people]);
+
 
   async function send() {
     if (!title.trim() || busy) return;
     setBusy(true);
     setTool({ id: "pending", name: "create_task", status: "pending" });
-    const res = await fetch("/api/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        conversation_id: conversationId,
-        client_message_id: crypto.randomUUID(),
-        text: promptText(),
-      }),
-    });
-    if (!res.body) {
-      setBusy(false);
-      return;
-    }
-    const reader = res.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = "";
-    while (true) {
-      const { done, value: chunk } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(chunk, { stream: true });
-      const parts = buffer.split("\n\n");
-      buffer = parts.pop() ?? "";
-      for (const part of parts) {
-        const line = part.split("\n").find((l) => l.startsWith("data: "));
-        if (!line) continue;
-        const event = JSON.parse(line.slice(6)) as {
-          type: string;
-          id?: string;
-          name?: string;
-          status?: Tool["status"];
-          result?: Tool["result"];
-        };
-        if (event.type === "tool" && event.id && event.name && event.status) {
-          setTool({
-            id: event.id,
-            name: event.name,
-            status: event.status,
-            result: event.result,
-          });
-        }
-      }
+    const formData = new FormData();
+    formData.set("title", title.trim());
+    if (notes.trim()) formData.set("notes", notes.trim());
+    if (teamId) formData.set("team_id", teamId);
+    if (projectId) formData.set("project_id", projectId);
+    if (assigneeId) formData.set("assignee_id", assigneeId);
+    if (due) formData.set("due_date", due);
+    formData.set("priority", priority);
+    formData.set("visibility", "team");
+    const result = await createTaskAction(formData);
+    if (result.ok) {
+      setTool({
+        id: "ok",
+        name: "create_task",
+        status: "ok",
+        result: { ok: true, data: { id: result.id, title: title.trim() } },
+      });
+      setOpen(false);
+      setTitle("");
+      setNotes("");
+      setAssigneeId("");
+      setProjectId("");
+      setDue("");
+      setPriority("medium");
+      router.push(`/tareas/${result.id}`);
+      router.refresh();
+    } else {
+      setTool({
+        id: "err",
+        name: "create_task",
+        status: "error",
+        result: { ok: false, detail: result.detail },
+      });
     }
     setBusy(false);
-    setTitle("");
-    setNotes("");
-    router.refresh();
   }
 
   function resetAndOpen() {
@@ -170,26 +192,43 @@ export function CaptureBox({
             className={fieldClass}
           />
         </Field>
+        {teams.length > 0 ? (
+          <Field label={es.tasks.team}>
+            <AppSelect
+              value={teamId}
+              onValueChange={(value) => {
+                setTeamId(value);
+                setAssigneeId("");
+                setProjectId("");
+              }}
+              options={teams.map((team) => ({ value: team.id, label: team.name }))}
+            />
+          </Field>
+        ) : null}
+        {projects.length > 0 ? (
+          <Field label={es.tasks.project}>
+            <AppSelect
+              value={projectId}
+              placeholder={es.areas.noProject}
+              onValueChange={setProjectId}
+              options={projects.map((project) => ({
+                value: project.id,
+                label: project.name,
+              }))}
+            />
+          </Field>
+        ) : null}
         <Field label={es.tasks.assignee}>
           <AppSelect
             value={assigneeId}
             placeholder={es.tasks.unassigned}
             onValueChange={setAssigneeId}
-            options={people.map((person) => ({
+            options={assigneeOptions.map((person) => ({
               value: person.id,
               label: person.full_name,
             }))}
           />
         </Field>
-        {teams.length > 0 ? (
-          <Field label={es.tasks.team}>
-            <AppSelect
-              value={teamId}
-              onValueChange={setTeamId}
-              options={teams.map((team) => ({ value: team.id, label: team.name }))}
-            />
-          </Field>
-        ) : null}
         <div className="grid grid-cols-2 gap-3">
           <Field label={es.tasks.due}>
             <input
