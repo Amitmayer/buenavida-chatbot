@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
-import { Paperclip } from "lucide-react";
+import { Paperclip, X } from "lucide-react";
 import { z } from "zod";
 import { es } from "@/lib/i18n/es";
 import { Button } from "@/components/ui/button";
@@ -78,8 +78,11 @@ export function ThreadView({
   const [text, setText] = useState("");
   const [pending, start] = useTransition();
   const [uploading, setUploading] = useState(false);
+  const [pendingAttach, setPendingAttach] = useState<{ id: string; filename: string } | null>(null);
+  const [dragging, setDragging] = useState(false);
   const bottom = useRef<HTMLDivElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
+  const textarea = useRef<HTMLTextAreaElement>(null);
   const names = new Map(members.map((m) => [m.user_id, m.full_name]));
   const taskById = new Map(tasks.map((task) => [task.id, task]));
   const today = todayYmd();
@@ -173,20 +176,35 @@ export function ThreadView({
       if (!confirm.ok) return;
       const body = (await confirm.json()) as { file?: { id: string; filename: string } };
       if (!body.file?.id) return;
-      start(async () => {
-        await sendChatMessageAction(chatId, file.name, body.file!.id);
-      });
+      setPendingAttach({ id: body.file.id, filename: body.file.filename || file.name });
     } finally {
       setUploading(false);
     }
   }
 
+  function resizeComposer() {
+    const el = textarea.current;
+    if (!el) return;
+    el.style.height = "auto";
+    const styles = window.getComputedStyle(el);
+    const lineHeight = Number.parseFloat(styles.lineHeight) || 22;
+    const pad =
+      (Number.parseFloat(styles.paddingTop) || 0) + (Number.parseFloat(styles.paddingBottom) || 0);
+    const max = lineHeight * 6 + pad;
+    el.style.height = `${Math.min(el.scrollHeight, max)}px`;
+  }
+
   function send() {
     const value = text.trim();
-    if (!value || pending) return;
+    const attachmentId = pendingAttach?.id ?? null;
+    if ((!value && !attachmentId) || pending || uploading) return;
     setText("");
+    setPendingAttach(null);
+    if (textarea.current) {
+      textarea.current.style.height = "auto";
+    }
     start(async () => {
-      await sendChatMessageAction(chatId, value);
+      await sendChatMessageAction(chatId, value, attachmentId);
     });
   }
 
@@ -315,14 +333,51 @@ export function ThreadView({
           e.preventDefault();
           send();
         }}
+        onDragEnter={(e) => {
+          e.preventDefault();
+          setDragging(true);
+        }}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragging(true);
+        }}
+        onDragLeave={(e) => {
+          e.preventDefault();
+          if (e.currentTarget === e.target) setDragging(false);
+        }}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDragging(false);
+          const file = e.dataTransfer.files?.[0];
+          if (file) void uploadFile(file);
+        }}
       >
+        {pendingAttach ? (
+          <div className="mb-2 flex items-center gap-2 rounded-[10px] border border-ink/12 bg-sheet px-3 py-2">
+            <span className="min-w-0 flex-1 truncate text-[13px] text-ink">{pendingAttach.filename}</span>
+            <span className="hidden text-[11px] text-ink/50 sm:inline">{es.mensajes.pendingAttach}</span>
+            <button
+              type="button"
+              aria-label={es.mensajes.removeAttach}
+              onClick={() => setPendingAttach(null)}
+              className="flex h-7 w-7 items-center justify-center rounded-md text-ink/45 hover:bg-wash hover:text-ink"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        ) : null}
         <div
           className={
             area
-              ? "flex items-end gap-3"
-              : "flex items-end gap-2.5 rounded-md border border-ink/15 bg-sheet px-3.5 py-2.5"
+              ? `relative flex items-end gap-3 ${dragging ? "rounded-[14px] ring-2 ring-gold/70 ring-offset-2 ring-offset-wash" : ""}`
+              : `relative flex items-end gap-2.5 rounded-md border border-ink/15 bg-sheet px-3.5 py-2.5 ${dragging ? "ring-2 ring-gold/70" : ""}`
           }
         >
+          {dragging ? (
+            <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-[inherit] bg-gold/15 text-[13px] font-semibold text-ink">
+              {es.mensajes.dropFile}
+            </div>
+          ) : null}
           <input
             ref={fileInput}
             type="file"
@@ -348,8 +403,12 @@ export function ThreadView({
             <Paperclip className="h-4 w-4" />
           </button>
           <textarea
+            ref={textarea}
             value={text}
-            onChange={(e) => setText(e.target.value)}
+            onChange={(e) => {
+              setText(e.target.value);
+              requestAnimationFrame(resizeComposer);
+            }}
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
@@ -361,13 +420,13 @@ export function ThreadView({
             rows={1}
             className={
               area
-                ? "max-h-40 min-h-11 min-w-0 flex-1 resize-none rounded-[12px] border-2 border-ink/16 bg-white px-4 py-2.5 text-[15px] outline-none placeholder:text-ink/55"
-                : "max-h-32 min-h-7 flex-1 resize-none bg-transparent py-1 text-[13px] outline-none placeholder:text-ink/40"
+                ? "max-h-[calc(1.5em*6+1.25rem)] min-h-11 min-w-0 flex-1 resize-none overflow-y-auto rounded-[12px] border-2 border-ink/16 bg-white px-4 py-2.5 text-[15px] leading-normal outline-none placeholder:text-ink/55"
+                : "max-h-[calc(1.5em*6+0.5rem)] min-h-7 flex-1 resize-none overflow-y-auto bg-transparent py-1 text-[13px] leading-normal outline-none placeholder:text-ink/40"
             }
           />
           <Button
             type="submit"
-            disabled={pending || uploading || !text.trim()}
+            disabled={pending || uploading || (!text.trim() && !pendingAttach)}
             className={area ? "h-11 rounded-[12px] px-4 text-[15px]" : "h-8 px-3.5 text-[12px]"}
           >
             {es.mensajes.send}

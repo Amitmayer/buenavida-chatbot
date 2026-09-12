@@ -1,12 +1,14 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { Settings } from "lucide-react";
 import { toast } from "sonner";
 import { es } from "@/lib/i18n/es";
 import { todayYmd } from "@/lib/agent/dates";
 import { TaskRow } from "@/components/tasks/task-row";
 import { EmptyState } from "@/components/empty-state";
 import { AreaPeopleDialog } from "@/components/areas/area-people-dialog";
+import { ProjectSettingsDialog } from "@/components/areas/project-settings-dialog";
 import { createProjectAction } from "@/app/(app)/areas/actions";
 import { cn } from "@/lib/utils";
 import type { AreaPerson } from "@/lib/areas/people";
@@ -31,12 +33,14 @@ export function AreaBoard({
   const [on, setOn] = useState<Chip[]>([]);
   const [peopleOpen, setPeopleOpen] = useState(false);
   const [projectId, setProjectId] = useState("");
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [projects, setProjects] = useState(initialProjects);
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState("");
   const [pending, start] = useTransition();
   const today = todayYmd();
   const overdueCount = tasks.filter((task) => task.due_date && task.due_date < today).length;
+  const selectedProject = projects.find((project) => project.id === projectId);
 
   const filtered = useMemo(() => {
     return tasks.filter((task) => {
@@ -87,7 +91,7 @@ export function AreaBoard({
           <button
             type="button"
             onClick={() => setCreating((open) => !open)}
-            className="text-[13px] font-semibold text-pine hover:underline"
+            className="flex h-9 items-center rounded-[11px] bg-gold px-3.5 text-[13px] font-semibold text-ink shadow-[inset_0_0_0_1px_rgba(14,33,25,0.12)] hover:brightness-95"
           >
             {es.areas.newProject}
           </button>
@@ -95,7 +99,10 @@ export function AreaBoard({
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
-            onClick={() => setProjectId("")}
+            onClick={() => {
+              setProjectId("");
+              setSettingsOpen(false);
+            }}
             className={cn(
               "flex h-9 items-center rounded-full px-4 text-[14px] md:text-[15px]",
               !projectId
@@ -123,10 +130,21 @@ export function AreaBoard({
               </button>
             );
           })}
+          {selectedProject ? (
+            <button
+              type="button"
+              onClick={() => setSettingsOpen(true)}
+              aria-label={es.areas.projectSettings}
+              title={es.areas.projectSettings}
+              className="flex h-9 w-9 items-center justify-center rounded-full border-2 border-ink/20 text-ink hover:border-ink hover:bg-white"
+            >
+              <Settings className="h-4 w-4" strokeWidth={2.25} />
+            </button>
+          ) : null}
         </div>
         {creating ? (
           <form
-            className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center"
+            className="mt-3 flex flex-col gap-2 rounded-[14px] border-2 border-gold/50 bg-gold/15 p-3 sm:flex-row sm:items-center"
             onSubmit={(event) => {
               event.preventDefault();
               createProject();
@@ -237,6 +255,23 @@ export function AreaBoard({
           teamName={teamName}
           people={people}
           onClose={() => setPeopleOpen(false)}
+        />
+      ) : null}
+      {settingsOpen && selectedProject ? (
+        <ProjectSettingsDialog
+          projectId={selectedProject.id}
+          people={people}
+          onClose={() => setSettingsOpen(false)}
+          onUpdated={(project) => {
+            setProjects((prev) =>
+              prev.map((item) => (item.id === project.id ? { ...item, name: project.name } : item)),
+            );
+          }}
+          onDeleted={(id) => {
+            setProjects((prev) => prev.filter((item) => item.id !== id));
+            setProjectId("");
+            setSettingsOpen(false);
+          }}
         />
       ) : null}
     </div>
