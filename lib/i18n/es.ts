@@ -249,6 +249,7 @@ export const es = {
   tasks: {
     title: "Tareas",
     create: "Nueva tarea",
+    edit: "Editar",
     save: "Guardar",
     saved: "Guardado",
     complete: "Completar",

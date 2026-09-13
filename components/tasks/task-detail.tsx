@@ -43,7 +43,7 @@ export function TaskDetail({
   teams: Team[];
 }) {
   const [pending, start] = useTransition();
-  const [reschedule, setReschedule] = useState(false);
+  const [editing, setEditing] = useState(false);
   const [teamId, setTeamId] = useState(task.team_id);
   const [assigneeOptions, setAssigneeOptions] = useState(people);
   const team = Array.isArray(task.team) ? task.team[0] : task.team;
@@ -81,12 +81,15 @@ export function TaskDetail({
             <span className="h-1 w-9 rounded-sm bg-field" />
           </div>
           <form
+            id="task-edit-form"
             className="flex min-h-0 flex-1 flex-col"
             action={(formData) => {
               start(async () => {
                 const result = await updateTaskAction(task.id, formData);
-                if (result.ok) toast.success(es.tasks.saved);
-                else toast.error(es.tasks.loadError);
+                if (result.ok) {
+                  toast.success(es.tasks.saved);
+                  setEditing(false);
+                } else toast.error(es.tasks.loadError);
               });
             }}
           >
@@ -185,7 +188,7 @@ export function TaskDetail({
                 </select>
               </div>
               <FieldLabel>{es.tasks.due}</FieldLabel>
-              {reschedule ? (
+              {editing ? (
                 <input
                   name="due_date"
                   type="date"
@@ -212,9 +215,6 @@ export function TaskDetail({
                 className="w-full resize-none rounded-[9px] border border-line bg-sheet px-3 py-2.5 text-[13.5px] leading-relaxed text-ink outline-none placeholder:text-ink/40 focus:border-ink"
               />
             </div>
-            <button type="submit" className="mt-3 self-start text-[11px] font-medium text-pine">
-              {es.tasks.save}
-            </button>
           </form>
 
           <div className="mt-5 border-t border-hair pt-4">
@@ -260,14 +260,26 @@ export function TaskDetail({
                 {es.tasks.markDone}
               </Button>
             </form>
-            <Button
-              type="button"
-              variant="outline"
-              className="h-12 px-4 text-[13px] md:h-11 md:text-[12px]"
-              onClick={() => setReschedule(true)}
-            >
-              {es.tasks.reschedule}
-            </Button>
+            {editing ? (
+              <Button
+                type="submit"
+                form="task-edit-form"
+                variant="outline"
+                disabled={pending}
+                className="h-12 px-4 text-[13px] md:h-11 md:text-[12px]"
+              >
+                {es.tasks.save}
+              </Button>
+            ) : (
+              <Button
+                type="button"
+                variant="outline"
+                className="h-12 px-4 text-[13px] md:h-11 md:text-[12px]"
+                onClick={() => setEditing(true)}
+              >
+                {es.tasks.edit}
+              </Button>
+            )}
             <form
               action={() => {
                 start(async () => {
