@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { es } from "@/lib/i18n/es";
@@ -44,6 +44,7 @@ export function TaskDetail({
 }) {
   const [pending, start] = useTransition();
   const [editing, setEditing] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
   const [teamId, setTeamId] = useState(task.team_id);
   const [assigneeOptions, setAssigneeOptions] = useState(people);
   const team = Array.isArray(task.team) ? task.team[0] : task.team;
@@ -82,6 +83,7 @@ export function TaskDetail({
           </div>
           <form
             id="task-edit-form"
+            ref={formRef}
             className="flex min-h-0 flex-1 flex-col"
             action={(formData) => {
               start(async () => {
@@ -99,7 +101,8 @@ export function TaskDetail({
                 defaultValue={task.title}
                 required
                 rows={2}
-                className="min-w-0 flex-1 resize-none bg-transparent text-task leading-snug text-ink outline-none"
+                readOnly={!editing}
+                className="min-w-0 flex-1 resize-none bg-transparent text-task leading-snug text-ink outline-none read-only:cursor-default"
               />
               <Link href="/tareas" aria-label={es.tasks.close} className={modalCloseClassName}>
                 <ModalCloseIcon />
@@ -123,6 +126,7 @@ export function TaskDetail({
                 name="status"
                 size="inline"
                 defaultValue={task.status}
+                disabled={!editing}
                 options={(["open", "in_progress", "done", "cancelled"] as const).map((s) => ({
                   value: s,
                   label: es.status[s],
@@ -134,6 +138,7 @@ export function TaskDetail({
                 <select
                   name="team_id"
                   value={teamId}
+                  disabled={!editing}
                   onChange={(event) => setTeamId(event.target.value)}
                   className="sr-only"
                 >
@@ -152,6 +157,7 @@ export function TaskDetail({
                     size="inline"
                     defaultValue={task.area ?? ""}
                     placeholder={es.tasks.area}
+                    disabled={!editing}
                     options={team.areas.map((area) => ({ value: area, label: area }))}
                   />
                 </>
@@ -170,6 +176,7 @@ export function TaskDetail({
                   size="inline"
                   defaultValue={task.assignee_id ?? ""}
                   placeholder={es.tasks.assignee}
+                  disabled={!editing}
                   options={assigneeOptions.map((person) => ({
                     value: person.id,
                     label: person.full_name,
@@ -179,7 +186,7 @@ export function TaskDetail({
               <FieldLabel>{es.tasks.priority}</FieldLabel>
               <div className="flex items-center gap-2">
                 <PriorityBars priority={task.priority} />
-                <select name="priority" defaultValue={task.priority} className="sr-only">
+                <select name="priority" defaultValue={task.priority} disabled={!editing} className="sr-only">
                   {(["low", "medium", "high", "urgent"] as const).map((p) => (
                     <option key={p} value={p}>
                       {es.priority[p]}
@@ -211,8 +218,9 @@ export function TaskDetail({
                 name="notes"
                 defaultValue={task.notes ?? ""}
                 rows={5}
+                readOnly={!editing}
                 placeholder={es.tasks.notesPlaceholder}
-                className="w-full resize-none rounded-[9px] border border-line bg-sheet px-3 py-2.5 text-[13.5px] leading-relaxed text-ink outline-none placeholder:text-ink/40 focus:border-ink"
+                className="w-full resize-none rounded-[9px] border border-line bg-sheet px-3 py-2.5 text-[13.5px] leading-relaxed text-ink outline-none placeholder:text-ink/40 focus:border-ink read-only:cursor-default read-only:bg-sheet/70"
               />
             </div>
           </form>
@@ -262,20 +270,26 @@ export function TaskDetail({
             </form>
             {editing ? (
               <Button
-                type="submit"
-                form="task-edit-form"
+                key="save"
+                type="button"
                 variant="outline"
                 disabled={pending}
                 className="h-12 px-4 text-[13px] md:h-11 md:text-[12px]"
+                onClick={() => formRef.current?.requestSubmit()}
               >
                 {es.tasks.save}
               </Button>
             ) : (
               <Button
+                key="edit"
                 type="button"
                 variant="outline"
                 className="h-12 px-4 text-[13px] md:h-11 md:text-[12px]"
-                onClick={() => setEditing(true)}
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  setEditing(true);
+                }}
               >
                 {es.tasks.edit}
               </Button>
