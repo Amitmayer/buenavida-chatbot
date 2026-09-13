@@ -20,6 +20,7 @@ export function AppSelect({
   size = "field",
   className,
   triggerClassName,
+  disabled,
   "aria-label": ariaLabel,
 }: {
   name?: string;
@@ -29,6 +30,7 @@ export function AppSelect({
   options: SelectOption[];
   placeholder?: string;
   required?: boolean;
+  disabled?: boolean;
   size?: "field" | "chip" | "sm" | "inline";
   className?: string;
   triggerClassName?: string;
@@ -50,6 +52,7 @@ export function AppSelect({
       value={current}
       onValueChange={change}
       required={required}
+      disabled={disabled}
     >
       {name ? <input type="hidden" name={name} value={current === EMPTY ? "" : current} /> : null}
       <SelectTrigger size={size} className={cn(className, triggerClassName)} aria-label={ariaLabel}>
