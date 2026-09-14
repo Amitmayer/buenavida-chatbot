@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getSessionProfile } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
+import { CORREO_ENABLED } from "@/lib/constants";
 import { publicAccount } from "@/lib/email/accounts";
 import { gmailConfigured } from "@/lib/email/gmail";
 import { ConnectPanel } from "@/components/correo/connect-panel";
@@ -13,6 +14,7 @@ export default async function CorreoPage({
 }: {
   searchParams: Promise<{ buzon?: string; filtro?: string; q?: string; error?: string; ok?: string }>;
 }) {
+  if (!CORREO_ENABLED) redirect("/hoy");
   const profile = await getSessionProfile();
   if (!profile) return null;
   if (profile.isGuest) redirect("/hoy");

@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { getSessionProfile } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
+import { CORREO_ENABLED } from "@/lib/constants";
 import { accessTokenFor, publicAccount } from "@/lib/email/accounts";
 import { hydrateMailHtml } from "@/lib/email/hydrate";
 import { wrapMailDocument } from "@/lib/email/html";
@@ -17,6 +18,7 @@ export default async function CorreoThreadPage({
   params: Promise<{ id: string }>;
   searchParams: Promise<{ buzon?: string; filtro?: string; q?: string }>;
 }) {
+  if (!CORREO_ENABLED) redirect("/hoy");
   const { id } = await params;
   const queryParams = await searchParams;
   const profile = await getSessionProfile();
