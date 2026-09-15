@@ -4,6 +4,7 @@ import { ensureConversation, getSessionProfile } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
 import { AppShell } from "@/components/nav/app-shell";
 import { countFolders } from "@/lib/email/mailbox";
+import { CORREO_ENABLED } from "@/lib/constants";
 import { listInbox, unreadChatTotal } from "@/lib/mensajes";
 import { noticesFromInbox, noticesFromMail } from "@/lib/notify/unseen";
 import { I18nProvider } from "@/components/i18n/provider";
@@ -41,23 +42,25 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
     profile.teams.find((team) => team.id === profile.default_team)?.name ?? profile.title ?? "";
 
   const supabase = await createClient();
+  const showCorreo = CORREO_ENABLED && !profile.isGuest;
   const [inbox, mailResult] = await Promise.all([
     listInbox(profile.id, { isGuest: profile.isGuest }),
-    profile.isGuest
-      ? Promise.resolve({ data: [] })
-      : supabase
+    showCorreo
+      ? supabase
           .from("emails")
           .select(
             "id, unread, inbound, archived, is_draft, gmail_id, from_address, subject, snippet, occurred_at",
           )
           .eq("user_id", profile.id)
-          .order("occurred_at", { ascending: false }),
+          .order("occurred_at", { ascending: false })
+      : Promise.resolve({ data: [] }),
   ]);
   const mailRows = mailResult.data ?? [];
-  const mailCounts = profile.isGuest ? null : countFolders(mailRows);
-  const notices = [...noticesFromInbox(inbox), ...noticesFromMail(mailRows)].sort((a, b) =>
-    b.at.localeCompare(a.at),
-  );
+  const mailCounts = showCorreo ? countFolders(mailRows) : null;
+  const notices = [
+    ...noticesFromInbox(inbox),
+    ...(showCorreo ? noticesFromMail(mailRows) : []),
+  ].sort((a, b) => b.at.localeCompare(a.at));
 
   return (
     <I18nProvider locale={locale}>
@@ -67,7 +70,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
       teams={profile.accessibleTeams}
       showEquipo={profile.isAdmin}
       showArchivos
-      showCorreo={!profile.isGuest}
+      showCorreo={showCorreo}
       conversationId={conversationId}
       mailCounts={mailCounts}
       chatUnread={unreadChatTotal(inbox)}

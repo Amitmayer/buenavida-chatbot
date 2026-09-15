@@ -1,5 +1,8 @@
 export const APP_TIMEZONE = "America/Costa_Rica";
 
+/** Flip to true to show Correo in the nav and open /correo again. */
+export const CORREO_ENABLED = false;
+
 export const USER_IDS = {
   gally: "a0000000-0000-0000-0000-000000000001",
   naty: "a0000000-0000-0000-0000-000000000002",
