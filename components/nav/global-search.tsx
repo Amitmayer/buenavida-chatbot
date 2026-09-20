@@ -203,7 +203,9 @@ async function runSearch(raw: string): Promise<Hit[]> {
       supabase.from("profiles").select("id, full_name, title").order("full_name").limit(80),
       supabase
         .from("tasks")
-        .select("id, title, notes, assignee:profiles!assignee_id(full_name), owner:profiles!owner_id(full_name)")
+        .select(
+          "id, title, notes, assignee:profiles!assignee_id(full_name), owner:profiles!owner_id(full_name), task_assignees(profiles(full_name))",
+        )
         .limit(200),
       supabase.from("brand_files").select("id, filename").limit(80),
       supabase.from("channel_files").select("id, filename").limit(80),
@@ -225,15 +227,23 @@ async function runSearch(raw: string): Promise<Hit[]> {
   for (const task of tasks ?? []) {
     const assignee = Array.isArray(task.assignee) ? task.assignee[0] : task.assignee;
     const owner = Array.isArray(task.owner) ? task.owner[0] : task.owner;
+    const assigneeNames = (task.task_assignees ?? [])
+      .map((row) => {
+        const nested = row.profiles as { full_name?: string } | { full_name?: string }[] | null;
+        const person = Array.isArray(nested) ? nested[0] : nested;
+        return person?.full_name ?? "";
+      })
+      .filter(Boolean);
+    if (assigneeNames.length === 0 && assignee?.full_name) assigneeNames.push(assignee.full_name);
     const blob = fold(
-      [task.title, task.notes ?? "", assignee?.full_name ?? "", owner?.full_name ?? ""].join(" "),
+      [task.title, task.notes ?? "", ...assigneeNames, owner?.full_name ?? ""].join(" "),
     );
     if (!blob.includes(q)) continue;
     hits.push({
       kind: "task",
       id: task.id,
       label: task.title,
-      hint: assignee?.full_name ?? owner?.full_name ?? es.nav.searchTasks,
+      hint: assigneeNames[0] ?? owner?.full_name ?? es.nav.searchTasks,
     });
     if (hits.filter((h) => h.kind === "task").length >= 6) break;
   }

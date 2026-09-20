@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { AppSelect } from "@/components/ui/select";
+import { AssigneeMultiSelect } from "@/components/tasks/assignee-multi-select";
 import { createTaskAction } from "@/app/(app)/tareas/actions";
 import { createClient } from "@/lib/supabase/client";
 import type { Profile, Team } from "@/lib/db/types";
@@ -22,7 +23,7 @@ export function TaskCreateForm({
 }) {
   const [pending, start] = useTransition();
   const [teamId, setTeamId] = useState(teams[0]?.id ?? "");
-  const [assigneeId, setAssigneeId] = useState("");
+  const [assigneeIds, setAssigneeIds] = useState<string[]>([]);
   const [assignees, setAssignees] = useState<Person[]>(people);
 
   useEffect(() => {
@@ -47,7 +48,7 @@ export function TaskCreateForm({
         })
         .filter((person): person is Person => Boolean(person));
       setAssignees(next);
-      setAssigneeId((prev) => (next.some((person) => person.id === prev) ? prev : ""));
+      setAssigneeIds((prev) => prev.filter((id) => next.some((person) => person.id === id)));
     })();
   }, [teamId, people]);
 
@@ -70,17 +71,18 @@ export function TaskCreateForm({
         value={teamId}
         onValueChange={(value) => {
           setTeamId(value);
-          setAssigneeId("");
+          setAssigneeIds([]);
         }}
         options={teams.map((team) => ({ value: team.id, label: team.name }))}
       />
-      <AppSelect
-        name="assignee_id"
-        value={assigneeId}
-        onValueChange={setAssigneeId}
-        placeholder={es.tasks.assignee}
-        options={assignees.map((person) => ({ value: person.id, label: person.full_name }))}
-      />
+      <div className="min-w-0">
+        <p className="mb-1 text-[11px] font-semibold text-ink/55">{es.tasks.assignee}</p>
+        <AssigneeMultiSelect
+          people={assignees}
+          selectedIds={assigneeIds}
+          onChange={setAssigneeIds}
+        />
+      </div>
       <AppSelect
         name="priority"
         defaultValue="medium"

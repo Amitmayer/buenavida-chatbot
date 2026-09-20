@@ -319,6 +319,7 @@ export async function taskFromMailAction(formData: FormData) {
     p_priority: "medium",
     p_visibility: "team",
     p_source: "email",
+    p_assignee_ids: [profile.id],
   });
   if (error || !data) {
     captureError(error, { where: "taskFromMailAction" });

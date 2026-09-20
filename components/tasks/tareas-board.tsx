@@ -61,7 +61,7 @@ export async function TareasBoard({
           [
             task.title,
             task.notes ?? "",
-            task.assignee?.full_name ?? "",
+            ...(task.assignees?.map((person) => person.full_name) ?? [task.assignee?.full_name ?? ""]),
             task.owner?.full_name ?? "",
           ].join(" "),
         ).includes(needle),

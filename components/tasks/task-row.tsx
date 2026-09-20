@@ -6,6 +6,12 @@ import { crDateLabel, daysBetweenYmd, formatDueLabel, todayYmd } from "@/lib/age
 import { es } from "@/lib/i18n/es";
 import { cn, initials, shortName } from "@/lib/utils";
 import type { TaskRow as TaskRowData } from "@/lib/session";
+import { formatAssigneeNames } from "@/lib/tasks/assignees";
+
+function assigneePeople(task: TaskRowData) {
+  if (task.assignees?.length) return task.assignees;
+  return task.assignee ? [task.assignee] : [];
+}
 
 export function TaskRow({
   task,
@@ -29,6 +35,9 @@ export function TaskRow({
     overdueList && task.status !== "done" && task.status !== "cancelled"
       ? es.hoy.overdueSection
       : es.status[task.status];
+  const people = assigneePeople(task);
+  const primary = people[0] ?? null;
+  const peopleLabel = formatAssigneeNames(people);
 
   const fileCount = task.attachments?.length ?? 0;
   const title = (
@@ -59,10 +68,10 @@ export function TaskRow({
     dark || tone === "undated" ? null : (
       <div className="mt-1 flex flex-wrap items-center gap-1.5 md:hidden">
         {task.team ? <TeamBadge slug={task.team.slug} name={task.team.name} /> : null}
-        {tone === "hoy" && task.assignee ? (
+        {tone === "hoy" && people.length > 0 ? (
           <>
             <span className="text-[11px] text-ink/30">·</span>
-            <span className="text-[11px] text-ink/55">{shortName(task.assignee.full_name)}</span>
+            <span className="text-[11px] text-ink/55">{peopleLabel}</span>
           </>
         ) : null}
         {tone === "list" && dueLabel ? (
@@ -84,9 +93,18 @@ export function TaskRow({
             className="h-1.5 w-1.5 shrink-0 rounded-full md:hidden"
             style={{ background: teamEdge(task.team?.slug) }}
           />
-          {task.assignee ? (
-            <span className="hidden h-5 w-5 shrink-0 items-center justify-center rounded-full bg-pine text-[8px] font-semibold text-paper md:flex">
-              {initials(task.assignee.full_name)}
+          {people.length > 0 ? (
+            <span className="hidden h-5 shrink-0 items-center md:flex">
+              {people.slice(0, 3).map((person, index) => (
+                <span
+                  key={person.id}
+                  title={person.full_name}
+                  className="flex h-5 w-5 items-center justify-center rounded-full bg-pine text-[8px] font-semibold text-paper ring-1 ring-paper"
+                  style={{ marginLeft: index === 0 ? 0 : -6 }}
+                >
+                  {initials(person.full_name)}
+                </span>
+              ))}
             </span>
           ) : null}
         </>
@@ -107,12 +125,21 @@ export function TaskRow({
             {task.team ? <TeamBadge slug={task.team.slug} name={task.team.name} /> : null}
           </span>
           <span className="hidden items-center gap-1.5 truncate text-[12px] text-ink/70 md:flex">
-            {task.assignee ? (
+            {people.length > 0 ? (
               <>
-                <span className="flex h-[21px] w-[21px] shrink-0 items-center justify-center rounded-full bg-[#DDD8C6] text-[9.5px] font-semibold text-[#3C5540]">
-                  {initials(task.assignee.full_name)}
+                <span className="flex shrink-0 items-center">
+                  {people.slice(0, 3).map((person, index) => (
+                    <span
+                      key={person.id}
+                      title={person.full_name}
+                      className="flex h-[21px] w-[21px] items-center justify-center rounded-full bg-[#DDD8C6] text-[9.5px] font-semibold text-[#3C5540] ring-1 ring-sheet"
+                      style={{ marginLeft: index === 0 ? 0 : -6 }}
+                    >
+                      {initials(person.full_name)}
+                    </span>
+                  ))}
                 </span>
-                {shortName(task.assignee.full_name)}
+                {people.length === 1 ? shortName(people[0].full_name) : peopleLabel}
               </>
             ) : (
               "—"
@@ -135,10 +162,10 @@ export function TaskRow({
             {stateLabel}
           </span>
           <div
-            aria-label={task.assignee?.full_name ?? es.tasks.assignee}
+            aria-label={peopleLabel || es.tasks.assignee}
             className="flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full bg-[#DDD8C6] text-[8px] font-semibold text-[#3C5540] md:hidden"
           >
-            {task.assignee ? initials(task.assignee.full_name) : "—"}
+            {primary ? initials(primary.full_name) : "—"}
           </div>
         </>
       ) : null}
