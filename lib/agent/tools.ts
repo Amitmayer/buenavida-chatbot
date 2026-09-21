@@ -32,6 +32,7 @@ const createSchema = z.object({
   due_date: z.string().optional(),
   priority: z.enum(["low", "medium", "high", "urgent"]).optional(),
   assignee_name: z.string().optional(),
+  assignee_names: z.array(z.string().min(1)).max(11).optional(),
   team_slug: z.string().optional(),
   area: z.string().optional(),
   project_name: z.string().optional(),
@@ -54,7 +55,10 @@ const idSchema = z.object({ task_id: z.string().uuid() });
 
 const assignSchema = z.object({
   task_id: z.string().uuid(),
-  assignee_name: z.string().min(1),
+  assignee_name: z.string().min(1).optional(),
+  assignee_names: z.array(z.string().min(1)).max(11).optional(),
+}).refine((value) => Boolean(value.assignee_name || (value.assignee_names && value.assignee_names.length > 0)), {
+  message: "assignee required",
 });
 
 const announceSchema = z.object({
@@ -96,6 +100,11 @@ export const toolDefinitions = [
         due_date: { type: "string", description: "YYYY-MM-DD o frase en español" },
         priority: { type: "string", enum: ["low", "medium", "high", "urgent"] },
         assignee_name: { type: "string" },
+        assignee_names: {
+          type: "array",
+          items: { type: "string" },
+          description: "Varias personas asignadas a la misma tarea",
+        },
         team_slug: { type: "string" },
         area: { type: "string" },
         project_name: { type: "string", description: "Nombre del proyecto dentro del área" },
@@ -137,14 +146,19 @@ export const toolDefinitions = [
   },
   {
     name: "assign_task",
-    description: "Asigna una tarea por nombre. Si el nombre es ambiguo, no adivines.",
+    description: "Asigna una o varias personas a una tarea. Reemplaza la lista completa. Si el nombre es ambiguo, no adivines.",
     input_schema: {
       type: "object",
       properties: {
         task_id: { type: "string" },
         assignee_name: { type: "string" },
+        assignee_names: {
+          type: "array",
+          items: { type: "string" },
+          description: "Reemplaza la lista completa de personas asignadas",
+        },
       },
-      required: ["task_id", "assignee_name"],
+      required: ["task_id"],
     },
   },
   {
@@ -295,7 +309,7 @@ async function requireKnownTask(
   return ok({ id: taskId });
 }
 
-function summarize(task: Task) {
+function summarize(task: Task & { assignee_ids?: string[] }) {
   return {
     id: task.id,
     title: task.title,
@@ -305,8 +319,27 @@ function summarize(task: Task) {
     team_id: task.team_id,
     area: task.area,
     assignee_id: task.assignee_id,
+    assignee_ids: task.assignee_ids ?? (task.assignee_id ? [task.assignee_id] : []),
     owner_id: task.owner_id,
   };
+}
+
+async function loadAssigneeIds(supabase: Client, taskId: string): Promise<string[]> {
+  const { data } = await supabase.from("task_assignees").select("user_id").eq("task_id", taskId);
+  return (data ?? []).map((row) => row.user_id);
+}
+
+async function resolveAssigneeNames(
+  supabase: Client,
+  names: string[],
+): Promise<ToolResult<{ ids: string[] }>> {
+  const ids: string[] = [];
+  for (const name of names) {
+    const person = await resolveAssignee(supabase, name);
+    if (!person.ok) return person;
+    if (!ids.includes(person.data.id)) ids.push(person.data.id);
+  }
+  return ok({ ids });
 }
 
 async function listTasks(
@@ -317,7 +350,10 @@ async function listTasks(
   const parsed = listSchema.safeParse(input);
   if (!parsed.success) return err("validation", "Filtro no válido.");
   const { filter, team_slug, area, status } = parsed.data;
-  let query = supabase.from("tasks").select("*");
+  let query =
+    filter === "mine"
+      ? supabase.from("tasks").select("*, task_assignees!inner(user_id)").eq("task_assignees.user_id", ctx.userId)
+      : supabase.from("tasks").select("*");
   const today = todayYmd();
   if (status) query = query.eq("status", status);
   else query = query.in("status", ["open", "in_progress"]);
@@ -327,7 +363,6 @@ async function listTasks(
     if (!team.ok) return team;
     query = query.eq("team_id", team.data.id);
   }
-  if (filter === "mine") query = query.eq("assignee_id", ctx.userId);
   if (filter === "overdue") query = query.lt("due_date", today).neq("status", "done");
   if (filter === "week") {
     query = query.gte("due_date", today).lte("due_date", addDaysYmd(today, 7));
@@ -342,7 +377,12 @@ async function listTasks(
     captureError(error, { where: "list_tasks" });
     return err("server_error", "No se pudieron listar las tareas.");
   }
-  const tasks = (data ?? []).map(summarize);
+  const tasks = await Promise.all(
+    (data ?? []).map(async (row) => {
+      const ids = await loadAssigneeIds(supabase, row.id);
+      return summarize({ ...row, assignee_ids: ids });
+    }),
+  );
   return ok({ listing: wrapListing(tasks), tasks });
 }
 
@@ -379,11 +419,15 @@ async function createTask(
     parsed.data.due_date && /^\d{4}-\d{2}-\d{2}$/.test(parsed.data.due_date)
       ? parsed.data.due_date
       : parseDueDate(`${parsed.data.title} ${parsed.data.due_date ?? ""}`);
-  let assigneeId: string | null = null;
-  if (parsed.data.assignee_name) {
-    const person = await resolveAssignee(supabase, parsed.data.assignee_name);
-    if (!person.ok) return person;
-    assigneeId = person.data.id;
+  let assigneeIds: string[] = [];
+  const names = [
+    ...(parsed.data.assignee_names ?? []),
+    ...(parsed.data.assignee_name ? [parsed.data.assignee_name] : []),
+  ];
+  if (names.length > 0) {
+    const people = await resolveAssigneeNames(supabase, names);
+    if (!people.ok) return people;
+    assigneeIds = people.data.ids;
   }
   let projectId: string | null = null;
   if (parsed.data.project_name) {
@@ -418,18 +462,19 @@ async function createTask(
     p_team_id: team.data.id,
     p_area: parsed.data.area ?? null,
     p_owner_id: ctx.userId,
-    p_assignee_id: assigneeId,
+    p_assignee_id: assigneeIds[0] ?? null,
     p_due_date: due,
     p_priority: priority,
     p_visibility: "team",
     p_source: "chat",
     p_project_id: projectId,
+    p_assignee_ids: assigneeIds,
   });
   if (error) {
     captureError(error, { where: "create_task" });
     return err("server_error", "No se pudo guardar la tarea.");
   }
-  const created = summarize(data);
+  const created = summarize({ ...data, assignee_ids: assigneeIds });
   if (parsed.data.announce && !ctx.isGuest) {
     const posted = await postToGeneral(supabase, {
       userId: ctx.userId,
@@ -508,18 +553,22 @@ async function assignTask(
   if (!parsed.success) return err("validation", "Falta la persona o la tarea.");
   const known = await requireKnownTask(supabase, conversationId, parsed.data.task_id);
   if (!known.ok) return known;
-  const person = await resolveAssignee(supabase, parsed.data.assignee_name);
-  if (!person.ok) return person;
+  const names = [
+    ...(parsed.data.assignee_names ?? []),
+    ...(parsed.data.assignee_name ? [parsed.data.assignee_name] : []),
+  ];
+  const people = await resolveAssigneeNames(supabase, names);
+  if (!people.ok) return people;
   const { data, error } = await supabase.rpc("update_task_with_event", {
     p_task_id: parsed.data.task_id,
-    p_patch: { assignee_id: person.data.id },
+    p_patch: { assignee_ids: people.data.ids },
     p_source: "chat",
   });
   if (error) {
     captureError(error, { where: "assign_task" });
     return err("server_error", "No se pudo asignar la tarea.");
   }
-  return ok(summarize(data));
+  return ok(summarize({ ...data, assignee_ids: people.data.ids }));
 }
 
 async function announce(

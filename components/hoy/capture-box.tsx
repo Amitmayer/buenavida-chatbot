@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { AppSelect } from "@/components/ui/select";
 import { Modal } from "@/components/ui/modal";
 import { ResultCard } from "@/components/chat/result-card";
+import { AssigneeMultiSelect } from "@/components/tasks/assignee-multi-select";
 import { createClient } from "@/lib/supabase/client";
 import { createTaskAction } from "@/app/(app)/tareas/actions";
 
@@ -36,7 +37,7 @@ export function CaptureBox({
 }) {
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
-  const [assigneeId, setAssigneeId] = useState("");
+  const [assigneeIds, setAssigneeIds] = useState<string[]>([]);
   const [teamId, setTeamId] = useState(defaultTeamId ?? "");
   const [projectId, setProjectId] = useState("");
   const [projects, setProjects] = useState<{ id: string; name: string }[]>([]);
@@ -127,7 +128,7 @@ export function CaptureBox({
         })
         .filter((p): p is Person => Boolean(p));
       setAssigneeOptions(opts);
-      setAssigneeId((prev) => (opts.some((p) => p.id === prev) ? prev : ""));
+      setAssigneeIds((prev) => prev.filter((id) => opts.some((p) => p.id === id)));
       setProjects((projectRows ?? []) as { id: string; name: string }[]);
       setProjectId((prev) =>
         (projectRows ?? []).some((p) => p.id === prev) ? prev : "",
@@ -145,7 +146,8 @@ export function CaptureBox({
     if (notes.trim()) formData.set("notes", notes.trim());
     if (teamId) formData.set("team_id", teamId);
     if (projectId) formData.set("project_id", projectId);
-    if (assigneeId) formData.set("assignee_id", assigneeId);
+    formData.set("assignee_ids_set", "1");
+    for (const id of assigneeIds) formData.append("assignee_ids", id);
     if (due) formData.set("due_date", due);
     formData.set("priority", priority);
     formData.set("visibility", "team");
@@ -160,7 +162,7 @@ export function CaptureBox({
       setOpen(false);
       setTitle("");
       setNotes("");
-      setAssigneeId("");
+      setAssigneeIds([]);
       setProjectId("");
       setDue("");
       setPriority("medium");
@@ -211,7 +213,7 @@ export function CaptureBox({
               value={teamId}
               onValueChange={(value) => {
                 setTeamId(value);
-                setAssigneeId("");
+                setAssigneeIds([]);
                 setProjectId("");
               }}
               options={teams.map((team) => ({ value: team.id, label: team.name }))}
@@ -232,14 +234,10 @@ export function CaptureBox({
           </Field>
         ) : null}
         <Field label={es.tasks.assignee}>
-          <AppSelect
-            value={assigneeId}
-            placeholder={es.tasks.unassigned}
-            onValueChange={setAssigneeId}
-            options={assigneeOptions.map((person) => ({
-              value: person.id,
-              label: person.full_name,
-            }))}
+          <AssigneeMultiSelect
+            people={assigneeOptions}
+            selectedIds={assigneeIds}
+            onChange={setAssigneeIds}
           />
         </Field>
         <div className="grid grid-cols-2 gap-3">

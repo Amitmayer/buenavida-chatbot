@@ -5,6 +5,7 @@ import { getSessionProfile, listVisibleTasks, ensureConversation } from "@/lib/s
 import { addDaysYmd, crDateLabel, daysBetweenYmd, todayYmd } from "@/lib/agent/dates";
 import { CaptureBox } from "@/components/hoy/capture-box";
 import { CompleteBox } from "@/components/tasks/complete-box";
+import { formatAssigneeNames, taskHasAssignee } from "@/lib/tasks/assignees";
 import { initials, shortName } from "@/lib/utils";
 
 export default async function HoyPage({
@@ -27,7 +28,7 @@ export default async function HoyPage({
   ]);
   const overdue = open.filter((task) => task.due_date && task.due_date < today && inScope(task.team_id));
   const dueToday = open.filter((task) => task.due_date === today && inScope(task.team_id));
-  const assigned = open.filter((task) => task.assignee_id === profile.id && !task.due_date);
+  const assigned = open.filter((task) => taskHasAssignee(task, profile.id) && !task.due_date);
   const dueSoon = open
     .filter((task) => task.due_date && task.due_date > today && inScope(task.team_id))
     .slice(0, 4);
@@ -121,7 +122,14 @@ export default async function HoyPage({
                         {task.title}
                       </Link>
                       <p className="mt-0.5 text-[11.5px] text-ink/50">
-                        {[task.team?.name, task.assignee ? shortName(task.assignee.full_name) : null]
+                        {[
+                          task.team?.name,
+                          task.assignees?.length
+                            ? formatAssigneeNames(task.assignees)
+                            : task.assignee
+                              ? shortName(task.assignee.full_name)
+                              : null,
+                        ]
                           .filter(Boolean)
                           .join(" · ")}
                       </p>
@@ -174,9 +182,21 @@ export default async function HoyPage({
                         {task.team.name}
                       </span>
                     ) : null}
-                    {task.assignee ? (
-                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#DDD8C6] text-[10.5px] font-semibold text-[#3C5540]">
-                        {initials(task.assignee.full_name)}
+                    {(task.assignees?.length ? task.assignees : task.assignee ? [task.assignee] : []).length >
+                    0 ? (
+                      <span className="flex shrink-0 items-center">
+                        {(task.assignees?.length ? task.assignees : task.assignee ? [task.assignee] : [])
+                          .slice(0, 3)
+                          .map((person, index) => (
+                            <span
+                              key={person.id}
+                              title={person.full_name}
+                              className="flex h-6 w-6 items-center justify-center rounded-full bg-[#DDD8C6] text-[10.5px] font-semibold text-[#3C5540] ring-1 ring-sheet"
+                              style={{ marginLeft: index === 0 ? 0 : -6 }}
+                            >
+                              {initials(person.full_name)}
+                            </span>
+                          ))}
                       </span>
                     ) : null}
                   </div>
@@ -237,8 +257,18 @@ export default async function HoyPage({
                   </span>
                   <div className="min-w-0">
                     <p className="text-[12.5px] leading-snug text-ink">{task.title}</p>
-                    {task.assignee ? (
-                      <p className="mt-0.5 text-[11px] text-ink/45">{shortName(task.assignee.full_name)}</p>
+                    {(task.assignees?.length
+                      ? formatAssigneeNames(task.assignees)
+                      : task.assignee
+                        ? shortName(task.assignee.full_name)
+                        : null) ? (
+                      <p className="mt-0.5 text-[11px] text-ink/45">
+                        {task.assignees?.length
+                          ? formatAssigneeNames(task.assignees)
+                          : task.assignee
+                            ? shortName(task.assignee.full_name)
+                            : null}
+                      </p>
                     ) : null}
                   </div>
                 </Link>

@@ -16,7 +16,7 @@ export default async function TaskDetailPage({
   const supabase = await createClient();
   const { data: task, error } = await supabase
     .from("tasks")
-    .select("*, owner:profiles!owner_id(id, full_name), assignee:profiles!assignee_id(id, full_name), team:teams(id, slug, name, areas)")
+    .select("*, owner:profiles!owner_id(id, full_name), assignee:profiles!assignee_id(id, full_name), team:teams(id, slug, name, areas), task_assignees(user_id, profiles(id, full_name))")
     .eq("id", id)
     .maybeSingle();
   if (error) {

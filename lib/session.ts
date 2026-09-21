@@ -3,6 +3,9 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import type { Attachment, Profile, Task, TaskStatus, Team } from "@/lib/db/types";
 import { captureError } from "@/lib/sentry";
+import { assigneesFromLinks } from "@/lib/tasks/assignees";
+
+const assigneeIdsSchema = z.array(z.string().uuid()).max(11);
 
 export const taskPatchSchema = z.object({
   title: z.string().min(1).max(200).optional(),
@@ -12,6 +15,7 @@ export const taskPatchSchema = z.object({
   project_id: z.string().uuid().nullable().optional(),
   owner_id: z.string().uuid().optional(),
   assignee_id: z.string().uuid().nullable().optional(),
+  assignee_ids: assigneeIdsSchema.optional(),
   due_date: z.string().nullable().optional(),
   priority: z.enum(["low", "medium", "high", "urgent"]).optional(),
   status: z.enum(["open", "in_progress", "done", "cancelled"]).optional(),
@@ -26,6 +30,7 @@ export const createTaskSchema = z.object({
   project_id: z.string().uuid().optional(),
   owner_id: z.string().uuid().optional(),
   assignee_id: z.string().uuid().optional(),
+  assignee_ids: assigneeIdsSchema.optional(),
   due_date: z.string().optional(),
   priority: z.enum(["low", "medium", "high", "urgent"]).optional(),
   visibility: z.enum(["team", "restricted"]).optional(),
@@ -101,9 +106,15 @@ export const getSessionProfile = cache(async (): Promise<SessionProfile | null> 
 export type TaskRow = Task & {
   owner: Pick<Profile, "id" | "full_name"> | null;
   assignee: Pick<Profile, "id" | "full_name"> | null;
+  assignees: Pick<Profile, "id" | "full_name">[];
   team: Pick<Team, "id" | "slug" | "name"> | null;
   attachments?: Pick<Attachment, "id">[] | null;
 };
+
+const TASK_LIST_SELECT =
+  "*, attachments(id), owner:profiles!owner_id(id, full_name), assignee:profiles!assignee_id(id, full_name), team:teams(id, slug, name), task_assignees(user_id, profiles(id, full_name))";
+const TASK_LIST_SELECT_ASSIGNEE =
+  "*, attachments(id), owner:profiles!owner_id(id, full_name), assignee:profiles!assignee_id(id, full_name), team:teams(id, slug, name), task_assignees!inner(user_id, profiles(id, full_name))";
 
 export async function listVisibleTasks(opts: {
   teamId?: string;
@@ -121,12 +132,12 @@ export async function listVisibleTasks(opts: {
   const supabase = await createClient();
   let query = supabase
     .from("tasks")
-    .select("*, attachments(id), owner:profiles!owner_id(id, full_name), assignee:profiles!assignee_id(id, full_name), team:teams(id, slug, name)")
+    .select(opts.assigneeId ? TASK_LIST_SELECT_ASSIGNEE : TASK_LIST_SELECT)
     .order("due_date", { ascending: true, nullsFirst: false });
   if (opts.teamId) query = query.eq("team_id", opts.teamId);
   if (opts.area) query = query.eq("area", opts.area);
   if (opts.projectId) query = query.eq("project_id", opts.projectId);
-  if (opts.assigneeId) query = query.eq("assignee_id", opts.assigneeId);
+  if (opts.assigneeId) query = query.eq("task_assignees.user_id", opts.assigneeId);
   if (opts.status) query = query.eq("status", opts.status as TaskStatus);
   else if (opts.closedOnly) query = query.in("status", ["done", "cancelled"]);
   else if (opts.openOnly) query = query.in("status", ["open", "in_progress"]);
@@ -139,7 +150,20 @@ export async function listVisibleTasks(opts: {
     captureError(error, { where: "listVisibleTasks" });
     throw error;
   }
-  return (data ?? []) as unknown as TaskRow[];
+  return (data ?? []).map((row) => {
+    const raw = row as unknown as TaskRow & {
+      task_assignees?: {
+        user_id?: string;
+        profiles?: Pick<Profile, "id" | "full_name"> | Pick<Profile, "id" | "full_name">[] | null;
+      }[];
+    };
+    const assignees = assigneesFromLinks(raw.task_assignees, raw.assignee);
+    return {
+      ...raw,
+      assignees,
+      assignee: assignees[0] ?? null,
+    };
+  });
 }
 
 export const ensureConversation = cache(async function ensureConversation(

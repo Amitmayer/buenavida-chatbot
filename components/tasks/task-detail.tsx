@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { es } from "@/lib/i18n/es";
@@ -13,6 +13,8 @@ import { Dropzone } from "@/components/files/dropzone";
 import { PriorityBars, TeamBadge } from "@/components/tasks/badges";
 import { crDateLabel, crInstantYmd, daysBetweenYmd, formatDueLabel, todayYmd } from "@/lib/agent/dates";
 import { initials, shortName } from "@/lib/utils";
+import { AssigneeMultiSelect } from "@/components/tasks/assignee-multi-select";
+import { assigneesFromLinks } from "@/lib/tasks/assignees";
 import { createClient } from "@/lib/supabase/client";
 import type { Attachment, Profile, Task, Team } from "@/lib/db/types";
 
@@ -36,20 +38,40 @@ export function TaskDetail({
     team: (Team & { areas?: string[] }) | Team[] | null;
     owner?: Person | Person[];
     assignee?: Person | Person[];
+    task_assignees?: {
+      user_id?: string;
+      profiles?: Pick<Profile, "id" | "full_name"> | Pick<Profile, "id" | "full_name">[] | null;
+    }[];
   };
   events: EventRow[];
   attachments: Attachment[];
   people: Pick<Profile, "id" | "full_name">[];
   teams: Team[];
 }) {
+  const initialAssignees = useMemo(
+    () => assigneesFromLinks(task.task_assignees, Array.isArray(task.assignee) ? task.assignee[0] : task.assignee),
+    [task.task_assignees, task.assignee],
+  );
   const [pending, start] = useTransition();
   const [editing, setEditing] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
   const [teamId, setTeamId] = useState(task.team_id);
   const [assigneeOptions, setAssigneeOptions] = useState(people);
+  const [selectedAssigneeIds, setSelectedAssigneeIds] = useState(initialAssignees.map((p) => p.id));
   const team = Array.isArray(task.team) ? task.team[0] : task.team;
   const owner = Array.isArray(task.owner) ? task.owner[0] : task.owner;
-  const assignee = Array.isArray(task.assignee) ? task.assignee[0] : task.assignee;
+  const assignees = selectedAssigneeIds
+    .map(
+      (id) =>
+        assigneeOptions.find((person) => person.id === id) ??
+        initialAssignees.find((person) => person.id === id) ??
+        null,
+    )
+    .filter((person): person is Pick<Profile, "id" | "full_name"> => Boolean(person));
+
+  useEffect(() => {
+    setSelectedAssigneeIds(initialAssignees.map((person) => person.id));
+  }, [initialAssignees]);
 
   useEffect(() => {
     const supabase = createClient();
@@ -68,9 +90,13 @@ export function TaskDetail({
           return { id: person.id, full_name: person.full_name };
         })
         .filter((person): person is Pick<Profile, "id" | "full_name"> => Boolean(person));
-      setAssigneeOptions(next.length ? next : people);
+      const merged = [...next];
+      for (const person of initialAssignees) {
+        if (!merged.some((item) => item.id === person.id)) merged.push(person);
+      }
+      setAssigneeOptions(merged.length ? merged : people);
     })();
-  }, [teamId, people]);
+  }, [teamId, people, initialAssignees]);
   const due = formatDueLabel(task.due_date);
   const overdueDays =
     task.due_date && due.kind === "overdue" ? daysBetweenYmd(task.due_date, todayYmd()) : 0;
@@ -165,23 +191,41 @@ export function TaskDetail({
               <FieldLabel>{es.tasks.ownerLabel}</FieldLabel>
               <PersonValue person={owner ?? null} />
               <FieldLabel>{es.tasks.assignedLabel}</FieldLabel>
-              <div className="flex items-center gap-1.5">
-                {assignee ? (
-                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#DDD8C6] text-[8px] font-semibold text-[#3C5540]">
-                    {initials(assignee.full_name)}
-                  </span>
+              <div className="min-w-0">
+                {!editing ? (
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {assignees.length === 0 ? (
+                      <span className="text-[13px] text-ink/55">{es.tasks.unassigned}</span>
+                    ) : (
+                      assignees.map((person) => (
+                        <span
+                          key={person.id}
+                          className="inline-flex items-center gap-1 rounded-full bg-[#DDD8C6] py-0.5 pl-0.5 pr-2 text-[11px] font-medium text-[#3C5540]"
+                        >
+                          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#CFC8B4] text-[8px] font-semibold">
+                            {initials(person.full_name)}
+                          </span>
+                          {person.full_name}
+                        </span>
+                      ))
+                    )}
+                  </div>
+                ) : (
+                  <AssigneeMultiSelect
+                    people={assigneeOptions}
+                    selectedIds={selectedAssigneeIds}
+                    onChange={setSelectedAssigneeIds}
+                  />
+                )}
+                {!editing ? (
+                  // Keep current assignees in the form so a non-assignee save does not clear them.
+                  <>
+                    <input type="hidden" name="assignee_ids_set" value="1" />
+                    {selectedAssigneeIds.map((id) => (
+                      <input key={id} type="hidden" name="assignee_ids" value={id} />
+                    ))}
+                  </>
                 ) : null}
-                <AppSelect
-                  name="assignee_id"
-                  size="inline"
-                  defaultValue={task.assignee_id ?? ""}
-                  placeholder={es.tasks.assignee}
-                  disabled={!editing}
-                  options={assigneeOptions.map((person) => ({
-                    value: person.id,
-                    label: person.full_name,
-                  }))}
-                />
               </div>
               <FieldLabel>{es.tasks.priority}</FieldLabel>
               <div className="flex items-center gap-2">

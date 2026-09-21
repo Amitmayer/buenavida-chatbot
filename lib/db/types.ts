@@ -140,6 +140,12 @@ export type TeamMember = {
   is_lead: boolean;
 };
 
+export type TaskAssignee = {
+  task_id: string;
+  user_id: string;
+  created_at: string;
+};
+
 export type Task = {
   id: string;
   title: string;
@@ -320,6 +326,15 @@ export type Database = {
           Rel<"tasks_owner_id_fkey", "owner_id", "profiles">,
           Rel<"tasks_assignee_id_fkey", "assignee_id", "profiles">,
           Rel<"tasks_created_by_fkey", "created_by", "profiles">,
+        ];
+      };
+      task_assignees: {
+        Row: TaskAssignee;
+        Insert: Pick<TaskAssignee, "task_id" | "user_id"> & Partial<TaskAssignee>;
+        Update: Partial<TaskAssignee>;
+        Relationships: [
+          Rel<"task_assignees_task_id_fkey", "task_id", "tasks">,
+          Rel<"task_assignees_user_id_fkey", "user_id", "profiles">,
         ];
       };
       task_events: {
@@ -561,6 +576,7 @@ export type Database = {
           p_visibility: TaskVisibility;
           p_source: string;
           p_project_id?: string | null;
+          p_assignee_ids?: string[] | null;
         };
         Returns: Task;
       };
@@ -572,6 +588,11 @@ export type Database = {
         };
         Returns: Task;
       };
+      sync_task_assignees: {
+        Args: { p_task_id: string; p_ids: string[] };
+        Returns: undefined;
+      };
+      is_task_assignee: { Args: { t: string }; Returns: boolean };
       is_chat_member: { Args: { c: string }; Returns: boolean };
       open_or_get_dm: { Args: { p_other: string }; Returns: string };
       profile_directory: { Args: { p_id: string }; Returns: Json };
